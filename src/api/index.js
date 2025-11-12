@@ -1,23 +1,35 @@
 import axios from './axiosInstance'
 
 export const authApi = {
-  login: (payload) => axios.post('/auth/login', payload),
+  login: (payload) => axios.post('/admin/login', payload),
   register: (payload) => axios.post('/admin/register', payload),
-  logout: () => axios.post('/auth/logout'),
-  refresh: () => axios.post('/auth/refresh'),
-  getProfile: () => axios.get('/auth/me')
+  logout: () => axios.post('/admin/logout'),
+  refresh: () => axios.post('/admin/refresh'),
+  getProfile: () => axios.get('/admin/getprofile')
 }
 
-export const vehicleApi = {
-  list: (params) => axios.get('/vehicles', { params }),
-  get: (id) => axios.get(`/vehicles/${id}`),
-  create: (data) => axios.post('/vehicles', data),
-  update: (id, data) => axios.put(`/vehicles/${id}`, data)
+export const menuapi = {
+  categoryList: (params) => axios.get('/admin/getcategory', { params }),
+  categoryGet: (id) => axios.get(`/admin/getcategory/${id}`),
+  createCategory: (data) => axios.post('/admin/addcategory', data),
+  updateCategory: (id, data) => axios.patch(`/admin/updatecategory/${id}`, data),
+  deleteCategory: (id) => axios.delete(`/admin/deletecategory/${id}`)
 }
 
 export const adminApi = {
   users: () => axios.get('/admin/users'),
-  assignRole: (userId, role) => axios.post(`/admin/users/${userId}/role`, { role })
+  assignRole: (userId, role) => axios.post(`/admin/users/${userId}/role`, { role }),
+  updatePassword: (data) =>
+    axios.patch("/admin/updatepassword", data),
 }
 
-export default { authApi, vehicleApi, adminApi }
+export const meetingApi = {
+  // ✅ Fetch meetings list (read-only)
+  getUserMeetings: ({ userId, date, search }) =>
+    axios.get("/admin/getusermeeting", {
+      params: { userId, date, search },
+    }),
+};
+
+
+export default { authApi, menuapi, adminApi }

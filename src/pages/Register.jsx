@@ -1,177 +1,324 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import {
+  Eye,
+  EyeOff,
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  Lock,
+  Briefcase,
+} from "lucide-react";
 import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth.js"; // assuming same hook handles register too
-import { authApi } from "../api/index.js";
+import { authApi } from "../api";
 
-// ✅ Validation schema
-const schema = yup.object({
-  firstName: yup.string().required("First name is required"),
-  lastName: yup.string().required("Last name is required"),
-  email: yup.string().email("Invalid email").required("Email is required"),
-  phone: yup
-    .string()
-    .matches(/^[0-9]{10}$/, "Phone must be 10 digits")
-    .required("Phone number is required"),
-  dob: yup.string().required("Date of birth is required"),
-  password: yup
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .matches(
-      /^(?=.*[A-Z])(?=.*[!@#$%^&*])/,
-      "Must contain one uppercase and one special character"
-    )
-    .required("Password is required"),
-  role: yup.string().required("Role is required"),
-});
 
 export default function Register() {
-  const { registerUser } = useAuth(); // add registerUser function in your useAuth hook
-  const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [createdBy, setCreatedBy] = useState(null);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({ resolver: yupResolver(schema) });
+    reset,
+  } = useForm({
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      dob: "",
+      password: "",
+      role: "",
+    },
+  });
 
-  const onSubmit = async (data) => {
+  // Fetch logged-in user for createdBy
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await authApi.getProfile();
+        if (res?.data?.data?.id) setCreatedBy(res.data.data.id);
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  const onSubmit = async (formData) => {
+    if (!createdBy) {
+      alert("User profile not loaded yet. Please wait a moment.");
+      return;
+    }
+
+    setIsLoading(true);
     try {
       const payload = {
-        ...data,
-        createdBy: 3, // static for now, can be dynamic later
+        ...formData,
+        createdBy,
       };
 
-      await authApi.register(payload);
-      alert("Registration successful!");
-      navigate("/login");
-    } catch (e) {
-      console.error(e);
-      alert("Registration failed!");
+      const res = await authApi.register(payload);
+      if (res.data?.success) {
+        alert("Registration successful!");
+        reset();
+      } else {
+        alert(res.data?.message || "Registration failed!");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Registration failed. Please check console for details.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="w-full max-w-md bg-white p-6 rounded shadow"
-      >
-        <h2 className="text-xl mb-4 font-semibold">Create Account</h2>
-
-        {/* First Name */}
-        <div className="mb-3">
-          <label className="block text-sm">First Name</label>
-          <input
-            {...register("firstName")}
-            className="w-full border p-2 rounded"
-          />
-          {errors.firstName && (
-            <p className="text-red-500 text-sm">
-              {errors.firstName.message}
-            </p>
-          )}
+    <div className="py-4">
+      <div className="w-full">
+        {/* Header */}
+        <div className="text-center mb-1">
+          <p className="text-3xl text-start px-4 text">
+            Register A New User
+          </p>
         </div>
 
-        {/* Last Name */}
-        <div className="mb-3">
-          <label className="block text-sm">Last Name</label>
-          <input
-            {...register("lastName")}
-            className="w-full border p-2 rounded"
-          />
-          {errors.lastName && (
-            <p className="text-red-500 text-sm">{errors.lastName.message}</p>
-          )}
+        {/* Form Card */}
+        <div className="p-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Name Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* First Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  First Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    {...register("firstName", { required: "First name is required" })}
+                    className={`w-full pl-10 pr-4 py-3 border ${
+                      errors.firstName ? "border-red-500" : "border-gray-300"
+                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    placeholder="John"
+                  />
+                </div>
+                {errors.firstName && (
+                  <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>
+                )}
+              </div>
+
+              {/* Last Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Last Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    {...register("lastName", { required: "Last name is required" })}
+                    className={`w-full pl-10 pr-4 py-3 border ${
+                      errors.lastName ? "border-red-500" : "border-gray-300"
+                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    placeholder="Doe"
+                  />
+                </div>
+                {errors.lastName && (
+                  <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="email"
+                  {...register("email", {
+                    required: "Email is required",
+                    pattern: { value: /\S+@\S+\.\S+/, message: "Invalid email" },
+                  })}
+                  className={`w-full pl-10 pr-4 py-3 border ${
+                    errors.email ? "border-red-500" : "border-gray-300"
+                  } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  placeholder="john.doe@example.com"
+                />
+              </div>
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
+              )}
+            </div>
+
+            {/* Phone + DOB */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    {...register("phone", {
+                      required: "Phone number is required",
+                      pattern: { value: /^[0-9]{10}$/, message: "Phone must be 10 digits" },
+                    })}
+                    className={`w-full pl-10 pr-4 py-3 border ${
+                      errors.phone ? "border-red-500" : "border-gray-300"
+                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    placeholder="9998887777"
+                  />
+                </div>
+                {errors.phone && (
+                  <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>
+                )}
+              </div>
+
+              {/* DOB */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date of Birth
+                </label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="date"
+                    {...register("dob", { required: "Date of birth is required" })}
+                    className={`w-full pl-10 pr-4 py-3 border ${
+                      errors.dob ? "border-red-500" : "border-gray-300"
+                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                </div>
+                {errors.dob && (
+                  <p className="text-red-500 text-xs mt-1">{errors.dob.message}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  {...register("password", {
+                    required: "Password is required",
+                    minLength: { value: 8, message: "Must be at least 8 characters" },
+                    pattern: {
+                      value: /^(?=.*[A-Z])(?=.*[!@#$%^&*])/,
+                      message: "Must contain uppercase & special character",
+                    },
+                  })}
+                  className={`w-full pl-10 pr-12 py-3 border ${
+                    errors.password ? "border-red-500" : "border-gray-300"
+                  } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Must be 8+ characters with uppercase and special character
+              </p>
+            </div>
+
+            {/* Role */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Role
+              </label>
+              <div className="relative">
+                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <select
+                  {...register("role", { required: "Role is required" })}
+                  className={`w-full pl-10 pr-4 py-3 border ${
+                    errors.role ? "border-red-500" : "border-gray-300"
+                  } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none cursor-pointer`}
+                >
+                  <option value="">Select your role</option>
+                  <option value="sale_person">Sales Person</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg
+                    className="w-5 h-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
+              {errors.role && (
+                <p className="text-red-500 text-xs mt-1">{errors.role.message}</p>
+              )}
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-all ${
+                isLoading
+                  ? "bg-blue-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 hover:shadow-lg transform hover:-translate-y-0.5"
+              }`}
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Creating account...
+                </span>
+              ) : (
+                "Create Account"
+              )}
+            </button>
+          </form>
         </div>
-
-        {/* Email */}
-        <div className="mb-3">
-          <label className="block text-sm">Email</label>
-          <input
-            type="email"
-            {...register("email")}
-            className="w-full border p-2 rounded"
-          />
-          {errors.email && (
-            <p className="text-red-500 text-sm">{errors.email.message}</p>
-          )}
-        </div>
-
-        {/* Phone */}
-        <div className="mb-3">
-          <label className="block text-sm">Phone</label>
-          <input
-            {...register("phone")}
-            className="w-full border p-2 rounded"
-          />
-          {errors.phone && (
-            <p className="text-red-500 text-sm">{errors.phone.message}</p>
-          )}
-        </div>
-
-        {/* DOB */}
-        <div className="mb-3">
-          <label className="block text-sm">Date of Birth</label>
-          <input
-            type="date"
-            {...register("dob")}
-            className="w-full border p-2 rounded"
-          />
-          {errors.dob && (
-            <p className="text-red-500 text-sm">{errors.dob.message}</p>
-          )}
-        </div>
-
-        {/* Password */}
-        <div className="mb-3">
-          <label className="block text-sm">Password</label>
-          <input
-            type="password"
-            {...register("password")}
-            className="w-full border p-2 rounded"
-          />
-          {errors.password && (
-            <p className="text-red-500 text-sm">{errors.password.message}</p>
-          )}
-        </div>
-
-        {/* Role */}
-        <div className="mb-4">
-          <label className="block text-sm">Role</label>
-          <select
-            {...register("role")}
-            className="w-full border p-2 rounded bg-white"
-          >
-            <option value="">Select Role</option>
-            <option value="sale_person">Sales Person</option>
-            <option value="admin">Admin</option>
-          </select>
-          {errors.role && (
-            <p className="text-red-500 text-sm">{errors.role.message}</p>
-          )}
-        </div>
-
-        {/* Submit */}
-        <button
-          type="submit"
-          className="w-full py-2 bg-blue-600 text-white rounded"
-        >
-          Register
-        </button>
-
-        <p className="text-sm text-center mt-3">
-          Already have an account?{" "}
-          <span
-            onClick={() => navigate("/login")}
-            className="text-blue-600 cursor-pointer"
-          >
-            Login
-          </span>
-        </p>
-      </form>
+      </div>
     </div>
   );
 }

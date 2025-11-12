@@ -6,7 +6,7 @@ import { useAuth } from "../hooks/useAuth.js";
 import { useNavigate } from "react-router-dom";
 
 const schema = yup.object({
-  username: yup.string().required("Username required"),
+  email: yup.string().required("email required"),
   password: yup.string().required("Password required"),
 });
 
@@ -21,7 +21,9 @@ export default function Login() {
 
   const onSubmit = async (data) => {
     try {
-      await login(data);
+     const res = await login(data);
+     console.log(res);
+     
       navigate("/");
     } catch (e) {
       alert("Login failed");
@@ -36,13 +38,13 @@ export default function Login() {
       >
         <h2 className="text-xl mb-4">Sign in</h2>
         <div className="mb-3">
-          <label className="block text-sm">Username</label>
+          <label className="block text-sm">email</label>
           <input
-            {...register("username")}
+            {...register("email")}
             className="w-full border p-2 rounded"
           />
-          {errors.username && (
-            <p className="text-red-500 text-sm">{errors.username.message}</p>
+          {errors.email && (
+            <p className="text-red-500 text-sm">{errors.email.message}</p>
           )}
         </div>
         <div className="mb-3">

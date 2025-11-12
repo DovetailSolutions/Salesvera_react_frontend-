@@ -1,19 +1,23 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import { ROLES } from "./utils/roles";
-
-// Example icons (you can customize or remove if unnecessary)
 import { LuLayoutDashboard } from "react-icons/lu";
 import { FaRegObjectUngroup } from "react-icons/fa6";
-import Register from "./pages/Register";
+import { TiUserAddOutline } from "react-icons/ti";
+import Category from "./pages/Category";
+import { BiCategory } from "react-icons/bi";
+import { MdMeetingRoom } from "react-icons/md";
+import { RiGroup3Line } from "react-icons/ri";
+import Meeting from "./pages/Meeting";
+import Profile from "./pages/Profile";
 
-// 1️⃣ Define all routes (categorized, with icons and role restrictions)
 export const allRoutes = [
   {
     category: "Analytics",
@@ -29,30 +33,47 @@ export const allRoutes = [
   {
     category: "Menu",
     routes: [
+    
       {
-        path: "/admin",
-        label: "Admin Panel",
-        icon: <FaRegObjectUngroup />,
+        path: "/registration",
+        label: "Register User",
+        icon: <TiUserAddOutline />,
+        roles: [ROLES.ADMIN],
+      },
+      {
+        path: "/category",
+        label: "Categories",
+        icon: <BiCategory />,
+        roles: [ROLES.ADMIN],
+      },
+      {
+        path: "/meeting-management",
+        label: "Meetings",
+        icon: <RiGroup3Line />,
         roles: [ROLES.ADMIN],
       },
     ],
   },
 ];
 
-// 2️⃣ Utility function to get sidebar routes based on role
 export const getRoutesForRole = (roleParam) => {
   const stored = localStorage.getItem("roles");
-  let roles = [];
+  let role;
 
   try {
-    roles = stored ? JSON.parse(stored) : [];
-    if (typeof roles === "string") roles = [roles];
+    const parsed = stored ? JSON.parse(stored) : null;
+    if (Array.isArray(parsed)) {
+      role = parsed[0];
+    } else if (typeof parsed === "string") {
+      role = parsed;
+    } else {
+      role = stored;
+    }
   } catch {
-    // if it's not valid JSON, treat it as a simple string
-    roles = stored ? [stored] : [];
+    role = stored || ROLES.ADMIN;
   }
 
-  const storedRole = roleParam || roles[0] || ROLES.USER;
+  const storedRole = roleParam || role || ROLES.ADMIN;
 
   return allRoutes.map((section) => ({
     ...section,
@@ -60,28 +81,26 @@ export const getRoutesForRole = (roleParam) => {
   }));
 };
 
-// 3️⃣ Main Router Component
-export default function CustomRouter() {
+export default function Router() {
   const routesForSidepanel = getRoutesForRole();
 
   return (
     <Routes>
-      {/* Public Routes */}
       <Route path="/login" element={<Login />} />
-      <Route path="/registration" element={<Register />} />
-      {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout routes={routesForSidepanel} />}>
           <Route index element={<Dashboard />} />
+          <Route path="registration" element={<Register />} />
+          <Route path="category" element={<Category />} />
+          <Route path="meeting-management" element={<Meeting />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
       </Route>
 
-      {/* Role-based Protected Route for Admin */}
       <Route element={<ProtectedRoute rolesAllowed={[ROLES.ADMIN]} />}>
         <Route path="/admin" element={<AdminPanel />} />
       </Route>
 
-      {/* Fallback Route */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

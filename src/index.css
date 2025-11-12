@@ -1,3 +1,319 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
-html, body, #root { height: 100%; }
+
+:root {
+  font-family: "Poppins", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  font-family: "Poppins", sans-serif;
+  transition: all ease 0.4s;
+}
+
+
+.accentbg {
+  @apply bg-[#282b53]
+}
+
+/* input {
+  @apply w-full p-2 border-gray-300 dark:border-gray-800 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none
+} */
+
+.input-width {
+  width: fit-content !important;
+}
+
+.noborder {
+    border: 0 !important;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  color: white;
+  filter: invert(40%) sepia(0%) saturate(300%) hue-rotate(320deg);
+  cursor: pointer;
+}
+
+input[type="date"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-clear-button {
+  display: none;
+}
+
+
+.text {
+  @apply text-gray-800 dark:text-white
+}
+
+button,
+.button {
+  @apply bg-[#11133d] w-fit dark:bg-[#282b53] text-white dark:text-white px-6 py-2 rounded font-thin text-sm transition-all duration-200 ease-in-out active:scale-95 hover:scale-105 hover:shadow-lg;
+}
+
+/* Optional custom animation for subtle “press” feedback */
+@keyframes clickPulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+button:active,
+.button:active {
+  animation: clickPulse 0.15s ease-in-out;
+}
+
+.layout {
+  @apply dark:bg-gray-900 dark:text-white bg-white text-gray-700
+}
+
+label {
+  @apply text-gray-500 dark:text-gray-400 text-[10px] font-semibold
+}
+
+.button-sidepanel {
+  @apply bg-[#282b53] dark:bg-[#282b53] rounded dark:text-white
+}
+
+.custom-border {
+  @apply border-gray-300 dark:border-gray-800 border
+}
+
+.custom-border-bottom {
+  @apply border-gray-300 dark:border-gray-800 border-b
+}
+
+.sidepanel {
+  @apply bg-[#101828] dark:bg-[#101828] text-[#fff] border-r border-gray-300 dark:border-gray-800
+}
+
+option {
+  @apply dark:bg-[#101828] dark:text-white bg-gray-50 border-gray-300 dark:border-gray-800 border rounded
+}
+
+.theblur {
+  @apply dark:bg-black/50 backdrop-blur-sm bg-white/50
+}
+
+.cancelbutton {
+  @apply bg-red-300 text-red-700 rounded font-thin px-4 py-2
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+.screenheight {
+  height: 100vh !important;
+}
+
+
+/* React-Select Container    */
+.react-select-container {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.875rem;
+  width: 100%;
+}
+
+/* Control (the input box)   */
+.react-select__control {
+  display: flex;
+  min-height: 42px;
+  padding: 0 8px;
+  border: 1px solid #d1d5db;
+  /* light border */
+  border-radius: 8px;
+  background-color: #ffffff;
+  /* light mode */
+  transition: all 0.3s;
+  cursor: text;
+}
+
+/* Dark mode control */
+.dark .react-select__control {
+  border: 1px solid #1f2937;
+  background-color: #101828;
+  color: #fff !important;
+}
+
+.dark .react-select__control::placeholder {
+  color: #fff !important;
+}
+
+
+/* Focus state */
+.react-select__control--is-focused {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Value Container           */
+.react-select__value-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+/* Multi Value (selected tags) */
+.react-select__multi-value {
+  display: flex;
+  align-items: center;
+  background-color: #bfdbfe;
+  /* light mode tag bg */
+  color: #1e3a8a;
+  /* light mode tag text */
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+}
+
+/* Dark mode multi-value */
+.dark .react-select__multi-value {
+  background-color: #1e40af;
+  color: #dbeafe;
+}
+
+/* Multi-value remove button */
+.react-select__multi-value__remove {
+  margin-left: 4px;
+  cursor: pointer;
+}
+
+.react-select__multi-value__remove:hover {
+  background-color: #93c5fd;
+  color: #1e3a8a;
+}
+
+.dark .react-select__multi-value__remove:hover {
+  background-color: #2563eb;
+  color: #dbeafe;
+}
+
+/* ------------------------- */
+/* Input field               */
+/* ------------------------- */
+.react-select__input input {
+  font-size: 0.875rem;
+  color: #111827;
+  /* light mode */
+  background-color: transparent;
+  border: none;
+  outline: none;
+}
+
+.dark .react-select__input input {
+  color: #f9fafb;
+}
+
+/* ------------------------- */
+/* Placeholder               */
+/* ------------------------- */
+.react-select__placeholder {
+  color: #9ca3af;
+  /* light mode */
+}
+
+.dark .react-select__placeholder {
+  color: #9ca3af;
+  /* slightly lighter for dark mode */
+}
+
+/* ------------------------- */
+/* Menu (dropdown)           */
+/* ------------------------- */
+.react-select__menu {
+  margin-top: 4px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  /* light mode */
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  z-index: 50;
+}
+
+/* Dark mode menu */
+.dark .react-select__menu {
+  border: 1px solid #1f2937;
+  background-color: #101828;
+}
+
+/* Menu list */
+.react-select__menu-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+/* ------------------------- */
+/* Options                   */
+/* ------------------------- */
+.react-select__option {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #e5e7eb;
+  /* light mode */
+  background-color: #ffffff;
+  color: #111827;
+  transition: all 0.2s;
+}
+
+/* Dark mode options */
+.dark .react-select__option {
+  border-bottom: 1px solid #1f2937;
+  background-color: #101828;
+  color: #f9fafb;
+}
+
+/* Hover & Focus states */
+.react-select__option--is-focused {
+  background-color: #bfdbfe;
+  color: #1e3a8a;
+}
+
+.dark .react-select__option--is-focused {
+  background-color: #1e40af;
+  color: #dbeafe;
+}
+
+.react-select__option--is-selected {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+.dark .react-select__option--is-selected {
+  background-color: #2563eb;
+  color: #dbeafe;
+}
+
+/* Selected single value (the text in the input box) */
+.react-select__single-value {
+  color: #111827; /* light mode text color */
+}
+
+.dark .react-select__single-value {
+  color: #ffffff; /* white text in dark mode */
+}
+
+.widthfull {
+  width: 100% !important;
+}
+
+.morepad {
+ padding: 20px !important;
+}
