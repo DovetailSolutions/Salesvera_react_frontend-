@@ -33,7 +33,6 @@ export const allRoutes = [
   {
     category: "Menu",
     routes: [
-    
       {
         path: "/registration",
         label: "Register User",

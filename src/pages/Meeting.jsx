@@ -20,32 +20,33 @@ export default function Meeting() {
 
   // ✅ Fetch meetings list
   const fetchMeetings = async (page = 1) => {
-    try {
-      setLoading(true);
-      const res = await meetingApi.getUserMeetings({
-        userId: filters.userId,
-        date: filters.date,
-        search: filters.search,
-        page,
-      });
+  try {
+    setLoading(true);
+    const res = await meetingApi.getUserMeetings({
+      userId: filters.userId,
+      date: filters.date,
+      search: filters.search,
+      page,
+    });
 
-      const data = res.data?.data || {};
-      const rows = data.rows || data || [];
+    const data = res.data?.data || {};
+    const rows = Array.isArray(data.rows) ? data.rows : [];
 
-      setMeetings(rows);
-      setPagination({
-        currentPage: data.pagination?.currentPage || 1,
-        totalItems: data.pagination?.totalItems || rows.length || 0,
-        totalPages: data.pagination?.totalPages || 1,
-        limit: data.pagination?.limit || 10,
-      });
-    } catch (err) {
-      console.error(err);
-      Toast.error("Failed to load meetings");
-    } finally {
-      setLoading(false);
-    }
-  };
+    setMeetings(Array.isArray(rows) ? rows : []);
+
+    setPagination({
+      currentPage: data.pagination?.currentPage || 1,
+      totalItems: data.pagination?.totalItems || rows.length || 0,
+      totalPages: data.pagination?.totalPages || 1,
+      limit: data.pagination?.limit || 10,
+    });
+  } catch (err) {
+    console.error(err);
+    Toast.error("Failed to load meetings");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchMeetings();
@@ -122,18 +123,23 @@ export default function Meeting() {
         </button>
       </div>
 
-      {/* ✅ Table */}
-      <Table
-        columns={columns}
-        data={meetings}
-        keyField="id"
-        emptyMessage="No meetings found"
-        currentPage={pagination.currentPage}
-        pageSize={pagination.limit}
-        totalCount={pagination.totalItems}
-        onPageChange={(page) => fetchMeetings(page)}
-        shadow="shadow-md"
-      />
+       {/* ✅ Table */}
+    {meetings.length === 0 && !loading ? (
+  <div className="text-center text-gray-500 mt-4">No matches found</div>
+) : (
+  <Table
+    columns={columns}
+    data={meetings}
+    keyField="id"
+    emptyMessage="No meetings found"
+    currentPage={pagination.currentPage}
+    pageSize={pagination.limit}
+    totalCount={pagination.totalItems}
+    onPageChange={(page) => fetchMeetings(page)}
+    shadow="shadow-md"
+  />
+)}
+
 
       {loading && (
         <div className="text-center mt-4 text-gray-500 text-sm">

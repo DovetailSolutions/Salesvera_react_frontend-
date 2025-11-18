@@ -12,11 +12,14 @@ import {
 import { useForm } from "react-hook-form";
 import { authApi } from "../api";
 
-
 export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [createdBy, setCreatedBy] = useState(null);
+  const [managers, setManagers] = useState([]);
+  const [userRole, setUserRole] = useState(null);
+
+  const [selectedRole, setSelectedRole] = useState("");
 
   const {
     register,
@@ -41,6 +44,7 @@ export default function Register() {
       try {
         const res = await authApi.getProfile();
         if (res?.data?.data?.id) setCreatedBy(res.data.data.id);
+        setUserRole(res.data.data.role);
       } catch (err) {
         console.error("Error fetching profile:", err);
       }
@@ -76,14 +80,41 @@ export default function Register() {
     }
   };
 
+  useEffect(() => {
+    const fetchManagers = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+
+        const res = await fetch(
+          "https://api.salesvera.com/admin/getalluser?role=manager",
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await res.json();
+
+        console.log("Managers API response:", data);
+
+        setManagers(data?.data?.rows || []);
+      } catch (error) {
+        console.error("Error fetching managers", error);
+      }
+    };
+
+    fetchManagers();
+  }, []);
+
   return (
     <div className="py-4">
       <div className="w-full">
         {/* Header */}
         <div className="text-center mb-1">
-          <p className="text-3xl text-start px-4 text">
-            Register A New User
-          </p>
+          <p className="text-3xl text-start px-4 text">Register A New User</p>
         </div>
 
         {/* Form Card */}
@@ -99,7 +130,9 @@ export default function Register() {
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
-                    {...register("firstName", { required: "First name is required" })}
+                    {...register("firstName", {
+                      required: "First name is required",
+                    })}
                     className={`w-full pl-10 pr-4 py-3 border ${
                       errors.firstName ? "border-red-500" : "border-gray-300"
                     } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
@@ -107,7 +140,9 @@ export default function Register() {
                   />
                 </div>
                 {errors.firstName && (
-                  <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.firstName.message}
+                  </p>
                 )}
               </div>
 
@@ -119,7 +154,9 @@ export default function Register() {
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
-                    {...register("lastName", { required: "Last name is required" })}
+                    {...register("lastName", {
+                      required: "Last name is required",
+                    })}
                     className={`w-full pl-10 pr-4 py-3 border ${
                       errors.lastName ? "border-red-500" : "border-gray-300"
                     } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
@@ -127,7 +164,9 @@ export default function Register() {
                   />
                 </div>
                 {errors.lastName && (
-                  <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.lastName.message}
+                  </p>
                 )}
               </div>
             </div>
@@ -143,7 +182,10 @@ export default function Register() {
                   type="email"
                   {...register("email", {
                     required: "Email is required",
-                    pattern: { value: /\S+@\S+\.\S+/, message: "Invalid email" },
+                    pattern: {
+                      value: /\S+@\S+\.\S+/,
+                      message: "Invalid email",
+                    },
                   })}
                   className={`w-full pl-10 pr-4 py-3 border ${
                     errors.email ? "border-red-500" : "border-gray-300"
@@ -152,7 +194,9 @@ export default function Register() {
                 />
               </div>
               {errors.email && (
-                <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.email.message}
+                </p>
               )}
             </div>
 
@@ -168,7 +212,10 @@ export default function Register() {
                   <input
                     {...register("phone", {
                       required: "Phone number is required",
-                      pattern: { value: /^[0-9]{10}$/, message: "Phone must be 10 digits" },
+                      pattern: {
+                        value: /^[0-9]{10}$/,
+                        message: "Phone must be 10 digits",
+                      },
                     })}
                     className={`w-full pl-10 pr-4 py-3 border ${
                       errors.phone ? "border-red-500" : "border-gray-300"
@@ -177,7 +224,9 @@ export default function Register() {
                   />
                 </div>
                 {errors.phone && (
-                  <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.phone.message}
+                  </p>
                 )}
               </div>
 
@@ -190,14 +239,18 @@ export default function Register() {
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="date"
-                    {...register("dob", { required: "Date of birth is required" })}
+                    {...register("dob", {
+                      required: "Date of birth is required",
+                    })}
                     className={`w-full pl-10 pr-4 py-3 border ${
                       errors.dob ? "border-red-500" : "border-gray-300"
                     } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   />
                 </div>
                 {errors.dob && (
-                  <p className="text-red-500 text-xs mt-1">{errors.dob.message}</p>
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.dob.message}
+                  </p>
                 )}
               </div>
             </div>
@@ -213,7 +266,10 @@ export default function Register() {
                   type={showPassword ? "text" : "password"}
                   {...register("password", {
                     required: "Password is required",
-                    minLength: { value: 8, message: "Must be at least 8 characters" },
+                    minLength: {
+                      value: 8,
+                      message: "Must be at least 8 characters",
+                    },
                     pattern: {
                       value: /^(?=.*[A-Z])(?=.*[!@#$%^&*])/,
                       message: "Must contain uppercase & special character",
@@ -229,16 +285,50 @@ export default function Register() {
                   onClick={() => setShowPassword((prev) => !prev)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.password.message}
+                </p>
               )}
               <p className="text-xs text-gray-500 mt-1">
                 Must be 8+ characters with uppercase and special character
               </p>
             </div>
+
+            {selectedRole === "sale_person" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Assigned Under
+                </label>
+
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+
+                  <select
+                    {...register("assignedUnder", {
+                      required: "Manager is required when role is salesman",
+                    })}
+                    className="w-full pl-10 pr-4 py-3 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="" disabled>
+                      Select Manager
+                    </option>
+                    {managers.map((m) => (
+                      <option key={m._id} value={m._id}>
+                        {m.firstName} {m.lastName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
 
             {/* Role */}
             <div>
@@ -249,13 +339,15 @@ export default function Register() {
                 <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <select
                   {...register("role", { required: "Role is required" })}
-                  className={`w-full pl-10 pr-4 py-3 border ${
-                    errors.role ? "border-red-500" : "border-gray-300"
-                  } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none cursor-pointer`}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border rounded-lg"
                 >
-                  <option value="">Select your role</option>
+                  <option value="" disabled>
+                    Select your role
+                  </option>
                   <option value="sale_person">Sales Person</option>
                   <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                   <svg
@@ -274,7 +366,9 @@ export default function Register() {
                 </div>
               </div>
               {errors.role && (
-                <p className="text-red-500 text-xs mt-1">{errors.role.message}</p>
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.role.message}
+                </p>
               )}
             </div>
 
