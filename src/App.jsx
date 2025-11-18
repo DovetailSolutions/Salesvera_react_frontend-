@@ -1,6 +1,12 @@
-import React from 'react'
-import Router from './router'
+import React from "react";
+import Router from "./router";
+import { ToastContainer } from "react-toastify";
 
 export default function App() {
-  return <Router />
+  return (
+    <>
+      <ToastContainer />
+      <Router />
+    </>
+  );
 }

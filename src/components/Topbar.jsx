@@ -6,12 +6,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import { adminApi } from "../api"; // ⬅️ adjust path if needed
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthProvider";
+import Toast from "./Toast";
 
 export default function Topbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
+  const { logout } = useContext(AuthContext);
 
   // ✅ Password form
   const {
@@ -113,10 +117,10 @@ export default function Topbar() {
                   </div>
 
                   <div
-                    onClick={() => {
-                      localStorage.removeItem("accessToken");
-                      localStorage.removeItem("refreshToken");
+                    onClick={async () => {
+                      await logout();
                       navigate("/login");
+                      Toast.success("You have been successfully signed out.")
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                   >

@@ -17,6 +17,7 @@ import { MdMeetingRoom } from "react-icons/md";
 import { RiGroup3Line } from "react-icons/ri";
 import Meeting from "./pages/Meeting";
 import Profile from "./pages/Profile";
+import { FaUsers } from "react-icons/fa";
 
 export const allRoutes = [
   {
@@ -49,6 +50,12 @@ export const allRoutes = [
         path: "/meeting-management",
         label: "Meetings",
         icon: <RiGroup3Line />,
+        roles: [ROLES.ADMIN],
+      },
+      {
+        path: "/clients-bulk-upload",
+        label: "Clients Bulk Upload",
+        icon: <FaUsers />,
         roles: [ROLES.ADMIN],
       },
     ],

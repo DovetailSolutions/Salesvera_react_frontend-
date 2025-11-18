@@ -69,6 +69,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
     localStorage.removeItem('user')
+    localStorage.removeItem('roles')
     delete axiosInstance.defaults.headers.common['Authorization']
     setUser(null)
   }

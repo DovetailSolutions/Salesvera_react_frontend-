@@ -4,6 +4,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useAuth } from "../hooks/useAuth.js";
 import { useNavigate } from "react-router-dom";
+import Toast from "../components/Toast.jsx";
 
 const schema = yup.object({
   email: yup.string().required("email required"),
@@ -58,7 +59,9 @@ export default function Login() {
             <p className="text-red-500 text-sm">{errors.password.message}</p>
           )}
         </div>
-        <button className="w-full py-2 bg-blue-600 text-white rounded">
+        <button className="w-full py-2 bg-blue-600 text-white rounded" onClick={()=>{
+           Toast.success("You have been successfully logged in.")
+        }}>
           Sign in
         </button>
       </form>
