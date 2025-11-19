@@ -21,6 +21,13 @@ export const adminApi = {
   assignRole: (userId, role) => axios.post(`/admin/users/${userId}/role`, { role }),
   updatePassword: (data) =>
     axios.patch("/admin/updatepassword", data),
+
+   getAllUsers: ({ role, search }) =>
+    axios.get("/admin/getalluser", { params: { role, search } }),
+
+  // 🔹 Salespersons (right panel)
+  getMySalespersons: ({ managerId, page = 1 }) =>
+    axios.get("/admin/mysaleperson", { params: { managerId, page } }),
 }
 
 export const meetingApi = {

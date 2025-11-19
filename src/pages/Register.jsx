@@ -213,11 +213,11 @@ export default function Register() {
                   type={showPassword ? "text" : "password"}
                   {...register("password", {
                     required: "Password is required",
-                    minLength: { value: 8, message: "Must be at least 8 characters" },
-                    pattern: {
-                      value: /^(?=.*[A-Z])(?=.*[!@#$%^&*])/,
-                      message: "Must contain uppercase & special character",
-                    },
+                    // minLength: { value: 8, message: "Must be at least 8 characters" },
+                    // pattern: {
+                    //   value: /^(?=.*[A-Z])(?=.*[!@#$%^&*])/,
+                    //   message: "Must contain uppercase & special character",
+                    // },
                   })}
                   className={`w-full pl-10 pr-12 py-3 border ${
                     errors.password ? "border-red-500" : "border-gray-300"
