@@ -18,6 +18,7 @@ import { RiGroup3Line } from "react-icons/ri";
 import Meeting from "./pages/Meeting";
 import Profile from "./pages/Profile";
 import { FaUsers } from "react-icons/fa";
+import UserManagement from "./pages/UserManagement";
 
 export const allRoutes = [
   {
@@ -34,10 +35,22 @@ export const allRoutes = [
   {
     category: "Menu",
     routes: [
+       {
+        path: "/user-management",
+        label: "User Management",
+        icon: <FaUsers />,
+        roles: [ROLES.ADMIN, ROLES.MANAGER],
+      },
       {
         path: "/registration",
         label: "Register User",
         icon: <TiUserAddOutline />,
+        roles: [ROLES.ADMIN],
+      },
+       {
+        path: "/client-bulk-upload",
+        label: "Client Bulk Upload",
+        icon: <FaUsers />,
         roles: [ROLES.ADMIN],
       },
       {
@@ -52,12 +65,7 @@ export const allRoutes = [
         icon: <RiGroup3Line />,
         roles: [ROLES.ADMIN],
       },
-      {
-        path: "/clients-bulk-upload",
-        label: "Clients Bulk Upload",
-        icon: <FaUsers />,
-        roles: [ROLES.ADMIN],
-      },
+     
     ],
   },
 ];
@@ -100,6 +108,7 @@ export default function Router() {
           <Route path="category" element={<Category />} />
           <Route path="meeting-management" element={<Meeting />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="user-management" element={<UserManagement />} />
         </Route>
       </Route>
 

@@ -18,10 +18,20 @@ export const menuapi = {
 };
 
 export const adminApi = {
-  users: () => axios.get("/admin/users"),
-  assignRole: (userId, role) =>
-    axios.post(`/admin/users/${userId}/role`, { role }),
-  updatePassword: (data) => axios.patch("/admin/updatepassword", data),
+  users: () => axios.get('/admin/users'),
+  assignRole: (userId, role) => axios.post(`/admin/users/${userId}/role`, { role }),
+  updatePassword: (data) =>
+    axios.patch("/admin/updatepassword", data),
+
+  // ✅ FIXED: now supports pagination + search
+  getAllUsers: ({ page = 1, limit = 10, search = "", role } = {}) =>
+    axios.get("/admin/getalluser", {
+      params: { page, limit, search, role },
+    }),
+
+  // 🔹 Salespersons (right panel)
+  getMySalespersons: ({ managerId, page = 1 }) =>
+    axios.get("/admin/mysaleperson", { params: { managerId, page } }),
 };
 
 export const meetingApi = {

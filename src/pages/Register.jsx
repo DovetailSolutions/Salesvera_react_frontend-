@@ -18,6 +18,7 @@ export default function Register() {
   const [createdBy, setCreatedBy] = useState(null);
   const [managers, setManagers] = useState([]);
   const [userRole, setUserRole] = useState(null);
+  const [selectedManagerId, setSelectedManagerId] = useState("");
 
   const [selectedRole, setSelectedRole] = useState("");
 
@@ -53,32 +54,58 @@ export default function Register() {
   }, []);
 
   const onSubmit = async (formData) => {
-    if (!createdBy) {
-      alert("User profile not loaded yet. Please wait a moment.");
-      return;
-    }
+  if (!selectedRole) {
+    alert("Please select a role.");
+    return;
+  }
 
-    setIsLoading(true);
-    try {
-      const payload = {
-        ...formData,
-        createdBy,
-      };
+  setIsLoading(true);
+  try {
+    let createdByValue;
 
-      const res = await authApi.register(payload);
-      if (res.data?.success) {
-        alert("Registration successful!");
-        reset();
-      } else {
-        alert(res.data?.message || "Registration failed!");
+    if (selectedRole === "sale_person") {
+      if (!selectedManagerId) {
+        alert("Please select a manager for the salesperson.");
+        setIsLoading(false);
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      alert("Registration failed. Please check console for details.");
-    } finally {
-      setIsLoading(false);
+      // Ensure it's a number if backend expects number
+      createdByValue = Number(selectedManagerId);
+      if (isNaN(createdByValue)) {
+        alert("Invalid manager selected.");
+        return;
+      }
+    } else {
+      if (!createdBy) {
+        alert("User profile not loaded. Please wait or refresh.");
+        setIsLoading(false);
+        return;
+      }
+      createdByValue = createdBy; // this should already be a number
     }
-  };
+
+    const payload = {
+      ...formData,
+      role: selectedRole, // ← critical!
+      createdBy: createdByValue,
+    };
+
+   const res = await authApi.register(payload);
+    if (res.data?.success) {
+      alert("Registration successful!");
+      reset();
+      setSelectedRole("");
+      setSelectedManagerId("");
+    } else {
+      alert(res.data?.message || "Registration failed!");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Registration failed. Please check console for details.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   useEffect(() => {
     const fetchManagers = async () => {
@@ -303,74 +330,61 @@ export default function Register() {
             </div>
 
             {selectedRole === "sale_person" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Assigned Under
-                </label>
-
-                <div className="relative">
-                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-
-                  <select
-                    {...register("assignedUnder", {
-                      required: "Manager is required when role is salesman",
-                    })}
-                    className="w-full pl-10 pr-4 py-3 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="" disabled>
-                      Select Manager
-                    </option>
-                    {managers.map((m) => (
-                      <option key={m._id} value={m._id}>
-                        {m.firstName} {m.lastName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Assigned Under
+    </label>
+    <div className="relative">
+      <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      <select
+        value={selectedManagerId}
+        onChange={(e) => setSelectedManagerId(e.target.value)}
+        className="w-full pl-10 pr-4 py-3 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        required={selectedRole === "sale_person"}
+      >
+        <option value="" disabled>
+          Select Manager
+        </option>
+        {managers.map((m) => (
+  <option key={m.id} value={m.id}> {/* ✅ Use m.id, not m._id */}
+    {m.firstName} {m.lastName}
+  </option>
+))}
+      </select>
+    </div>
+  </div>
+)}
 
             {/* Role */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Role
-              </label>
-              <div className="relative">
-                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <select
-                  {...register("role", { required: "Role is required" })}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border rounded-lg"
-                >
-                  <option value="" disabled>
-                    Select your role
-                  </option>
-                  <option value="sale_person">Sales Person</option>
-                  <option value="admin">Admin</option>
-                  <option value="manager">Manager</option>
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg
-                    className="w-5 h-5 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
-              {errors.role && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.role.message}
-                </p>
-              )}
-            </div>
+           {/* Role */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Role
+  </label>
+  <div className="relative">
+    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+    <select
+      value={selectedRole}
+      onChange={(e) => {
+        const role = e.target.value;
+        setSelectedRole(role);
+        if (role !== "sale_person") setSelectedManagerId("");
+      }}
+      className="w-full pl-10 pr-4 py-3 border rounded-lg"
+    >
+      <option value="" disabled>
+        Select your role
+      </option>
+      <option value="sale_person">Sales Person</option>
+      <option value="admin">Admin</option>
+      <option value="manager">Manager</option>
+    </select>
+    {/* ...arrow SVG */}
+  </div>
+  {selectedRole === "" && (
+    <p className="text-red-500 text-xs mt-1">Role is required</p>
+  )}
+</div>
 
             {/* Submit */}
             <button
