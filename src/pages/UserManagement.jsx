@@ -30,18 +30,15 @@ export default function UserManagement() {
 
   const navigate = useNavigate();
 
-  // ✅ Accept role as explicit parameter to avoid stale closure
   const fetchUsers = async (page = 1, search = "", role = "all") => {
     try {
       setLoading(true);
 
     if (isManager) {
   try {
-    // Fetch full list — no search, just page 1 (or increase limit if needed)
     const res = await adminApi.getMySalespersons({
       managerId: user.id,
       page: 1,
-      // ⚠️ Do NOT send `search` — it crashes your API
     });
 
     const data = res.data?.data || res.data;
@@ -49,7 +46,6 @@ export default function UserManagement() {
       throw new Error("Invalid response from my salespersons API");
     }
 
-    // 🔍 Apply client-side search filtering
     const term = searchTerm.toLowerCase().trim();
     let filteredRows = data.rows;
 
@@ -147,7 +143,7 @@ export default function UserManagement() {
   const actions = [];
 
   return (
-    <div className="px-4 py-6 max-w-7xl mx-auto">
+    <div className="py-6">
       <Toaster position="top-right" />
 
       <h1 className="text-3xl font-bold text-gray-800 mb-6">User Management</h1>
