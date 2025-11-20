@@ -1,27 +1,67 @@
 import React, { useState, useEffect } from 'react';
 import { FaDownload, FaFileUpload, FaSearch } from 'react-icons/fa';
-import { clientApi, adminApi } from '../api';
+import { clientApi, meetingApi } from '../api';
 import Table from '../components/Table';
 
-const USER_COLUMNS = [
-  { key: 'firstName', label: 'First Name', sortable: true },
-  { key: 'lastName', label: 'Last Name', sortable: true },
-  { key: 'email', label: 'Email', sortable: true },
-  { key: 'phone', label: 'Phone', sortable: true },
-  { key: 'role', label: 'Role', sortable: true },
+// Column definitions (kept for reference and reuse)
+const MEETING_COLUMNS = [
+  { key: 'id', label: 'Meeting ID', sortable: true },
+  { key: 'companyName', label: 'Company', sortable: true },
+  { key: 'personName', label: 'Contact Person', sortable: true },
+  { key: 'mobileNumber', label: 'Mobile', sortable: true },
+  { key: 'companyEmail', label: 'Email', sortable: true },
+  { 
+    key: 'meetingTimeIn', 
+    label: 'Check-in', 
+    sortable: true,
+    render: (value) => value ? new Date(value).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }) : '—'
+  },
+  { 
+    key: 'meetingTimeOut', 
+    label: 'Check-out', 
+    sortable: true,
+    render: (value) => value ? new Date(value).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }) : '—'
+  },
+  { 
+    key: 'meetingPurpose', 
+    label: 'Purpose', 
+    sortable: true,
+    render: (value) => value || '—'
+  },
 ];
+
+// Helper: Transform raw meeting object into safe, pre-rendered values
+const transformMeetingForDisplay = (meeting) => {
+  const transformed = {};
+  for (const col of MEETING_COLUMNS) {
+    const rawValue = meeting[col.key];
+    if (col.render) {
+      transformed[col.key] = col.render(rawValue);
+    } else {
+      transformed[col.key] = rawValue != null ? String(rawValue) : '—';
+    }
+  }
+  return transformed;
+};
 
 function ClientBulkUpload() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(null);
   const [uploadMessage, setUploadMessage] = useState('');
 
-  // Table-related state
-  const [clients, setClients] = useState([]);
-  const [loadingClients, setLoadingClients] = useState(true);
+  const [meetings, setMeetings] = useState([]); // This will now hold pre-rendered rows
+  const [loadingMeetings, setLoadingMeetings] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
 
   const sampleCSV = `companyName,personName,mobileNumber,companyEmail
@@ -76,7 +116,7 @@ arena,ankit,7875345632,arena@gmail.com`;
       setUploadStatus('success');
       setUploadMessage('File uploaded successfully!');
       setSelectedFile(null);
-      fetchClients(currentPage, searchTerm);
+      fetchMeetings(searchTerm);
     } catch (error) {
       setUploadStatus('error');
       const errorMsg =
@@ -88,51 +128,59 @@ arena,ankit,7875345632,arena@gmail.com`;
     }
   };
 
-  const fetchClients = async (page = 1, search = '') => {
-    setLoadingClients(true);
+  const fetchMeetings = async (search = '') => {
+    setLoadingMeetings(true);
     try {
-      const response = await adminApi.getAllUsers({ page, limit: pageSize, search });
-      const { rows, total } = response.data.data;
-      setClients(rows || []);
-      setTotalCount(total || 0);
-      setCurrentPage(page);
+      const response = await meetingApi.getUserMeetings({ 
+        empty: true,
+        search: search || undefined
+      });
+
+      const result = response.data;
+      if (result?.success && Array.isArray(result.data?.rows)) {
+        // ✅ Transform raw data into safe display values
+        const displayMeetings = result.data.rows.map(transformMeetingForDisplay);
+        setMeetings(displayMeetings);
+        setTotalCount(result.data.total);
+      } else {
+        setMeetings([]);
+        setTotalCount(0);
+      }
     } catch (error) {
-      console.error('Failed to fetch users:', error);
-      setClients([]);
+      console.error('Failed to fetch meetings:', error);
+      setMeetings([]);
       setTotalCount(0);
     } finally {
-      setLoadingClients(false);
+      setLoadingMeetings(false);
     }
   };
 
   useEffect(() => {
-    fetchClients(1, '');
+    fetchMeetings('');
   }, []);
 
   const handleSearch = (e) => {
     const value = e.target.value;
     setSearchTerm(value);
     if (value.trim() === '') {
-      fetchClients(1, '');
+      fetchMeetings('');
     }
   };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    fetchClients(1, searchTerm);
+    fetchMeetings(searchTerm);
   };
 
   return (
     <div className="w-full py-4">
-      {/* Direct Download Button */}
       <button
-        onClick={downloadSampleCSV} // ✅ Direct download, no modal
+        onClick={downloadSampleCSV}
         className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-md text-sm hover:bg-blue-700 transition"
       >
         <FaDownload /> Download Sample CSV
       </button>
 
-      {/* File Upload Section */}
       <div className="mt-2 p-6 border border-gray-200 rounded-lg bg-gray-50">
         <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
           <FaFileUpload /> Upload Clients CSV/Excel
@@ -175,7 +223,6 @@ arena,ankit,7875345632,arena@gmail.com`;
         )}
       </div>
 
-      {/* Search Bar */}
       <div className="mt-8">
         <form onSubmit={handleSearchSubmit} className="relative max-w-md">
           <div className="relative">
@@ -183,7 +230,7 @@ arena,ankit,7875345632,arena@gmail.com`;
               type="text"
               value={searchTerm}
               onChange={handleSearch}
-              placeholder="Search users..."
+              placeholder="Search meetings..."
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <FaSearch className="absolute left-3 top-2.5 text-gray-400" />
@@ -191,25 +238,23 @@ arena,ankit,7875345632,arena@gmail.com`;
         </form>
       </div>
 
-      {/* User Table */}
       <div className="mt-6">
-        {loadingClients ? (
-          <div className="text-center py-4 text-gray-500">Loading users...</div>
-        ) : totalCount > 0 || searchTerm ? (
+        {loadingMeetings ? (
+          <div className="text-center py-4 text-gray-500">Loading meetings...</div>
+        ) : meetings.length > 0 ? (
           <Table
-            columns={USER_COLUMNS}
-            data={clients}
+            columns={MEETING_COLUMNS.map(col => ({
+              ...col,
+              render: undefined 
+            }))}
+            data={meetings}
             keyField="id"
-            emptyMessage="No users found."
-            currentPage={currentPage}
-            pageSize={pageSize}
-            totalCount={totalCount}
-            onPageChange={(page) => fetchClients(page, searchTerm)}
+            emptyMessage="No meetings found."
             shadow="shadow-md"
           />
         ) : (
           <div className="text-center py-6 text-gray-500">
-            No users found.
+            No meetings found.
           </div>
         )}
       </div>

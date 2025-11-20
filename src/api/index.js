@@ -37,10 +37,18 @@ export const adminApi = {
 };
 
 export const meetingApi = {
-  getUserMeetings: ({ userId, date, search = "" }) => {
-    const params = { userId };
-    if (date) params.date = date;      
+  getUserMeetings: ({ userId, date, search = "", empty = false }) => {
+    const params = {};
+    
+    if (empty) {
+      params.empty = true; // ✅ This fetches all meetings
+    } else if (userId) {
+      params.userId = userId; // only add userId if not using empty
+    }
+
+    if (date) params.date = date;
     if (search) params.search = search;
+
     return axios.get("/admin/getusermeeting", { params });
   },
 };
