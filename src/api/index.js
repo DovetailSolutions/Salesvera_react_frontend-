@@ -17,6 +17,10 @@ export const menuapi = {
   deleteCategory: (id) => axios.delete(`/admin/deletecategory/${id}`),
 };
 
+export const registrationApi = {
+  getUserByRole : (role) => axios.get(`https://api.salesvera.com/admin/getalluser?role=${role}`)
+}
+
 export const adminApi = {
   users: () => axios.get('/admin/users'),
   assignRole: (userId, role) => axios.post(`/admin/users/${userId}/role`, { role }),
@@ -35,11 +39,12 @@ export const adminApi = {
 };
 
 export const meetingApi = {
-  // ✅ Fetch meetings list (read-only)
-  getUserMeetings: ({ userId, date, search }) =>
-    axios.get("/admin/getusermeeting", {
-      params: { userId, date, search },
-    }),
+  getUserMeetings: ({ userId, date, search = "" }) => {
+    const params = { userId };
+    if (date) params.date = date;      // ← only add if exists
+    if (search) params.search = search;
+    return axios.get("/admin/getusermeeting", { params });
+  },
 };
 
 export default { authApi, menuapi, adminApi };

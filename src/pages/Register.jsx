@@ -346,7 +346,7 @@ export default function Register() {
           Select Manager
         </option>
         {managers.map((m) => (
-  <option key={m.id} value={m.id}> {/* ✅ Use m.id, not m._id */}
+  <option key={m.id} value={m.id}> 
     {m.firstName} {m.lastName}
   </option>
 ))}
