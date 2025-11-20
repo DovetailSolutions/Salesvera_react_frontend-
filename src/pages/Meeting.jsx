@@ -19,6 +19,8 @@ export default function MeetingManagement() {
     limit: 10,
   });
 
+  const [filteredMeetings, setFilteredMeetings] = useState([]);
+
   const [selectedSalesperson, setSelectedSalesperson] = useState(null);
 const [meetings, setMeetings] = useState([]);
 const [meetingsLoading, setMeetingsLoading] = useState(false);
@@ -92,31 +94,80 @@ const [meetingsLoading, setMeetingsLoading] = useState(false);
   }
 };
 
-const fetchMeetings = async (userId, tab = activeTab) => {
+const fetchMeetings = async (userId) => {
   if (!userId) return;
 
   setMeetingsLoading(true);
   try {
-    // ✅ Use meetingApi, not adminApi
-    const params = tab === "All Time" 
-      ? { userId } 
-      : { userId, date: getDateForTab(tab) };
-
-    const res = await meetingApi.getUserMeetings(params); // ← FIXED
-
+    // Always fetch ALL meetings (no date filter)
+    const res = await meetingApi.getUserMeetings({ userId });
     if (res.data?.success) {
-      setMeetings(res.data.data?.rows || []);
+      const allMeetings = res.data.data?.rows || [];
+      setMeetings(allMeetings);
+      // Apply initial filter based on current tab
+      applyMeetingFilter(allMeetings, activeTab);
     } else {
       setMeetings([]);
-      console.warn("API returned success=false or no data");
+      setFilteredMeetings([]);
     }
   } catch (err) {
     console.error("Meeting fetch error:", err);
     Toast.error("Failed to load meetings");
     setMeetings([]);
+    setFilteredMeetings([]);
   } finally {
     setMeetingsLoading(false);
   }
+};
+
+const isSameDay = (date1, date2) => {
+  return date1.getFullYear() === date2.getFullYear() &&
+         date1.getMonth() === date2.getMonth() &&
+         date1.getDate() === date2.getDate();
+};
+
+const isSameWeek = (date1, date2) => {
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+  const dayDiff = Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+  return dayDiff >= 0 && dayDiff <= 6 && d1.getDay() <= d2.getDay();
+};
+
+const isSameMonth = (date1, date2) => {
+  return date1.getFullYear() === date2.getFullYear() &&
+         date1.getMonth() === date2.getMonth();
+};
+
+const applyMeetingFilter = (meetings, tab) => {
+  const now = new Date();
+  
+  let filtered = meetings;
+  
+  if (tab === "Today") {
+    filtered = meetings.filter(m => {
+      const meetingDate = new Date(m.meetingTimeIn);
+      return isSameDay(meetingDate, now);
+    });
+  } 
+  else if (tab === "This Week") {
+    // Week starts on Sunday
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay());
+    
+    filtered = meetings.filter(m => {
+      const meetingDate = new Date(m.meetingTimeIn);
+      return meetingDate >= weekStart && meetingDate <= now;
+    });
+  } 
+  else if (tab === "This Month") {
+    filtered = meetings.filter(m => {
+      const meetingDate = new Date(m.meetingTimeIn);
+      return isSameMonth(meetingDate, now);
+    });
+  }
+  // "All Time" shows all meetings
+  
+  setFilteredMeetings(filtered);
 };
 
   return (
@@ -219,12 +270,13 @@ const fetchMeetings = async (userId, tab = activeTab) => {
           {["All Time", "Today", "This Week", "This Month"].map((tab) => (
             <div
               key={tab}
-              onClick={() => {
-                setActiveTab(tab);
-                if (selectedSalesperson) {
-                  fetchMeetings(selectedSalesperson.id, tab);
-                }
-              }}
+              // In your tab click handler
+onClick={() => {
+  setActiveTab(tab);
+  if (selectedSalesperson) {
+    applyMeetingFilter(meetings, tab);
+  }
+}}
               className={`px-4 py-2 rounded text-sm font-medium cursor-pointer transition-all duration-200 ${
                 activeTab === tab
                   ? "bg-blue-600 text-white shadow-sm"
@@ -244,11 +296,9 @@ const fetchMeetings = async (userId, tab = activeTab) => {
             <h3 className="text-lg font-medium mb-3">
               Meetings: {selectedSalesperson.firstName} {selectedSalesperson.lastName}
             </h3>
-            {meetingsLoading ? (
-              <div className="text-center py-6 text-slate-500">Loading meetings...</div>
-            ) : meetings.length > 0 ? (
-              <div className="space-y-3">
-               {meetings.map((meeting) => (
+            {filteredMeetings.length > 0 ? (
+  <div className="space-y-3">
+    {filteredMeetings.map((meeting) => (
   <div
     key={meeting.id}
     className="border border-slate-200 rounded-lg p-3 hover:bg-slate-50"

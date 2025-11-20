@@ -10,7 +10,8 @@ import {
   Briefcase,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { authApi } from "../api";
+import { authApi, adminApi } from "../api";
+import { useNavigate } from "react-router";
 
 export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
@@ -19,6 +20,8 @@ export default function Register() {
   const [managers, setManagers] = useState([]);
   const [userRole, setUserRole] = useState(null);
   const [selectedManagerId, setSelectedManagerId] = useState("");
+
+  const navigate = useNavigate();
 
   const [selectedRole, setSelectedRole] = useState("");
 
@@ -54,82 +57,73 @@ export default function Register() {
   }, []);
 
   const onSubmit = async (formData) => {
-  if (!selectedRole) {
-    alert("Please select a role.");
-    return;
-  }
-
-  setIsLoading(true);
-  try {
-    let createdByValue;
-
-    if (selectedRole === "sale_person") {
-      if (!selectedManagerId) {
-        alert("Please select a manager for the salesperson.");
-        setIsLoading(false);
-        return;
-      }
-      // Ensure it's a number if backend expects number
-      createdByValue = Number(selectedManagerId);
-      if (isNaN(createdByValue)) {
-        alert("Invalid manager selected.");
-        return;
-      }
-    } else {
-      if (!createdBy) {
-        alert("User profile not loaded. Please wait or refresh.");
-        setIsLoading(false);
-        return;
-      }
-      createdByValue = createdBy; // this should already be a number
+    if (!selectedRole) {
+      alert("Please select a role.");
+      return;
     }
 
-    const payload = {
-      ...formData,
-      role: selectedRole, // ← critical!
-      createdBy: createdByValue,
-    };
+    setIsLoading(true);
+    try {
+      let createdByValue;
 
-   const res = await authApi.register(payload);
-    if (res.data?.success) {
-      alert("Registration successful!");
-      reset();
-      setSelectedRole("");
-      setSelectedManagerId("");
-    } else {
-      alert(res.data?.message || "Registration failed!");
+      if (selectedRole === "sale_person") {
+        if (!selectedManagerId) {
+          alert("Please select a manager for the salesperson.");
+          setIsLoading(false);
+          return;
+        }
+        // Ensure it's a number if backend expects number
+        createdByValue = Number(selectedManagerId);
+        if (isNaN(createdByValue)) {
+          alert("Invalid manager selected.");
+          return;
+        }
+      } else {
+        if (!createdBy) {
+          alert("User profile not loaded. Please wait or refresh.");
+          setIsLoading(false);
+          return;
+        }
+        createdByValue = createdBy; // this should already be a number
+      }
+
+      const payload = {
+        ...formData,
+        role: selectedRole, // ← critical!
+        createdBy: createdByValue,
+      };
+
+      const res = await authApi.register(payload);
+      if (res.data?.success) {
+        alert("Registration successful!");
+        reset();
+        setSelectedRole("");
+        setSelectedManagerId("");
+      } else {
+        alert(res.data?.message || "Registration failed!");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Registration failed. Please check console for details.");
+    } finally {
+      setIsLoading(false);
     }
-  } catch (err) {
-    console.error(err);
-    alert("Registration failed. Please check console for details.");
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     const fetchManagers = async () => {
       try {
-        const token = localStorage.getItem("accessToken");
+        const res = await adminApi.getAllUsers({
+          role: "manager",
+          page: 1,
+          limit: 100, // get all managers (adjust if needed)
+        });
 
-        const res = await fetch(
-          "https://api.salesvera.com/admin/getalluser?role=manager",
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const data = await res.json();
-
-        console.log("Managers API response:", data);
-
-        setManagers(data?.data?.rows || []);
+        // Structure: res.data.data.rows (based on your other code)
+        setManagers(res.data?.data?.rows || []);
       } catch (error) {
-        console.error("Error fetching managers", error);
+        console.error("Error fetching managers:", error);
+        alert("Failed to load managers. Check console for details.");
       }
     };
 
@@ -140,9 +134,20 @@ export default function Register() {
     <div className="py-4">
       <div className="w-full">
         {/* Header */}
-        <div className="text-center mb-1">
+       <div className="flex justify-between items-center">
+         <div className="text-center mb-1">
           <p className="text-3xl text-start px-4 text">Register A New User</p>
         </div>
+
+        <div className="pr-4">
+    <button
+      className="bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded"
+      onClick={() => navigate("/user-management")}
+    >
+      Go Back
+    </button>
+  </div>
+       </div>
 
         {/* Form Card */}
         <div className="p-4">
@@ -330,61 +335,61 @@ export default function Register() {
             </div>
 
             {selectedRole === "sale_person" && (
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-2">
-      Assigned Under
-    </label>
-    <div className="relative">
-      <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-      <select
-        value={selectedManagerId}
-        onChange={(e) => setSelectedManagerId(e.target.value)}
-        className="w-full pl-10 pr-4 py-3 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        required={selectedRole === "sale_person"}
-      >
-        <option value="" disabled>
-          Select Manager
-        </option>
-        {managers.map((m) => (
-  <option key={m.id} value={m.id}> 
-    {m.firstName} {m.lastName}
-  </option>
-))}
-      </select>
-    </div>
-  </div>
-)}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Assigned Under
+                </label>
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <select
+                    value={selectedManagerId}
+                    onChange={(e) => setSelectedManagerId(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required={selectedRole === "sale_person"}
+                  >
+                    <option value="" disabled>
+                      Select Manager
+                    </option>
+                    {managers.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.firstName} {m.lastName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
 
             {/* Role */}
-           {/* Role */}
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    Role
-  </label>
-  <div className="relative">
-    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-    <select
-      value={selectedRole}
-      onChange={(e) => {
-        const role = e.target.value;
-        setSelectedRole(role);
-        if (role !== "sale_person") setSelectedManagerId("");
-      }}
-      className="w-full pl-10 pr-4 py-3 border rounded-lg"
-    >
-      <option value="" disabled>
-        Select your role
-      </option>
-      <option value="sale_person">Sales Person</option>
-      <option value="admin">Admin</option>
-      <option value="manager">Manager</option>
-    </select>
-    {/* ...arrow SVG */}
-  </div>
-  {selectedRole === "" && (
-    <p className="text-red-500 text-xs mt-1">Role is required</p>
-  )}
-</div>
+            {/* Role */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Role
+              </label>
+              <div className="relative">
+                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <select
+                  value={selectedRole}
+                  onChange={(e) => {
+                    const role = e.target.value;
+                    setSelectedRole(role);
+                    if (role !== "sale_person") setSelectedManagerId("");
+                  }}
+                  className="w-full pl-10 pr-4 py-3 border rounded-lg"
+                >
+                  <option value="" disabled>
+                    Select your role
+                  </option>
+                  <option value="sale_person">Sales Person</option>
+                  <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
+                </select>
+                {/* ...arrow SVG */}
+              </div>
+              {/* {selectedRole === "" && (
+                <p className="text-red-500 text-xs mt-1">Role is required</p>
+              )} */}
+            </div>
 
             {/* Submit */}
             <button

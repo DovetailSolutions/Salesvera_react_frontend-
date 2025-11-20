@@ -19,6 +19,8 @@ import Meeting from "./pages/Meeting";
 import Profile from "./pages/Profile";
 import { FaUsers } from "react-icons/fa";
 import UserManagement from "./pages/UserManagement";
+import ClientBulkUpload from "./pages/ClientBulkUpload";
+import { FaUser } from "react-icons/fa";
 
 export const allRoutes = [
   {
@@ -38,15 +40,15 @@ export const allRoutes = [
        {
         path: "/user-management",
         label: "User Management",
-        icon: <FaUsers />,
+        icon: <FaUser />,
         roles: [ROLES.ADMIN, ROLES.MANAGER],
       },
-      {
-        path: "/registration",
-        label: "Register User",
-        icon: <TiUserAddOutline />,
-        roles: [ROLES.ADMIN],
-      },
+      // {
+      //   path: "/registration",
+      //   label: "Register User",
+      //   icon: <TiUserAddOutline />,
+      //   roles: [ROLES.ADMIN],
+      // },
        {
         path: "/client-bulk-upload",
         label: "Client Bulk Upload",
@@ -109,6 +111,7 @@ export default function Router() {
           <Route path="meeting-management" element={<Meeting />} />
           <Route path="profile" element={<Profile />} />
           <Route path="user-management" element={<UserManagement />} />
+          <Route path="client-bulk-upload" element={<ClientBulkUpload />} />
         </Route>
       </Route>
 

@@ -27,13 +27,11 @@ export const adminApi = {
   updatePassword: (data) =>
     axios.patch("/admin/updatepassword", data),
 
-  // ✅ FIXED: now supports pagination + search
   getAllUsers: ({ page = 1, limit = 10, search = "", role } = {}) =>
     axios.get("/admin/getalluser", {
       params: { page, limit, search, role },
     }),
 
-  // 🔹 Salespersons (right panel)
   getMySalespersons: ({ managerId, page = 1 }) =>
     axios.get("/admin/mysaleperson", { params: { managerId, page } }),
 };
@@ -41,10 +39,14 @@ export const adminApi = {
 export const meetingApi = {
   getUserMeetings: ({ userId, date, search = "" }) => {
     const params = { userId };
-    if (date) params.date = date;      // ← only add if exists
+    if (date) params.date = date;      
     if (search) params.search = search;
     return axios.get("/admin/getusermeeting", { params });
   },
 };
 
-export default { authApi, menuapi, adminApi };
+ export const clientApi = {
+  bulkUploads: (data) => axios.post("/admin/bulk-upload", data),
+};
+
+export default { authApi, menuapi, adminApi, clientApi };

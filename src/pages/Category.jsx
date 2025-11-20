@@ -111,12 +111,12 @@ export default function Category() {
       label: "Category Name",
       sortable: true,
     },
-    {
-      key: "createdAt",
-      label: "Created At",
-      sortable: true,
-      render: (row) => new Date(row.createdAt).toLocaleDateString(),
-    },
+    // {
+    //   key: "createdAt",
+    //   label: "Created At",
+    //   sortable: true,
+    //   render: (row) => new Date(row.createdAt).toLocaleDateString(),
+    // },
   ];
 
   const actions = [
