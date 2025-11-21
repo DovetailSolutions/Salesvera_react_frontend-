@@ -12,6 +12,7 @@ import {
 import { useForm } from "react-hook-form";
 import { authApi, adminApi } from "../api";
 import { useNavigate } from "react-router";
+import Toast from "../components/Toast";
 
 export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
@@ -57,89 +58,89 @@ export default function Register() {
   }, []);
 
   const onSubmit = async (formData) => {
-    if (!selectedRole) {
-      alert("Please select a role.");
-      return;
+  if (!selectedRole) {
+    Toast.error("Please select a role.");
+    return;
+  }
+
+  setIsLoading(true);
+  try {
+    let createdByValue;
+
+    if (selectedRole === "sale_person") {
+      if (!selectedManagerId) {
+        Toast.error("Please select a manager for the salesperson.");
+        setIsLoading(false);
+        return;
+      }
+      createdByValue = Number(selectedManagerId);
+      if (isNaN(createdByValue)) {
+        Toast.error("Invalid manager selected.");
+        setIsLoading(false);
+        return;
+      }
+    } else {
+      if (!createdBy) {
+        Toast.error("User profile not loaded. Please wait or refresh.");
+        setIsLoading(false);
+        return;
+      }
+      createdByValue = createdBy;
     }
 
-    setIsLoading(true);
+    const payload = {
+      ...formData,
+      role: selectedRole,
+      createdBy: createdByValue,
+    };
+
+    const res = await authApi.register(payload);
+    if (res.data?.success) {
+      Toast.success("User registered successfully!");
+      reset();
+      setSelectedRole("");
+      setSelectedManagerId("");
+      navigate("/user-management")
+    } else {
+      Toast.error(res.data?.message || "Registration failed!");
+    }
+  } catch (err) {
+    console.error(err);
+    Toast.error("Registration failed. Please try again.");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+  useEffect(() => {
+  const fetchManagers = async () => {
     try {
-      let createdByValue;
+      const res = await adminApi.getAllUsers({
+        role: "manager",
+        page: 1,
+        limit: 100,
+      });
 
-      if (selectedRole === "sale_person") {
-        if (!selectedManagerId) {
-          alert("Please select a manager for the salesperson.");
-          setIsLoading(false);
-          return;
-        }
-        // Ensure it's a number if backend expects number
-        createdByValue = Number(selectedManagerId);
-        if (isNaN(createdByValue)) {
-          alert("Invalid manager selected.");
-          return;
-        }
-      } else {
-        if (!createdBy) {
-          alert("User profile not loaded. Please wait or refresh.");
-          setIsLoading(false);
-          return;
-        }
-        createdByValue = createdBy; // this should already be a number
-      }
-
-      const payload = {
-        ...formData,
-        role: selectedRole, // ← critical!
-        createdBy: createdByValue,
-      };
-
-      const res = await authApi.register(payload);
-      if (res.data?.success) {
-        alert("Registration successful!");
-        reset();
-        setSelectedRole("");
-        setSelectedManagerId("");
-      } else {
-        alert(res.data?.message || "Registration failed!");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Registration failed. Please check console for details.");
-    } finally {
-      setIsLoading(false);
+      setManagers(res.data?.data?.finalRows || []);
+    } catch (error) {
+      console.error("Error fetching managers:", error);
+      Toast.error("Failed to load managers.");
     }
   };
 
-  useEffect(() => {
-    const fetchManagers = async () => {
-      try {
-        const res = await adminApi.getAllUsers({
-          role: "manager",
-          page: 1,
-          limit: 100, // get all managers (adjust if needed)
-        });
-
-        // Structure: res.data.data.rows (based on your other code)
-        setManagers(res.data?.data?.rows || []);
-      } catch (error) {
-        console.error("Error fetching managers:", error);
-        alert("Failed to load managers. Check console for details.");
-      }
-    };
-
-    fetchManagers();
-  }, []);
+  fetchManagers();
+}, []);
 
   return (
-    <div className="py-4">
+    <div className="py-6">
       <div className="w-full">
         {/* Header */}
-       <div className="flex justify-between items-center">
+       <div className="flex justify-between items-center w-full">
          <div className="text-center mb-1">
-          <p className="text-3xl text-start px-4 text">Register A New User</p>
+          <p className="text-3xl text-start text font-bold">Register A New User</p>
         </div>
 
-        <div className="pr-4">
+        <div className="pr-">
     <button
       className="bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded"
       onClick={() => navigate("/user-management")}
@@ -150,8 +151,8 @@ export default function Register() {
        </div>
 
         {/* Form Card */}
-        <div className="p-4">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             {/* Name Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* First Name */}
@@ -211,19 +212,20 @@ export default function Register() {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
-                  type="email"
-                  {...register("email", {
-                    required: "Email is required",
-                    pattern: {
-                      value: /\S+@\S+\.\S+/,
-                      message: "Invalid email",
-                    },
-                  })}
-                  className={`w-full pl-10 pr-4 py-3 border ${
-                    errors.email ? "border-red-500" : "border-gray-300"
-                  } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="john.doe@example.com"
-                />
+  type="email"
+  {...register("email", {
+    required: "Email is required",
+    pattern: {
+      value: /\S+@\S+\.\S+/,
+      message: "Invalid email",
+    },
+  })}
+  autoComplete="new-email" // 👈 trick browser
+  className={`w-full pl-10 pr-4 py-3 border ${
+    errors.email ? "border-red-500" : "border-gray-300"
+  } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+  placeholder="john.doe@example.com"
+/>
               </div>
               {errors.email && (
                 <p className="text-red-500 text-xs mt-1">
@@ -295,23 +297,24 @@ export default function Register() {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
-                  type={showPassword ? "text" : "password"}
-                  {...register("password", {
-                    required: "Password is required",
-                    minLength: {
-                      value: 8,
-                      message: "Must be at least 8 characters",
-                    },
-                    pattern: {
-                      value: /^(?=.*[A-Z])(?=.*[!@#$%^&*])/,
-                      message: "Must contain uppercase & special character",
-                    },
-                  })}
-                  className={`w-full pl-10 pr-12 py-3 border ${
-                    errors.password ? "border-red-500" : "border-gray-300"
-                  } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="••••••••"
-                />
+  type={showPassword ? "text" : "password"}
+  {...register("password", {
+    required: "Password is required",
+    minLength: {
+      value: 8,
+      message: "Must be at least 8 characters",
+    },
+    pattern: {
+      value: /^(?=.*[A-Z])(?=.*[!@#$%^&*])/,
+      message: "Must contain uppercase & special character",
+    },
+  })}
+  autoComplete="new-password" 
+  className={`w-full pl-10 pr-12 py-3 border ${
+    errors.password ? "border-red-500" : "border-gray-300"
+  } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`}
+  placeholder="••••••••"
+/>
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
@@ -334,33 +337,6 @@ export default function Register() {
               </p>
             </div>
 
-            {selectedRole === "sale_person" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Assigned Under
-                </label>
-                <div className="relative">
-                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <select
-                    value={selectedManagerId}
-                    onChange={(e) => setSelectedManagerId(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required={selectedRole === "sale_person"}
-                  >
-                    <option value="" disabled>
-                      Select Manager
-                    </option>
-                    {managers.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.firstName} {m.lastName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
-
-            {/* Role */}
             {/* Role */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -390,6 +366,32 @@ export default function Register() {
                 <p className="text-red-500 text-xs mt-1">Role is required</p>
               )} */}
             </div>
+
+            {selectedRole === "sale_person" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Assigned Under
+                </label>
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <select
+                    value={selectedManagerId}
+                    onChange={(e) => setSelectedManagerId(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required={selectedRole === "sale_person"}
+                  >
+                    <option value="" disabled>
+                      Select Manager
+                    </option>
+                    {managers.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.firstName} {m.lastName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
 
             {/* Submit */}
             <button

@@ -27,6 +27,7 @@ export default function Login() {
     try {
       const res = await login(data);
       console.log(res);
+      Toast.success("You have been successfully logged in.")
       navigate("/");
     } catch (e) {
       alert("Login failed");

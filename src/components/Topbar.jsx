@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Bell, ChevronDown } from "lucide-react";
+import { Search, Bell, ChevronDown, Eye, EyeOff } from "lucide-react";
 import { TiUserOutline } from "react-icons/ti";
 import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
@@ -13,6 +13,8 @@ import Toast from "./Toast";
 export default function Topbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+const [showNewPassword, setShowNewPassword] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
   const { logout } = useContext(AuthContext);
@@ -156,28 +158,56 @@ export default function Topbar() {
                 onSubmit={handleSubmit(handleUpdatePassword)}
                 className="space-y-3"
               >
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">
-                    Old Password
-                  </label>
-                  <input
-                    type="password"
-                    {...register("oldPassword", { required: true })}
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:ring focus:ring-blue-200 outline-none"
-                    placeholder="Enter old password"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    {...register("newPassword", { required: true })}
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:ring focus:ring-blue-200 outline-none"
-                    placeholder="Enter new password"
-                  />
-                </div>
+
+                <div className="relative">
+  <label className="block text-sm text-gray-600 mb-1">
+    Old Password
+  </label>
+  <div className="relative">
+    <input
+      type={showOldPassword ? "text" : "password"}
+      {...register("oldPassword", { required: true })}
+      className="w-full border border-gray-300 rounded px-3 py-2 pl-3 pr-10 focus:ring focus:ring-blue-200 outline-none"
+      placeholder="Enter old password"
+    />
+    <button
+      type="button"
+      className="absolute inset-y-0 right-0 flex items-center"
+      onClick={() => setShowOldPassword(!showOldPassword)}
+    >
+      {showOldPassword ? (
+        <EyeOff className="text-gray-500 hover:text-gray-700" size={18} />
+      ) : (
+        <Eye className="text-gray-500 hover:text-gray-700" size={18} />
+      )}
+    </button>
+  </div>
+</div>
+
+<div className="relative">
+  <label className="block text-sm text-gray-600 mb-1">
+    New Password
+  </label>
+  <div className="relative">
+    <input
+      type={showNewPassword ? "text" : "password"}
+      {...register("newPassword", { required: true })}
+      className="w-full border border-gray-300 rounded px-3 py-2 pl-3 pr-10 focus:ring focus:ring-blue-200 outline-none"
+      placeholder="Enter new password"
+    />
+    <button
+      type="button"
+      className="absolute inset-y-0 right-0 flex items-center"
+      onClick={() => setShowNewPassword(!showNewPassword)}
+    >
+      {showNewPassword ? (
+        <EyeOff className="text-gray-500 hover:text-gray-700" size={18} />
+      ) : (
+        <Eye className="text-gray-500 hover:text-gray-700" size={18} />
+      )}
+    </button>
+  </div>
+</div>
 
                 <div className="flex justify-end gap-2 mt-4">
                   <button

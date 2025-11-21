@@ -34,58 +34,58 @@ export default function UserManagement() {
     try {
       setLoading(true);
 
-    if (isManager) {
-  try {
-    const res = await adminApi.getMySalespersons({
-      managerId: user.id,
-      page: 1,
-    });
+      if (isManager) {
+        try {
+          const res = await adminApi.getMySalespersons({
+            managerId: user.id,
+            page: 1,
+          });
 
-    const data = res.data?.data || res.data;
-    if (!data || !Array.isArray(data.rows)) {
-      throw new Error("Invalid response from my salespersons API");
-    }
+          const data = res.data?.data || res.data;
+          if (!data || !Array.isArray(data.finalRows)) {
+            throw new Error("Invalid response from my salespersons API");
+          }
 
-    const term = searchTerm.toLowerCase().trim();
-    let filteredRows = data.rows;
+          const term = searchTerm.toLowerCase().trim();
+          let filteredRows = data.finalRows;
 
-    if (term) {
-      filteredRows = data.rows.filter((user) => {
-        return (
-          (user.firstName && user.firstName.toLowerCase().includes(term)) ||
-          (user.lastName && user.lastName.toLowerCase().includes(term)) ||
-          (user.email && user.email.toLowerCase().includes(term)) ||
-          (user.phone && user.phone.toLowerCase().includes(term))
-        );
-      });
-    }
+          if (term) {
+            filteredRows = data.finalRows.filter((user) => {
+              return (
+                (user.firstName && user.firstName.toLowerCase().includes(term)) ||
+                (user.lastName && user.lastName.toLowerCase().includes(term)) ||
+                (user.email && user.email.toLowerCase().includes(term)) ||
+                (user.phone && user.phone.toLowerCase().includes(term))
+              );
+            });
+          }
 
-    // Update state with filtered results (no real pagination)
-    setUsers(filteredRows);
-    setPagination({
-      currentPage: 1,
-      totalItems: filteredRows.length,
-      totalPages: 1,
-      limit: filteredRows.length,
-    });
-  } catch (err) {
-    // Let outer catch handle it
-    throw err;
-  }
-} else {
+          // Update state with filtered results (no real pagination)
+          setUsers(filteredRows);
+          setPagination({
+            currentPage: 1,
+            totalItems: filteredRows.length,
+            totalPages: 1,
+            limit: filteredRows.length,
+          });
+        } catch (err) {
+          // Let outer catch handle it
+          throw err;
+        }
+      } else {
         // 🔵 Admin: full filtering
         const params = { page, limit: 10 };
         if (search) params.search = search;
-        if (role !== "all") params.role = role; // ✅ use passed role
+        if (role !== "all") params.role = role;
 
         const res = await adminApi.getAllUsers(params);
         const data = res.data?.data || res.data;
 
-        if (!data || !Array.isArray(data.rows)) {
+        if (!data || !Array.isArray(data.finalRows)) {
           throw new Error("Invalid response from all users API");
         }
 
-        setUsers(data.rows);
+        setUsers(data.finalRows);
         setPagination({
           currentPage: data.page || page,
           totalItems: data.total || 0,
@@ -103,42 +103,54 @@ export default function UserManagement() {
     }
   };
 
-  // Initial load: pass current roleFilter for admin
- useEffect(() => {
-  fetchUsers(1, searchTerm, isManager ? "all" : roleFilter);
-}, [isManager, user.id, searchTerm]); // ✅ include searchTerm
+  // Initial load
+  useEffect(() => {
+    fetchUsers(1, searchTerm, isManager ? "all" : roleFilter);
+  }, [isManager, user.id, searchTerm, roleFilter]);
 
   const handleSearch = (e) => {
-  const value = e.target.value;
-  setSearchTerm(value);
-  // Fetch for everyone — manager uses getMySalespersons WITH search
-  fetchUsers(1, value, isManager ? "all" : roleFilter);
-};
+    const value = e.target.value;
+    setSearchTerm(value);
+    fetchUsers(1, value, isManager ? "all" : roleFilter);
+  };
 
   const handleRoleChange = (e) => {
     const value = e.target.value;
     setRoleFilter(value);
     if (!isManager) {
-      // ✅ Pass new role value directly
       fetchUsers(1, searchTerm, value);
     }
   };
 
   const columns = [
-    { key: "firstName", label: "First Name" },
-    { key: "lastName", label: "Last Name" },
-    { key: "email", label: "Email" },
-    { key: "phone", label: "Phone" },
-    {
-      key: "role",
-      label: "Role",
-      render: (row) => {
-        if (row.role === "sale_person") return <span>Salesperson</span>;
-        if (row.role === "manager") return <span>Manager</span>;
-        return <span className="capitalize">{row.role}</span>;
-      },
+  { key: "firstName", label: "First Name" },
+  { key: "lastName", label: "Last Name" },
+  { key: "email", label: "Email" },
+  { key: "phone", label: "Phone" },
+  {
+    key: "role",
+    label: "Role",
+    render: (row) => {
+      if (row.role === "sale_person") return <span>Salesperson</span>;
+      if (row.role === "manager") return <span>Manager</span>;
+      return <span className="capitalize">{row.role}</span>;
     },
-  ];
+  },
+  {
+    key: "assignedUnder",
+    label: "Assigned Under",
+    render: (row) => {
+      if (row.creator && (row.creator.firstName || row.creator.lastName)) {
+        return (
+          <span>
+            {row.creator.firstName} {row.creator.lastName}
+          </span>
+        );
+      }
+      return <span className="text-gray-400">—</span>;
+    },
+  },
+];
 
   const actions = [];
 
@@ -146,22 +158,19 @@ export default function UserManagement() {
     <div className="py-6">
       <Toaster position="top-right" />
 
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">User Management</h1>
-
       <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
         <div className="flex flex-wrap items-center gap-4 flex-1 max-w-3xl">
           <input
-  type="text"
-  placeholder={
-    isManager
-      ? "Search your salespersons by name, email, or phone..."
-      : "Search by name, email or phone number..."
-  }
-  value={searchTerm}
-  onChange={handleSearch}
-  // 🔥 Remove `disabled` — managers CAN search now
-  className={`px-5 py-2 rounded border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent shadow-sm w-full sm:w-auto flex-1 min-w-[200px] custom-border`}
-/>
+            type="text"
+            placeholder={
+              isManager
+                ? "Search your salespersons by name, email, or phone..."
+                : "Search by name, email or phone number..."
+            }
+            value={searchTerm}
+            onChange={handleSearch}
+            className={`px-5 py-2 rounded border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent shadow-sm w-full sm:w-auto flex-1 min-w-[200px] custom-border`}
+          />
 
           {/* Role Filter – admin only */}
           {!isManager && (
@@ -178,18 +187,17 @@ export default function UserManagement() {
           )}
         </div>
 
-        {/* Add User Button */}
-      {/* Add User Button — only for non-managers */}
-{!isManager && (
-  <div>
-    <button
-      className="bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded"
-      onClick={() => navigate("/registration")}
-    >
-      + Add User
-    </button>
-  </div>
-)}
+        {/* Add User Button — only for non-managers */}
+        {!isManager && (
+          <div>
+            <button
+              className="bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded"
+              onClick={() => navigate("/registration")}
+            >
+              + Add User
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="mb-4">
@@ -207,9 +215,9 @@ export default function UserManagement() {
         currentPage={pagination.currentPage}
         pageSize={pagination.limit}
         totalCount={pagination.totalItems}
-       onPageChange={(page) =>
-  fetchUsers(page, searchTerm, isManager ? "all" : roleFilter)
-}
+        onPageChange={(page) =>
+          fetchUsers(page, searchTerm, isManager ? "all" : roleFilter)
+        }
       />
 
       {loading && (

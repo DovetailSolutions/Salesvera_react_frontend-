@@ -50,8 +50,8 @@ export const allRoutes = [
       //   roles: [ROLES.ADMIN],
       // },
        {
-        path: "/client-bulk-upload",
-        label: "Client Bulk Upload",
+        path: "/client-management",
+        label: "Client Managemnt",
         icon: <FaUsers />,
         roles: [ROLES.ADMIN],
       },
@@ -111,7 +111,7 @@ export default function Router() {
           <Route path="meeting-management" element={<Meeting />} />
           <Route path="profile" element={<Profile />} />
           <Route path="user-management" element={<UserManagement />} />
-          <Route path="client-bulk-upload" element={<ClientBulkUpload />} />
+          <Route path="client-management" element={<ClientBulkUpload />} />
         </Route>
       </Route>
 

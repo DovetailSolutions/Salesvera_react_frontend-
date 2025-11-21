@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaDownload, FaFileUpload, FaSearch } from 'react-icons/fa';
 import { clientApi, meetingApi } from '../api';
 import Table from '../components/Table';
+import Toast from "../components/Toast";
 
 // Column definitions (kept for reference and reuse)
 const MEETING_COLUMNS = [
@@ -40,7 +41,6 @@ const MEETING_COLUMNS = [
   },
 ];
 
-// Helper: Transform raw meeting object into safe, pre-rendered values
 const transformMeetingForDisplay = (meeting) => {
   const transformed = {};
   for (const col of MEETING_COLUMNS) {
@@ -99,34 +99,49 @@ arena,ankit,7875345632,arena@gmail.com`;
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) {
-      setUploadStatus('error');
-      setUploadMessage('No file selected.');
-      return;
+  if (!selectedFile) {
+    Toast.error('No file selected.');
+    return;
+  }
+
+  setUploadStatus('loading');
+
+  const formData = new FormData();
+  formData.append('csv', selectedFile);
+
+  try {
+    const response = await clientApi.bulkUploads(formData);
+    const resData = response.data;
+
+    if (resData?.success) {
+      // 🟢 Main success toast
+      Toast.success(resData.message || 'Bulk upload successful!');
+
+      // ℹ️ Detailed info toast with counts
+      const { totalCSV = 0, inserted = 0, duplicatesSkipped = 0 } = resData.data || {};
+      const detailMessage = `${totalCSV} record(s) processed. ${inserted} added, ${duplicatesSkipped} duplicates skipped.`;
+      Toast.info(detailMessage);
+    } else {
+      // Handle case where API returns success: false
+      const errorMsg = resData?.message || 'Upload failed.';
+      Toast.error(errorMsg);
     }
 
-    setUploadStatus('loading');
-    setUploadMessage('Uploading...');
+    // Reset UI
+    setSelectedFile(null);
+    setUploadStatus(null);
+    fetchMeetings(searchTerm); // refresh table
 
-    const formData = new FormData();
-    formData.append('csv', selectedFile);
-
-    try {
-      await clientApi.bulkUploads(formData);
-      setUploadStatus('success');
-      setUploadMessage('File uploaded successfully!');
-      setSelectedFile(null);
-      fetchMeetings(searchTerm);
-    } catch (error) {
-      setUploadStatus('error');
-      const errorMsg =
-        error.response?.data?.errorMessage ||
-        error.response?.data?.message ||
-        error.message ||
-        'Upload failed. Please try again.';
-      setUploadMessage(`Upload failed: ${errorMsg}`);
-    }
-  };
+  } catch (error) {
+    const errorMsg =
+      error.response?.data?.errorMessage ||
+      error.response?.data?.message ||
+      error.message ||
+      'Upload failed. Please try again.';
+    Toast.error(`Upload failed: ${errorMsg}`);
+    setUploadStatus('error');
+  }
+};
 
   const fetchMeetings = async (search = '') => {
     setLoadingMeetings(true);
@@ -173,7 +188,7 @@ arena,ankit,7875345632,arena@gmail.com`;
   };
 
   return (
-    <div className="w-full py-4">
+    <div className="w-full py-6">
       <button
         onClick={downloadSampleCSV}
         className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-md text-sm hover:bg-blue-700 transition"
@@ -215,12 +230,6 @@ arena,ankit,7875345632,arena@gmail.com`;
           {uploadStatus === 'loading' ? 'Uploading...' : 'Upload File'}
         </button>
 
-        {uploadStatus === 'success' && (
-          <p className="mt-3 text-green-600 font-medium">{uploadMessage}</p>
-        )}
-        {uploadStatus === 'error' && (
-          <p className="mt-3 text-red-600 font-medium">{uploadMessage}</p>
-        )}
       </div>
 
       <div className="mt-8">

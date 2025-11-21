@@ -28,7 +28,7 @@ const [meetingsLoading, setMeetingsLoading] = useState(false);
   const fetchManagers = async (search = "") => {
     try {
       const res = await adminApi.getAllUsers({ role, search });
-      if (res.data?.success) setManagers(res.data.data?.rows || []);
+      if (res.data?.success) setManagers(res.data.data?.finalRows || []);
     } catch (err) {
       console.error(err);
       Toast.error("Failed to fetch managers");
@@ -171,7 +171,7 @@ const applyMeetingFilter = (meetings, tab) => {
 };
 
   return (
-    <div className="min-h-screen py-4">
+    <div className="min-h-screen py-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-semibold text">
@@ -180,22 +180,26 @@ const applyMeetingFilter = (meetings, tab) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
-        {/* Left Panel */}
-       {/* Left Panel */}
-<div className="layout rounded shadow-sm custom-border p-5">
-  <h2 className="text-lg font-semibold text mb-4">
-    Select Manager
+
+       {/* Left Panel - Improved Design */}
+<div className="lg:col-span-1 bg-white rounded-lg shadow-sm border border-slate-200 p-5 flex flex-col h-fit">
+  <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+    <span>📊</span>
+    <span className="ml-2">Select Manager</span>
   </h2>
 
   {/* Manager Dropdown */}
-  <div className="mb-4">
+  <div className="mb-5">
+    <label className="block text-sm font-medium text-slate-600 mb-1">
+      Manager
+    </label>
     <select
       value={selectedManager?.id || ""}
       onChange={(e) => {
         const managerId = e.target.value;
-        const manager = managers.find(m => m.id === Number(managerId)) || null;
+        const manager = managers.find((m) => m.id === Number(managerId)) || null;
         setSelectedManager(manager);
-        setSelectedSalesperson(null); // reset selection
+        setSelectedSalesperson(null);
         setMeetings([]);
         if (manager) {
           fetchSalespersons(manager.id);
@@ -203,9 +207,9 @@ const applyMeetingFilter = (meetings, tab) => {
           setSalespersons([]);
         }
       }}
-      className="w-full custom-border rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+      className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
     >
-      <option value="">-- Choose a Manager --</option>
+      <option value="">— Select a manager —</option>
       {managers.map((m) => (
         <option key={m.id} value={m.id}>
           {m.firstName} {m.lastName}
@@ -214,41 +218,63 @@ const applyMeetingFilter = (meetings, tab) => {
     </select>
   </div>
 
-  {/* Salesperson List (only this — no manager list) */}
-  <div className="flex flex-col gap-2 max-h-[65vh] overflow-y-auto pr-1">
-    {loading ? (
-      <p className="text-slate-500 text-sm text-center py-4">Loading salespersons...</p>
-    ) : salespersons.length > 0 ? (
-      salespersons.map((sp) => (
-        <div
-          key={sp.id}
-          onClick={() => {
-            setSelectedSalesperson(sp);
-            fetchMeetings(sp.id);
-          }}
-          className={`bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg p-4 transition cursor-pointer ${
-            selectedSalesperson?.id === sp.id ? "ring-2 ring-blue-500 bg-blue-50" : ""
-          }`}
-        >
-          <div className="font-semibold text-slate-800">
-            {sp.firstName} {sp.lastName}
-          </div>
-          <div className="text-sm text-slate-600 mt-1">📧 {sp.email}</div>
-          <div className="text-sm text-slate-600">📱 {sp.phone || "N/A"}</div>
-          <div className="text-xs text-slate-500 mt-2">
-            Role: <span className="capitalize">{sp.role || "salesperson"}</span>
-          </div>
+  {/* Salesperson List */}
+  <div className="mt-2">
+    <h3 className="text-sm font-medium text-slate-600 mb-2">
+      Team Members
+    </h3>
+    <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1 pt-2">
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-6 text-slate-500">
+          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+          <p className="text-sm">Loading team...</p>
         </div>
-      ))
-    ) : selectedManager ? (
-      <p className="text-slate-500 text-sm text-center py-4">
-        No salespersons found
-      </p>
-    ) : (
-      <p className="text-slate-500 text-sm text-center py-4">
-        Select a manager to view their team
-      </p>
-    )}
+      ) : salespersons.length > 0 ? (
+        salespersons.map((sp) => (
+          <div
+            key={sp.id}
+            onClick={() => {
+              setSelectedSalesperson(sp);
+              fetchMeetings(sp.id);
+            }}
+            className={`relative rounded-lg border p-3 cursor-pointer transition-all duration-200 hover:shadow-sm ${
+              selectedSalesperson?.id === sp.id
+                ? "border-blue-500 bg-blue-50"
+                : "border-slate-200 bg-white hover:bg-slate-50"
+            }`}
+          >
+            {selectedSalesperson?.id === sp.id && (
+              <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                <span className="text-white text-xs">✓</span>
+              </div>
+            )}
+            <div className="font-medium text-slate-800">
+              {sp.firstName} {sp.lastName}
+            </div>
+            <div className="mt-1 text-xs text-slate-600 line-clamp-1">
+              📧 {sp.email}
+            </div>
+            <div className="text-xs text-slate-600">
+              📱 {sp.phone || "—"}
+            </div>
+            <div className="mt-1">
+              <span className="inline-block px-2 py-0.5 text-xs bg-slate-100 text-slate-700 rounded capitalize">
+                {sp.role || "salesperson"}
+              </span>
+            </div>
+          </div>
+        ))
+      ) : selectedManager ? (
+        <div className="text-center py-6 text-slate-500 text-sm">
+          <p>No team members found.</p>
+        </div>
+      ) : (
+        <div className="text-center py-6 text-slate-500 text-sm">
+          <p className="mb-1">👉 Select a manager</p>
+          <p>to view their sales team</p>
+        </div>
+      )}
+    </div>
   </div>
 </div>
 
@@ -296,41 +322,54 @@ onClick={() => {
             <h3 className="text-lg font-medium mb-3">
               Meetings: {selectedSalesperson.firstName} {selectedSalesperson.lastName}
             </h3>
-            {filteredMeetings.length > 0 ? (
-  <div className="space-y-3">
-    {filteredMeetings.map((meeting) => (
-  <div
-    key={meeting.id}
-    className="border border-slate-200 rounded-lg p-3 hover:bg-slate-50"
-  >
-    <div className="font-semibold text-slate-800">
-      {meeting.companyName || "N/A"}
-    </div>
-    <div className="text-sm text-slate-600 mt-1">
-      👤 Contact: {meeting.personName || "N/A"}
-    </div>
-    <div className="text-sm text-slate-600">
-      📞 {meeting.mobileNumber || "N/A"} | 📧 {meeting.companyEmail || "N/A"}
-    </div>
-    <div className="text-sm text-slate-600 mt-1">
-      🕒 In: {new Date(meeting.meetingTimeIn).toLocaleString()}
-    </div>
-    {meeting.meetingTimeOut && (
-      <div className="text-sm text-slate-600">
-        🕓 Out: {new Date(meeting.meetingTimeOut).toLocaleString()}
-      </div>
-    )}
-    <div className="text-sm text-slate-600 mt-1">
-      📌 Purpose: {meeting.meetingPurpose || "N/A"}
-    </div>
-  </div>
-))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-slate-500">
-                No meetings found
-              </div>
-            )}
+            <Table
+  columns={[
+    {
+      key: "companyName",
+      label: "Company",
+      render: (row) => row.companyName || "N/A",
+    },
+    {
+      key: "personName",
+      label: "Contact",
+      render: (row) => row.personName || "N/A",
+    },
+    {
+      key: "mobileNumber",
+      label: "Mobile",
+      render: (row) => row.mobileNumber || "N/A",
+    },
+    {
+      key: "companyEmail",
+      label: "Email",
+      render: (row) => row.companyEmail || "N/A",
+    },
+    {
+      key: "meetingTimeIn",
+      label: "Check-in",
+      render: (row) =>
+        row.meetingTimeIn
+          ? new Date(row.meetingTimeIn).toLocaleString()
+          : "N/A",
+    },
+    {
+      key: "meetingTimeOut",
+      label: "Check-out",
+      render: (row) =>
+        row.meetingTimeOut
+          ? new Date(row.meetingTimeOut).toLocaleString()
+          : "—",
+    },
+    {
+      key: "meetingPurpose",
+      label: "Purpose",
+      render: (row) => row.meetingPurpose || "N/A",
+    },
+  ]}
+  data={filteredMeetings}
+  keyField="id"
+  emptyMessage="No meetings found"
+/>
           </>
         ) : (
           <div className="flex flex-col items-center justify-center h-64 text-center text-slate-500">
