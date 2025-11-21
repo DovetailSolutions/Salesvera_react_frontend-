@@ -171,28 +171,35 @@ const applyMeetingFilter = (meetings, tab) => {
 };
 
   return (
-    <div className="min-h-screen py-6">
+    <div className="min-h-screen py-6 m-4 border-1 border-gray-200 rounded-xl p-4">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-semibold text">
+        <h1 className="text-3xl font-bold">
           Meeting Management
         </h1>
+           <div>
+            <button
+              className="bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded"
+              onClick={() => navigate("/registration")}
+            >
+              +Add Meeting
+            </button>
+          </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
 
        {/* Left Panel - Improved Design */}
-<div className="lg:col-span-1 bg-white rounded-lg shadow-sm border border-slate-200 p-5 flex flex-col h-fit">
-  <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-    <span>📊</span>
-    <span className="ml-2">Select Manager</span>
+<div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-slate-200 p-7 flex flex-col h-fit">
+  <h2 className="text-2xl font-semibold mb-4 flex items-center">
+    Managers
   </h2>
 
   {/* Manager Dropdown */}
   <div className="mb-5">
-    <label className="block text-sm font-medium text-slate-600 mb-1">
+    {/* <label className="block text-sm font-medium text-slate-600 mb-1">
       Manager
-    </label>
+    </label> */}
     <select
       value={selectedManager?.id || ""}
       onChange={(e) => {
@@ -207,9 +214,9 @@ const applyMeetingFilter = (meetings, tab) => {
           setSalespersons([]);
         }
       }}
-      className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+      className="w-full rounded-full border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
     >
-      <option value="">— Select a manager —</option>
+      <option value="">Select a manager</option>
       {managers.map((m) => (
         <option key={m.id} value={m.id}>
           {m.firstName} {m.lastName}
@@ -237,31 +244,26 @@ const applyMeetingFilter = (meetings, tab) => {
               setSelectedSalesperson(sp);
               fetchMeetings(sp.id);
             }}
-            className={`relative rounded-lg border p-3 cursor-pointer transition-all duration-200 hover:shadow-sm ${
+            className={`relative rounded-3xl border p-3 cursor-pointer transition-all duration-200 hover:shadow-sm ${
               selectedSalesperson?.id === sp.id
-                ? "border-blue-500 bg-blue-50"
+                ? "border-[var(--primary-blue)] bg-[var(--primary-blue)]"
                 : "border-slate-200 bg-white hover:bg-slate-50"
             }`}
           >
-            {selectedSalesperson?.id === sp.id && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                <span className="text-white text-xs">✓</span>
-              </div>
-            )}
-            <div className="font-medium text-slate-800">
+            <div className={`font-medium text-slate-800 capitalize ${selectedSalesperson?.id === sp.id ? "text-white" : "text-black"}`}>
               {sp.firstName} {sp.lastName}
             </div>
-            <div className="mt-1 text-xs text-slate-600 line-clamp-1">
-              📧 {sp.email}
+            <div className={`text-xs text-slate-600 line-clamp-1 ${selectedSalesperson?.id === sp.id ? "text-white" : "text-black"}`}>
+               {sp.email}
             </div>
-            <div className="text-xs text-slate-600">
-              📱 {sp.phone || "—"}
+            <div className={`text-xs text-slate-600 ${selectedSalesperson?.id === sp.id ? "text-white" : "text-black"}`}>
+               {sp.phone || "—"}
             </div>
-            <div className="mt-1">
+            {/* <div className="mt-1">
               <span className="inline-block px-2 py-0.5 text-xs bg-slate-100 text-slate-700 rounded capitalize">
                 {sp.role || "salesperson"}
               </span>
-            </div>
+            </div> */}
           </div>
         ))
       ) : selectedManager ? (
@@ -270,7 +272,7 @@ const applyMeetingFilter = (meetings, tab) => {
         </div>
       ) : (
         <div className="text-center py-6 text-slate-500 text-sm">
-          <p className="mb-1">👉 Select a manager</p>
+          <p className="mb-1">Select a manager</p>
           <p>to view their sales team</p>
         </div>
       )}
@@ -279,14 +281,13 @@ const applyMeetingFilter = (meetings, tab) => {
 </div>
 
         {/* Right Panel */}
-        {/* Right Panel */}
 <div className="lg:col-span-3 bg-white rounded shadow-sm custom-border border-slate-200">
   {selectedManager ? (
     <>
       {/* Manager Header */}
-      <div className="px-4 pt-4 border-b border-slate-200">
-        <h2 className="text-xl font-semibold">
-          Manager: {selectedManager.firstName} {selectedManager.lastName}
+      <div className="px-4 pt-4 border-slate-200">
+        <h2 className="text-2xl font-semibold">
+          Manager : {selectedManager.firstName} {selectedManager.lastName}
         </h2>
       </div>
 
@@ -303,9 +304,9 @@ onClick={() => {
     applyMeetingFilter(meetings, tab);
   }
 }}
-              className={`px-4 py-2 rounded text-sm font-medium cursor-pointer transition-all duration-200 ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 ${
                 activeTab === tab
-                  ? "bg-blue-600 text-white shadow-sm"
+                  ? "bg-[var(--primary-blue)] text-white shadow-sm"
                   : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
               }`}
             >

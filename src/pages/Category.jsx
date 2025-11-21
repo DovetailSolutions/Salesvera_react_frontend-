@@ -33,66 +33,88 @@ export default function Category() {
     fetchCategories();
   }, []);
 
-  // 🔍 FRONTEND-ONLY SEARCH
   const filteredCategories = categories.filter((category) =>
     category.category_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Add new category
-  const handleAddCategory = async () => {
-    const name = tempCategoryName.trim();
-    if (!name) {
-      toast.error("Please enter a category name");
-      return;
-    }
+// Add new category
+const handleAddCategory = async () => {
+  const name = tempCategoryName.trim();
+  if (!name) {
+    toast.error("Please enter a category name");
+    return;
+  }
 
-    const formData = new URLSearchParams();
-    formData.append("category_name", name);
+  // 🔍 Check for duplicate (case-insensitive)
+  if (isCategoryNameDuplicate(name)) {
+    toast.error("A category with this name already exists");
+    return;
+  }
 
-    try {
-      setLoading(true);
-      await menuapi.createCategory(formData);
-      toast.success("Category added successfully");
-      setIsAddModalOpen(false);
-      setTempCategoryName("");
-      fetchCategories(); // refresh full list
-    } catch (err) {
-      console.error("Add error:", err);
-      toast.error("Error adding category");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const formData = new URLSearchParams();
+  formData.append("category_name", name);
+
+  try {
+    setLoading(true);
+    await menuapi.createCategory(formData);
+    toast.success("Category added successfully");
+    setIsAddModalOpen(false);
+    setTempCategoryName("");
+    fetchCategories(); // refresh full list
+  } catch (err) {
+    console.error("Add error:", err);
+    toast.error("Error adding category");
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Inline edit save
+const saveInlineEdit = async () => {
+  const name = inlineEditValue.trim();
+  if (!name) {
+    toast.error("Category name cannot be empty");
+    return;
+  }
+
+  // 🔍 Check for duplicate, but exclude current category (allow saving same name)
+  if (isCategoryNameDuplicate(name, inlineEditId)) {
+    toast.error("A category with this name already exists");
+    return;
+  }
+
+  const formData = new URLSearchParams();
+  formData.append("category_name", name);
+
+  try {
+    setLoading(true);
+    await menuapi.updateCategory(inlineEditId, formData);
+    toast.success("Category updated");
+    setInlineEditId(null);
+    setInlineEditValue("");
+    fetchCategories();
+  } catch (err) {
+    console.error("Update error:", err);
+    toast.error("A category with this name already exists");
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Helper function — add this inside your component
+const isCategoryNameDuplicate = (name, excludeId = null) => {
+  const inputName = name.trim().toLowerCase();
+  return categories.some(
+    (cat) =>
+      cat.category_name.trim().toLowerCase() === inputName &&
+      cat.id !== excludeId
+  );
+};
 
   // Inline edit handlers
   const startInlineEdit = (row) => {
     setInlineEditId(row.id);
     setInlineEditValue(row.category_name);
-  };
-
-  const saveInlineEdit = async () => {
-    const name = inlineEditValue.trim();
-    if (!name) {
-      toast.error("Category name cannot be empty");
-      return;
-    }
-
-    const formData = new URLSearchParams();
-    formData.append("category_name", name);
-
-    try {
-      setLoading(true);
-      await menuapi.updateCategory(inlineEditId, formData);
-      toast.success("Category updated");
-      setInlineEditId(null);
-      setInlineEditValue("");
-      fetchCategories();
-    } catch (err) {
-      console.error("Update error:", err);
-      toast.error("Failed to update category");
-    } finally {
-      setLoading(false);
-    }
   };
 
   const cancelInlineEdit = () => {
@@ -193,39 +215,40 @@ export default function Category() {
       </div>
 
       {/* Add Category Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-20">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md border border-gray-200">
-            <h2 className="text-xl font-bold mb-4">Add New Category</h2>
-            <input
-              type="text"
-              value={tempCategoryName}
-              onChange={(e) => setTempCategoryName(e.target.value)}
-              placeholder="Category name"
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-200 mb-4"
-              autoFocus
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  setTempCategoryName("");
-                }}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddCategory}
-                disabled={loading}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Add Category Modal */}
+{isAddModalOpen && (
+  <div className="fixed inset-0 flex items-center justify-center z-50">
+    <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md border border-gray-200">
+      <h2 className="text-xl font-bold mb-4">Add New Category</h2>
+      <input
+        type="text"
+        value={tempCategoryName}
+        onChange={(e) => setTempCategoryName(e.target.value)}
+        placeholder="Category name"
+        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-200 mb-4"
+        autoFocus
+      />
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => {
+            setIsAddModalOpen(false);
+            setTempCategoryName("");
+          }}
+          className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleAddCategory}
+          disabled={loading}
+          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-60"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Category Table — uses filtered data */}
       <Table

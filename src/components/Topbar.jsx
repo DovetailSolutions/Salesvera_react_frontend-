@@ -9,6 +9,7 @@ import { adminApi } from "../api"; // ⬅️ adjust path if needed
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthProvider";
 import Toast from "./Toast";
+import { FaUser } from "react-icons/fa";
 
 export default function Topbar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -54,10 +55,10 @@ const [showNewPassword, setShowNewPassword] = useState(false);
   }, []);
 
   return (
-    <>
+    <div className="border-1 border-gray-200 rounded-xl m-4 p-2">
       <Toaster position="top-right" />
 
-      <div className="flex items-center justify-between px-4 py-2 bg-white shadow-sm sticky top-2 z-50">
+      <div className="flex items-center justify-between px-4 py-2 bg-white sticky top-2 z-50">
         <div className="flex items-center bg-gray-50 rounded-full px-3 py-2 w-64 shadow-inner">
           <input
             type="text"
@@ -79,9 +80,9 @@ const [showNewPassword, setShowNewPassword] = useState(false);
           <div className="relative" ref={menuRef}>
             <div
               onClick={() => setMenuOpen((prev) => !prev)}
-              className="flex items-center bg-gray-100 hover:bg-gray-200 rounded-full pl-1 pr-2 py-2 cursor-pointer focus:outline-none"
+              className="flex items-center border-1 border-gray-200 hover:bg-gray-200 rounded-full pl-1 pr-2 py-2 cursor-pointer focus:outline-none h-[2.5rem]"
             >
-              <TiUserOutline className="text-2xl text-gray-500 font-thin" />
+              <div className="p-2 bg-gray-200 rounded-full"><FaUser className="text-2xl text-gray-300 h-4 w-4 font-thin" /></div>
               <ChevronDown
                 className={`w-4 h-4 text-gray-600 ml-1 transition-transform duration-200 ${
                   menuOpen ? "rotate-180" : "rotate-0"
@@ -230,6 +231,6 @@ const [showNewPassword, setShowNewPassword] = useState(false);
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </div>
   );
 }

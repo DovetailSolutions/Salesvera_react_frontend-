@@ -51,7 +51,7 @@ export const allRoutes = [
       // },
        {
         path: "/client-management",
-        label: "Client Managemnt",
+        label: "Client Management",
         icon: <FaUsers />,
         roles: [ROLES.ADMIN],
       },
