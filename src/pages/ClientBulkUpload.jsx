@@ -11,28 +11,28 @@ const MEETING_COLUMNS = [
   { key: 'personName', label: 'Contact Person', sortable: true },
   { key: 'mobileNumber', label: 'Mobile', sortable: true },
   { key: 'companyEmail', label: 'Email', sortable: true },
-  { 
-    key: 'meetingTimeIn', 
-    label: 'Check-in', 
-    sortable: true,
-    render: (value) => value ? new Date(value).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }) : '—'
-  },
-  { 
-    key: 'meetingTimeOut', 
-    label: 'Check-out', 
-    sortable: true,
-    render: (value) => value ? new Date(value).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }) : '—'
-  },
+  // { 
+  //   key: 'meetingTimeIn', 
+  //   label: 'Check-in', 
+  //   sortable: true,
+  //   render: (value) => value ? new Date(value).toLocaleString('en-US', {
+  //     month: 'short',
+  //     day: 'numeric',
+  //     hour: '2-digit',
+  //     minute: '2-digit'
+  //   }) : '—'
+  // },
+  // { 
+  //   key: 'meetingTimeOut', 
+  //   label: 'Check-out', 
+  //   sortable: true,
+  //   render: (value) => value ? new Date(value).toLocaleString('en-US', {
+  //     month: 'short',
+  //     day: 'numeric',
+  //     hour: '2-digit',
+  //     minute: '2-digit'
+  //   }) : '—'
+  // },
   { 
     key: 'meetingPurpose', 
     label: 'Purpose', 
@@ -191,7 +191,7 @@ arena,ankit,7875345632,arena@gmail.com`;
     <div className="w-full py-6">
       <button
         onClick={downloadSampleCSV}
-        className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-md text-sm hover:bg-blue-700 transition"
+        className="flex items-center gap-2 px-4 py-2.5 text-white font-medium rounded-md text-sm transition"
       >
         <FaDownload /> Download Sample CSV
       </button>
@@ -240,7 +240,7 @@ arena,ankit,7875345632,arena@gmail.com`;
               value={searchTerm}
               onChange={handleSearch}
               placeholder="Search meetings..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <FaSearch className="absolute left-3 top-2.5 text-gray-400" />
           </div>

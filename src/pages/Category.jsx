@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import Table from "../components/Table";
 import { menuapi } from "../api";
+import { MdEdit } from "react-icons/md";
+import { MdDelete } from "react-icons/md";
 
 export default function Category() {
   const [categories, setCategories] = useState([]); // full list from API
@@ -177,19 +179,37 @@ const isCategoryNameDuplicate = (name, excludeId = null) => {
   ];
 
   const actions = [
-    {
-      type: "button",
-      label: "Edit",
-      className: "text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1",
-      onClick: (row) => startInlineEdit(row),
-    },
-    {
-      type: "button",
-      label: "Delete",
-      className: "text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1",
-      onClick: (row) => handleDelete(row.id),
-    },
-  ];
+  {
+    type: "button",
+    render: (row) => (
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          startInlineEdit(row);
+        }}
+        className="text-gray-500 hover:text-[var(--primary-green)] p-1.5 rounded transition-colors"
+        aria-label="Edit"
+      >
+        <MdEdit size={18} />
+      </div>
+    ),
+  },
+  {
+    type: "button",
+    render: (row) => (
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          handleDelete(row.id);
+        }}
+        className="text-gray-500 hover:text-red-500 p-1.5 rounded transition-colors"
+        aria-label="Delete"
+      >
+        <MdDelete size={18} />
+      </div>
+    ),
+  },
+];
 
   return (
     <div className="px-4 py-6">
@@ -203,14 +223,14 @@ const isCategoryNameDuplicate = (name, excludeId = null) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search categories..."
-            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-blue-200"
+            className="w-full px-3 py-2 border-1 border-gray-300 rounded-full focus:outline-none focus:ring focus:ring-blue-200"
           />
         </div>
         <button
           onClick={() => setIsAddModalOpen(true)}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ml-4"
         >
-          Add New Category
+          +Add New Category
         </button>
       </div>
 

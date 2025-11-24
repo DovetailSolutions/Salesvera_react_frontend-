@@ -54,7 +54,7 @@ input[type="date"]::-webkit-clear-button {
 
 button,
 .button {
-  @apply bg-[#11133d] w-fit dark:bg-[#282b53] text-white dark:text-white px-6 py-2 rounded font-thin text-sm transition-all duration-200 ease-in-out active:scale-95 hover:scale-105 hover:shadow-lg;
+  @apply bg-(--primary-blue) w-fit dark:bg-[#282b53] text-white dark:text-white px-6 py-2 rounded-lg font-thin text-sm transition-all duration-200 ease-in-out active:scale-95 hover:scale-105 hover:shadow-lg cursor-pointer;
 }
 
 /* Optional custom animation for subtle “press” feedback */
@@ -89,7 +89,7 @@ label {
 }
 
 .button-sidepanel {
-  @apply bg-[#3B82F6] dark:bg-[#282b53] rounded-lg dark:text-white
+  @apply bg-(--primary-blue) dark:bg-[#282b53] rounded-lg dark:text-white
 }
 
 .custom-border {

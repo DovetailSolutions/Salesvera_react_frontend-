@@ -151,7 +151,8 @@ const [showNewPassword, setShowNewPassword] = useState(false);
               exit={{ scale: 0.95 }}
               className="bg-white rounded w-full max-w-sm p-6 custom-border"
             >
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">
+              <div className="py-5">
+                <h2 className="text-lg font-semibold text-gray-800 mb-3">
                 Update Password
               </h2>
 
@@ -171,9 +172,9 @@ const [showNewPassword, setShowNewPassword] = useState(false);
       className="w-full border border-gray-300 rounded px-3 py-2 pl-3 pr-10 focus:ring focus:ring-blue-200 outline-none"
       placeholder="Enter old password"
     />
-    <button
+    <div
       type="button"
-      className="absolute inset-y-0 right-0 flex items-center"
+      className="absolute inset-y-0 right-4 flex items-center"
       onClick={() => setShowOldPassword(!showOldPassword)}
     >
       {showOldPassword ? (
@@ -181,7 +182,7 @@ const [showNewPassword, setShowNewPassword] = useState(false);
       ) : (
         <Eye className="text-gray-500 hover:text-gray-700" size={18} />
       )}
-    </button>
+    </div>
   </div>
 </div>
 
@@ -196,9 +197,9 @@ const [showNewPassword, setShowNewPassword] = useState(false);
       className="w-full border border-gray-300 rounded px-3 py-2 pl-3 pr-10 focus:ring focus:ring-blue-200 outline-none"
       placeholder="Enter new password"
     />
-    <button
+    <div
       type="button"
-      className="absolute inset-y-0 right-0 flex items-center"
+      className="absolute inset-y-0 right-4 flex items-center"
       onClick={() => setShowNewPassword(!showNewPassword)}
     >
       {showNewPassword ? (
@@ -206,7 +207,7 @@ const [showNewPassword, setShowNewPassword] = useState(false);
       ) : (
         <Eye className="text-gray-500 hover:text-gray-700" size={18} />
       )}
-    </button>
+    </div>
   </div>
 </div>
 
@@ -227,6 +228,7 @@ const [showNewPassword, setShowNewPassword] = useState(false);
                   </button>
                 </div>
               </form>
+              </div>
             </motion.div>
           </motion.div>
         )}

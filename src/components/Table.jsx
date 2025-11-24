@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
-import { MdArrowLeft, MdArrowRight } from "react-icons/md";
 import { motion } from "framer-motion";
+import { FaAngleLeft } from "react-icons/fa";
+import { FaAngleRight } from "react-icons/fa";
 
 export default function Table({
   columns = [],
@@ -84,92 +85,91 @@ export default function Table({
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
   const renderHeader = () => (
-    <thead>
-      <tr className="bgsky custom-border-bottom">
-        {/* ✅ Index column */}
-        <th className="px-4 py-3 font-[500] text-sky-600 text-[14px] text-left rounded-l-xl">
-          #
+  <thead>
+    <tr>
+      <th className="px-3 py-2 font-semibold text-xs text-left text-black bg-[#3B82F60D] rounded-l-xl">
+        Sr No
+      </th>
+
+      {columns.map((col) => (
+        <th
+          key={col.key}
+          className={`px-3 py-2 text-xs text-black font-semibold bg-[#3B82F60D] ${
+            col.align || "text-left"
+          } ${col.sortable !== false ? "cursor-pointer select-none" : ""}`}
+          onClick={() => col.sortable !== false && handleSort(col.key)}
+        >
+          {col.label}
+          {col.sortable !== false && getSortIcon(col.key)}
         </th>
+      ))}
 
-        {columns.map((col) => (
-          <th
-            key={col.key}
-            className={`px-4 py-3 text-[14px] text-gray-400 font-semibold  ${
-              col.align || "text-left"
-            } ${col.sortable !== false ? "cursor-pointer select-none" : ""}`}
-            onClick={() => col.sortable !== false && handleSort(col.key)}
-          >
-            {col.label}
-            {col.sortable !== false && getSortIcon(col.key)}
-          </th>
-        ))}
-
-        {actions.length > 0 && (
-          <th className="px-4 py-2 text-end font-semibold text-[14px]  rounded-r-xl">
-            Actions
-          </th>
-        )}
-      </tr>
-    </thead>
-  );
+      {actions.length > 0 && (
+        <th className="px-3 py-2 text-end font-semibold text-xs text-black bg-[#3B82F60D] rounded-r-xl">
+          Actions
+        </th>
+      )}
+    </tr>
+  </thead>
+);
 
   const renderBody = () => (
-    <tbody>
-      {Array.isArray(sortedData) && sortedData.length > 0 ? (
-        sortedData.map((row, idx) => (
-          <tr key={row[keyField]} className="">
-            {/* ✅ Index number (pagination-aware) */}
-            <td className="px-4 py-2 text-sky-600">
+  <tbody>
+    {Array.isArray(sortedData) && sortedData.length > 0 ? (
+      sortedData.map((row, idx) => {
+        const bgColor = idx % 2 === 0 ? 'bg-[#3B82F603]' : 'bg-[#3B82F60D]';
+        return (
+          <tr key={row[keyField]} className={bgColor}>
+            <td className="px-3 py-1.5 text-xs text-black">
               {(currentPage - 1) * pageSize + (idx + 1)}
             </td>
-
             {columns.map((col) => (
-              <td key={col.key} className="px-4 py-2 text-[15px] text">
+              <td key={col.key} className="px-3 py-1.5 text-xs text-black">
                 {col.render ? col.render(row) : row[col.key]}
               </td>
             ))}
-
             {actions.length > 0 && (
-              <td className="px-4 py-2 flex items-center justify-end gap-2 relative">
+              <td className="px-3 py-1.5 flex items-center justify-end gap-2 relative text-xs text-black">
                 {actions.map((action, idx) => {
-                  // ✅ check condition first
                   if (action.condition && !action.condition(row)) return null;
-
-                  if (action.type === "button") {
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => action.onClick(row)}
-                        className={action.className}
-                      >
-                        {action.label}
-                      </button>
-                    );
-                  }
-
+                 if (action.type === "button") {
+  if (action.render) {
+    return (
+      <span key={idx} onClick={(e) => e.stopPropagation()}>
+        {action.render(row)}
+      </span>
+    );
+  }
+  return (
+    <button
+      key={idx}
+      onClick={() => action.onClick(row)}
+      className={`${action.className} text-xs`}
+    >
+      {action.label}
+    </button>
+  );
+}
                   if (action.type === "menu") {
                     const menuId = `${row[keyField]}-${idx}`;
                     return (
                       <div
                         key={idx}
-                        className="relative "
+                        className="relative"
                         ref={(el) => (menuRefs.current[menuId] = el)}
                       >
                         <button
                           onClick={() =>
                             setOpenMenuId(openMenuId === menuId ? null : menuId)
                           }
-                          className={action.className}
+                          className={`${action.className} text-xs`}
                         >
                           {action.label}
                         </button>
-
                         {openMenuId === menuId && (
-                          <div className="absolute right-0 mt-1 dark:bg-gray-700 rounded w-40 z-50">
+                          <div className="absolute right-0 mt-1 bg-white rounded w-40 z-50 border">
                             {action.menuItems.map((item, mi) => {
-                              // ✅ also allow condition on menu items
-                              if (item.condition && !item.condition(row))
-                                return null;
+                              if (item.condition && !item.condition(row)) return null;
                               return (
                                 <div
                                   key={mi}
@@ -177,7 +177,7 @@ export default function Table({
                                     setOpenMenuId(null);
                                     item.onClick(row);
                                   }}
-                                  className={`block w-full text-left px-4 py-2 dark:hover:bg-gray-600 hover:bg-gray-200 ${
+                                  className={`block w-full text-left px-3 py-1.5 text-xs text-black hover:bg-gray-100 ${
                                     item.className || ""
                                   }`}
                                 >
@@ -190,96 +190,100 @@ export default function Table({
                       </div>
                     );
                   }
-
                   return null;
                 })}
               </td>
             )}
           </tr>
-        ))
-      ) : (
-        <tr>
-          <td
-            colSpan={columns.length + (actions.length > 0 ? 2 : 1)} // ✅ added +1 for index column
-            className="text-center text-gray-500 py-4 "
-          >
-            {emptyMessage}
-          </td>
-        </tr>
-      )}
-    </tbody>
-  );
+        );
+      })
+    ) : (
+      <tr>
+        <td
+          colSpan={columns.length + (actions.length > 0 ? 2 : 1)}
+          className="text-center text-xs text-black py-3 bg-[#3B82F603]"
+        >
+          {emptyMessage}
+        </td>
+      </tr>
+    )}
+  </tbody>
+);
 
   const renderPagination = () =>
-    totalPages > 1 && (
-      <div className="py-2 pb-4 pt-5">
-        <div className="flex items-center justify-around mt-2 px-2 py-1 relative">
-          <span className="text-sm text-gray-600 absolute left-1">
-            Page {currentPage} of {totalPages}
-          </span>
-          <div className="flex gap-2 justify-center absolute">
-            <button
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-3 py-1 rounded disabled:opacity-50 bg-gray-200 hover:bg-gray-400"
-            >
-              <MdArrowLeft />
-            </button>
+  totalPages > 1 && (
+    <div className="py-2 pb-4 pt-5">
+      <div className="flex items-center justify-center mt-2 px-2 py-1 relative">
+        <span className="text-sm text-gray-600 absolute left-0">
+          Page {currentPage} of {totalPages}
+        </span>
 
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter((num) => {
-                return (
-                  num <= 3 || // first 3
-                  num > totalPages - 2 || // last 2
-                  Math.abs(num - currentPage) <= 1 // current, prev, next
-                );
-              })
-              .reduce((acc, num, i, arr) => {
-                if (i > 0 && num - arr[i - 1] > 1) {
-                  acc.push("ellipsis");
-                }
-                acc.push(num);
-                return acc;
-              }, [])
-              .map((item, idx) =>
-                item === "ellipsis" ? (
-                  <span key={`ellipsis-${idx}`} className="px-2">
-                    ...
-                  </span>
-                ) : (
-                  <button
-                    key={item}
-                    onClick={() => onPageChange(item)}
-                    className={`px-3 py-1 rounded hover:bg-sky-600 hover:text-white transition-all ${
-                      currentPage === item
-                        ? " bg-sky-600 text-white"
-                        : " rounded bg-gray-50"
-                    }`}
-                  >
-                    {item}
-                  </button>
-                )
-              )}
+        <div className="flex gap-1 justify-center">
+          {/* Previous Button */}
+          <button
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="!px-3 !py-3 rounded disabled:opacity-50 border border-gray-300 bg-white text-black hover:bg-gray-100"
+          >
+            <FaAngleLeft />
+          </button>
 
-            <button
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50 hover:bg-gray-400"
-            >
-              <MdArrowRight />
-            </button>
-          </div>
+          {/* Page Number Buttons */}
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((num) => {
+              return (
+                num <= 3 ||
+                num > totalPages - 2 ||
+                Math.abs(num - currentPage) <= 1
+              );
+            })
+            .reduce((acc, num, i, arr) => {
+              if (i > 0 && num - arr[i - 1] > 1) {
+                acc.push("ellipsis");
+              }
+              acc.push(num);
+              return acc;
+            }, [])
+            .map((item, idx) =>
+              item === "ellipsis" ? (
+                <span key={`ellipsis-${idx}`} className="px-3 py-1">
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={item}
+                  onClick={() => onPageChange(item)}
+                  className={` !rounded-lg transition-colors ${
+                    currentPage === item
+                      ? "!bg-[#10B981] text-white !px-5 !py-1" 
+                      : "!bg-white !text-black border border-black hover:bg-gray-100 !px-4 !py-1" 
+                  }`}
+                >
+                  {item}
+                </button>
+              )
+            )}
+
+          {/* Next Button */}
+          <button
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="!px-3 !py-3 rounded disabled:opacity-50 border border-gray-300 bg-white text-black hover:bg-gray-100"
+          >
+            <FaAngleRight />
+          </button>
         </div>
       </div>
-    );
+    </div>
+  );
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className={`w-full paneltheme rounded overflow-auto mt-4 custom-border p-2`}
-    >
-      <table className="w-full text-sm h-full overflow-auto">
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  className={`w-full paneltheme rounded mt-4 p-2 overflow-x-auto lg:overflow-x-hidden`}
+>
+  <table className="w-full text-sm border-collapse table-fixed">
         {renderHeader()}
         {renderBody()}
       </table>

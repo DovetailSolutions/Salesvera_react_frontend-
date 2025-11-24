@@ -21,6 +21,11 @@ import { FaUsers } from "react-icons/fa";
 import UserManagement from "./pages/UserManagement";
 import ClientBulkUpload from "./pages/ClientBulkUpload";
 import { FaUser } from "react-icons/fa";
+import Attendance from "./pages/Attendance";
+import { FaCalendar } from "react-icons/fa";
+import { CiCalendar } from "react-icons/ci";
+import { CiUser } from "react-icons/ci";
+import { PiUsersThreeLight } from "react-icons/pi";
 
 export const allRoutes = [
   {
@@ -40,8 +45,14 @@ export const allRoutes = [
        {
         path: "/user-management",
         label: "User Management",
-        icon: <FaUser />,
+        icon: <CiUser />,
         roles: [ROLES.ADMIN, ROLES.MANAGER],
+      },
+       {
+        path: "/attendance-management",
+        label: "Attendance",
+        icon: <CiCalendar />,
+        roles: [ROLES.ADMIN],
       },
       // {
       //   path: "/registration",
@@ -52,7 +63,7 @@ export const allRoutes = [
        {
         path: "/client-management",
         label: "Client Management",
-        icon: <FaUsers />,
+        icon: <PiUsersThreeLight />,
         roles: [ROLES.ADMIN],
       },
       {
@@ -67,7 +78,7 @@ export const allRoutes = [
         icon: <RiGroup3Line />,
         roles: [ROLES.ADMIN],
       },
-     
+    
     ],
   },
 ];
@@ -112,6 +123,7 @@ export default function Router() {
           <Route path="profile" element={<Profile />} />
           <Route path="user-management" element={<UserManagement />} />
           <Route path="client-management" element={<ClientBulkUpload />} />
+          <Route path="attendance-management" element={<Attendance />} />
         </Route>
       </Route>
 

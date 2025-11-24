@@ -18,7 +18,7 @@ export const menuapi = {
 };
 
 export const registrationApi = {
-  getUserByRole : (role) => axios.get(`https://api.salesvera.com/admin/getalluser?role=${role}`)
+  getUserByRole : (role) => axios.get(`/admin/getalluser?role=${role}`)
 }
 
 export const adminApi = {
@@ -55,6 +55,13 @@ export const meetingApi = {
 
  export const clientApi = {
   bulkUploads: (data) => axios.post("/admin/bulk-upload", data),
+};
+
+export const attendanceApi = {
+  getAttendance: ({ userId, page = 1, limit = 10 }) =>
+    axios.get("/admin/get-attendance", {
+      params: { userId, page, limit },
+    }),
 };
 
 export default { authApi, menuapi, adminApi, clientApi };

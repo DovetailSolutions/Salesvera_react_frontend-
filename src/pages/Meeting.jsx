@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Table from "../components/Table";
 import Toast from "../components/Toast";
 import { FaSearch } from "react-icons/fa";
@@ -6,7 +6,7 @@ import { adminApi, meetingApi } from "../api";
 
 export default function MeetingManagement() {
   const [role, setRole] = useState("manager");
-  const [managerSearch, setManagerSearch] = useState("");
+  const [globalSearch, setGlobalSearch] = useState("");
   const [managers, setManagers] = useState([]);
   const [selectedManager, setSelectedManager] = useState(null);
   const [salespersons, setSalespersons] = useState([]);
@@ -24,6 +24,27 @@ export default function MeetingManagement() {
   const [selectedSalesperson, setSelectedSalesperson] = useState(null);
 const [meetings, setMeetings] = useState([]);
 const [meetingsLoading, setMeetingsLoading] = useState(false);
+
+const [meetingPagination, setMeetingPagination] = useState({
+  currentPage: 1,
+  pageSize: 7, // ✅ Only 7 meetings per page
+});
+
+const paginatedMeetings = useMemo(() => {
+  const { currentPage, pageSize } = meetingPagination;
+  const startIndex = (currentPage - 1) * pageSize;
+  return filteredMeetings.slice(startIndex, startIndex + pageSize);
+}, [filteredMeetings, meetingPagination]);
+
+const filteredSalespersons = useMemo(() => {
+  if (!globalSearch.trim()) return salespersons;
+  const term = globalSearch.toLowerCase();
+  return salespersons.filter(sp =>
+    `${sp.firstName} ${sp.lastName}`.toLowerCase().includes(term) ||
+    sp.email.toLowerCase().includes(term) ||
+    (sp.phone && sp.phone.includes(term))
+  );
+}, [salespersons, globalSearch]);
 
   const fetchManagers = async (search = "") => {
     try {
@@ -56,15 +77,17 @@ const [meetingsLoading, setMeetingsLoading] = useState(false);
   };
 
   useEffect(() => {
-    fetchManagers(managerSearch);
-  }, [role]);
+  const timeout = setTimeout(() => {
+    fetchManagers(globalSearch); 
+  }, 500);
+  return () => clearTimeout(timeout);
+}, [globalSearch]); 
 
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      fetchManagers(managerSearch);
-    }, 500);
-    return () => clearTimeout(timeout);
-  }, [managerSearch]);
+useEffect(() => {
+  if (selectedSalesperson) {
+    applyMeetingFilter(meetings, activeTab, globalSearch);
+  }
+}, [globalSearch, activeTab, selectedSalesperson, meetings]);
 
   const columns = [
     { key: "firstName", label: "First Name" },
@@ -105,7 +128,7 @@ const fetchMeetings = async (userId) => {
       const allMeetings = res.data.data?.rows || [];
       setMeetings(allMeetings);
       // Apply initial filter based on current tab
-      applyMeetingFilter(allMeetings, activeTab);
+      applyMeetingFilter(allMeetings, activeTab, globalSearch);
     } else {
       setMeetings([]);
       setFilteredMeetings([]);
@@ -138,65 +161,68 @@ const isSameMonth = (date1, date2) => {
          date1.getMonth() === date2.getMonth();
 };
 
-const applyMeetingFilter = (meetings, tab) => {
+const applyMeetingFilter = (meetings, tab, search = "") => {
   const now = new Date();
-  
   let filtered = meetings;
-  
+
+  // Time-based filtering
   if (tab === "Today") {
-    filtered = meetings.filter(m => {
-      const meetingDate = new Date(m.meetingTimeIn);
-      return isSameDay(meetingDate, now);
-    });
-  } 
-  else if (tab === "This Week") {
-    // Week starts on Sunday
+    filtered = filtered.filter(m => isSameDay(new Date(m.meetingTimeIn), now));
+  } else if (tab === "This Week") {
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay());
-    
-    filtered = meetings.filter(m => {
+    filtered = filtered.filter(m => {
       const meetingDate = new Date(m.meetingTimeIn);
       return meetingDate >= weekStart && meetingDate <= now;
     });
-  } 
-  else if (tab === "This Month") {
-    filtered = meetings.filter(m => {
-      const meetingDate = new Date(m.meetingTimeIn);
-      return isSameMonth(meetingDate, now);
-    });
+  } else if (tab === "This Month") {
+    filtered = filtered.filter(m => isSameMonth(new Date(m.meetingTimeIn), now));
   }
-  // "All Time" shows all meetings
-  
+
+  // Search filtering
+  if (search.trim()) {
+    const term = search.toLowerCase();
+    filtered = filtered.filter(m =>
+      (m.companyName && m.companyName.toLowerCase().includes(term)) ||
+      (m.personName && m.personName.toLowerCase().includes(term)) ||
+      (m.mobileNumber && m.mobileNumber.includes(term)) ||
+      (m.companyEmail && m.companyEmail.toLowerCase().includes(term)) ||
+      (m.meetingPurpose && m.meetingPurpose.toLowerCase().includes(term))
+    );
+  }
+
   setFilteredMeetings(filtered);
 };
 
   return (
-    <div className="min-h-screen py-6 m-4 border-1 border-gray-200 rounded-xl p-4">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-bold">
+    <div className="flex flex-col h-screen overflow-hidden">
+  {/* Header: Add padding and remove bottom margin */}
+  <div className="px-4 py-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">
           Meeting Management
         </h1>
            <div>
             <button
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded"
-              onClick={() => navigate("/registration")}
-            >
-              +Add Meeting
+              className="bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded">
+              + Schedule Meeting
             </button>
           </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+      <div className="flex-1 overflow-hidden p-4">
+  <div className="flex flex-col lg:flex-row gap-5 h-full">
 
-       {/* Left Panel - Improved Design */}
-<div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-slate-200 p-7 flex flex-col h-fit">
+       {/* Left Panel */}
+<div className="w-full lg:w-[16rem] flex flex-col h-full">
+  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden p-4">
   <h2 className="text-2xl font-semibold mb-4 flex items-center">
     Managers
   </h2>
 
   {/* Manager Dropdown */}
-  <div className="mb-5">
+  <div className="mb-5 flex flex-col gap-4">
     {/* <label className="block text-sm font-medium text-slate-600 mb-1">
       Manager
     </label> */}
@@ -216,20 +242,27 @@ const applyMeetingFilter = (meetings, tab) => {
       }}
       className="w-full rounded-full border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
     >
-      <option value="">Select a manager</option>
+      <option value="" disabled>Select a manager</option>
       {managers.map((m) => (
         <option key={m.id} value={m.id}>
           {m.firstName} {m.lastName}
         </option>
       ))}
     </select>
+
+    <input
+  type="text"
+  placeholder="Search manager, salesperson or meeting..."
+  value={globalSearch}
+  onChange={(e) => setGlobalSearch(e.target.value)}
+  className="px-5 py-2 rounded-full border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent shadow-sm w-full sm:w-auto flex-1 min-w-[200px] custom-border placeholder:text-sm"
+/>
   </div>
 
   {/* Salesperson List */}
-  <div className="mt-2">
-    <h3 className="text-sm font-medium text-slate-600 mb-2">
-      Team Members
-    </h3>
+  <div className="flex-1 overflow-hidden mt-2">
+  <h3 className="text-sm font-medium text-slate-600 mb-2">Team Members</h3>
+  <div className="flex flex-col gap-2 overflow-y-auto pr-1 pt-2 h-full">
     <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1 pt-2">
       {loading ? (
         <div className="flex flex-col items-center justify-center py-6 text-slate-500">
@@ -237,7 +270,7 @@ const applyMeetingFilter = (meetings, tab) => {
           <p className="text-sm">Loading team...</p>
         </div>
       ) : salespersons.length > 0 ? (
-        salespersons.map((sp) => (
+       filteredSalespersons.map((sp) => (
           <div
             key={sp.id}
             onClick={() => {
@@ -278,10 +311,13 @@ const applyMeetingFilter = (meetings, tab) => {
       )}
     </div>
   </div>
+  </div>
+</div>
 </div>
 
         {/* Right Panel */}
-<div className="lg:col-span-3 bg-white rounded shadow-sm custom-border border-slate-200">
+<div className="flex-1 flex flex-col h-full">
+  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
   {selectedManager ? (
     <>
       {/* Manager Header */}
@@ -292,7 +328,7 @@ const applyMeetingFilter = (meetings, tab) => {
       </div>
 
       {/* Tabs */}
-      <div className="px-4 py-4 border-b border-slate-200">
+      <div className="px-4 py-4">
         <div className="flex gap-2">
           {["All Time", "Today", "This Week", "This Month"].map((tab) => (
             <div
@@ -304,7 +340,7 @@ onClick={() => {
     applyMeetingFilter(meetings, tab);
   }
 }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 ${
+              className={`px-4 py-2 rounded-lg text-sm font-thin cursor-pointer transition-all duration-200 ${
                 activeTab === tab
                   ? "bg-[var(--primary-blue)] text-white shadow-sm"
                   : "bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
@@ -317,59 +353,53 @@ onClick={() => {
       </div>
 
       {/* Meeting Content Area (only this part changes based on selection) */}
-      <div className="px-4 py-4">
-        {selectedSalesperson ? (
+      <div className="flex-1 overflow-hidden px-4">
+  {selectedSalesperson ? (
           <>
-            <h3 className="text-lg font-medium mb-3">
+            {/* <h3 className="text-lg font-medium mb-3">
               Meetings: {selectedSalesperson.firstName} {selectedSalesperson.lastName}
-            </h3>
-            <Table
+            </h3> */}
+          <Table
   columns={[
+    { key: "companyName", label: "Company", render: (row) => row.companyName || "N/A" },
+    { key: "personName", label: "Contact", render: (row) => row.personName || "N/A" },
+    { key: "mobileNumber", label: "Mobile", render: (row) => row.mobileNumber || "N/A" },
     {
-      key: "companyName",
-      label: "Company",
-      render: (row) => row.companyName || "N/A",
-    },
-    {
-      key: "personName",
-      label: "Contact",
-      render: (row) => row.personName || "N/A",
-    },
-    {
-      key: "mobileNumber",
-      label: "Mobile",
-      render: (row) => row.mobileNumber || "N/A",
-    },
-    {
-      key: "companyEmail",
-      label: "Email",
-      render: (row) => row.companyEmail || "N/A",
-    },
+  key: "companyEmail",
+  label: "Email",
+  render: (row) => (
+    <span className="break-words">{row.companyEmail || "N/A"}</span>
+  ),
+},
     {
       key: "meetingTimeIn",
       label: "Check-in",
       render: (row) =>
-        row.meetingTimeIn
-          ? new Date(row.meetingTimeIn).toLocaleString()
-          : "N/A",
+        row.meetingTimeIn ? new Date(row.meetingTimeIn).toLocaleString() : "N/A",
     },
     {
       key: "meetingTimeOut",
       label: "Check-out",
       render: (row) =>
-        row.meetingTimeOut
-          ? new Date(row.meetingTimeOut).toLocaleString()
-          : "—",
+        row.meetingTimeOut ? new Date(row.meetingTimeOut).toLocaleString() : "—",
     },
     {
       key: "meetingPurpose",
       label: "Purpose",
-      render: (row) => row.meetingPurpose || "N/A",
+      render: (row) => (
+        <span className="line-clamp-1">{row.meetingPurpose || "N/A"}</span>
+      ),
     },
   ]}
-  data={filteredMeetings}
+  data={paginatedMeetings}
   keyField="id"
   emptyMessage="No meetings found"
+  currentPage={meetingPagination.currentPage}
+  pageSize={meetingPagination.pageSize}
+  totalCount={filteredMeetings.length}
+  onPageChange={(page) =>
+    setMeetingPagination((prev) => ({ ...prev, currentPage: page }))
+  }
 />
           </>
         ) : (
@@ -389,8 +419,20 @@ onClick={() => {
       </p>
     </div>
   )}
+
+  <div className="flex items-center justify-start gap-2 mx-4 mb-4">
+    <div className="flex items-center justify-center gap-2 bg-[#3B82F60D] p-5 rounded-xl">
+    <span className="text-4xl font-bold">{filteredSalespersons.length} </span> Total Members
+  </div>
+  <div className="flex items-center justify-center gap-2 bg-[#3B82F60D] p-5 rounded-xl">
+    <span className="text-4xl font-bold">{meetings.length} </span> Total Meetings
+  </div>
+</div>
+</div>
+
 </div>
       </div>
+    </div>
     </div>
   );
 }
