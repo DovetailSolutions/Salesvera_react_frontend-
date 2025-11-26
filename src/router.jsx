@@ -26,6 +26,7 @@ import { FaCalendar } from "react-icons/fa";
 import { CiCalendar } from "react-icons/ci";
 import { CiUser } from "react-icons/ci";
 import { PiUsersThreeLight } from "react-icons/pi";
+import LeaveApproval from "./pages/LeaveApproval";
 
 export const allRoutes = [
   {
@@ -35,7 +36,7 @@ export const allRoutes = [
         path: "/",
         label: "Dashboard",
         icon: <LuLayoutDashboard />,
-        roles: [ROLES.ADMIN, ROLES.USER],
+        roles: [ROLES.ADMIN, ROLES.BASE_ADMIN],
       },
     ],
   },
@@ -46,13 +47,19 @@ export const allRoutes = [
         path: "/user-management",
         label: "User Management",
         icon: <CiUser />,
-        roles: [ROLES.ADMIN, ROLES.MANAGER],
+        roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
        {
         path: "/attendance-management",
         label: "Attendance",
         icon: <CiCalendar />,
-        roles: [ROLES.ADMIN],
+        roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
+      },
+      {
+        path: "/leave-approval",
+        label: "Leave Approval",
+        icon: <CiCalendar />,
+        roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       // {
       //   path: "/registration",
@@ -78,7 +85,6 @@ export const allRoutes = [
         icon: <RiGroup3Line />,
         roles: [ROLES.ADMIN],
       },
-    
     ],
   },
 ];
@@ -124,6 +130,7 @@ export default function Router() {
           <Route path="user-management" element={<UserManagement />} />
           <Route path="client-management" element={<ClientBulkUpload />} />
           <Route path="attendance-management" element={<Attendance />} />
+          <Route path="leave-approval" element={<LeaveApproval />} />
         </Route>
       </Route>
 

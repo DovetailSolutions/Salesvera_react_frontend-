@@ -55,7 +55,7 @@ const [showNewPassword, setShowNewPassword] = useState(false);
   }, []);
 
   return (
-    <div className="border-1 border-gray-200 rounded-xl m-4 p-2">
+    <div className="border-1 border-gray-200 rounded-xl p-2">
       <Toaster position="top-right" />
 
       <div className="flex items-center justify-between px-4 py-2 bg-white sticky top-2 z-50">

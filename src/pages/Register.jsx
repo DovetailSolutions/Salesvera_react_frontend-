@@ -20,7 +20,10 @@ export default function Register() {
   const [createdBy, setCreatedBy] = useState(null);
   const [managers, setManagers] = useState([]);
   const [userRole, setUserRole] = useState(null);
-  const [selectedManagerId, setSelectedManagerId] = useState("");
+  const [assignedAdminId, setAssignedAdminId] = useState(""); 
+const [assignedManagerId, setAssignedManagerId] = useState(""); 
+
+  const [admins, setAdmins] = useState([]);
 
   const navigate = useNavigate();
 
@@ -68,20 +71,53 @@ export default function Register() {
     let createdByValue;
 
     if (selectedRole === "sale_person") {
-      if (!selectedManagerId) {
-        Toast.error("Please select a manager for the salesperson.");
+      if (userRole === "manager") {
+        // Manager creates salesperson → assign to self
+        if (!createdBy) {
+          Toast.error("Manager profile not loaded.");
+          setIsLoading(false);
+          return;
+        }
+        createdByValue = createdBy;
+      } else if (userRole === "super_admin" || userRole === "admin") {
+        // Admin or super_admin must choose a manager
+        if (!assignedManagerId) {
+          Toast.error("Please select a manager for the salesperson.");
+          setIsLoading(false);
+          return;
+        }
+        createdByValue = Number(assignedManagerId);
+      } else {
+        Toast.error("You are not authorized to create a salesperson.");
         setIsLoading(false);
         return;
       }
-      createdByValue = Number(selectedManagerId);
-      if (isNaN(createdByValue)) {
-        Toast.error("Invalid manager selected.");
+    } else if (selectedRole === "manager") {
+      if (userRole === "super_admin") {
+        // Super admin must choose an admin to assign the manager under
+        if (!assignedAdminId) {
+          Toast.error("Please select an admin to assign this manager under.");
+          setIsLoading(false);
+          return;
+        }
+        createdByValue = Number(assignedAdminId);
+      } else if (userRole === "admin") {
+        // Admin creates manager → assign to self
+        if (!createdBy) {
+          Toast.error("Admin profile not loaded.");
+          setIsLoading(false);
+          return;
+        }
+        createdByValue = createdBy;
+      } else {
+        Toast.error("You are not authorized to create a manager.");
         setIsLoading(false);
         return;
       }
     } else {
+      // For other roles (e.g., admin, super_admin), assign to self if needed
       if (!createdBy) {
-        Toast.error("User profile not loaded. Please wait or refresh.");
+        Toast.error("User profile not loaded.");
         setIsLoading(false);
         return;
       }
@@ -99,8 +135,9 @@ export default function Register() {
       Toast.success("User registered successfully!");
       reset();
       setSelectedRole("");
-      setSelectedManagerId("");
-      navigate("/user-management")
+      setAssignedAdminId("");
+      setAssignedManagerId("");
+      navigate("/user-management");
     } else {
       Toast.error(res.data?.message || "Registration failed!");
     }
@@ -120,16 +157,41 @@ export default function Register() {
         page: 1,
         limit: 100,
       });
+      let allManagers = res.data?.data?.finalRows || [];
 
-      setManagers(res.data?.data?.finalRows || []);
+      // 👇 Filter: if user is admin, only show managers they created
+      if (userRole === "admin" && createdBy) {
+        allManagers = allManagers.filter(mgr => mgr.creator?.id === createdBy);
+      }
+
+      setManagers(allManagers);
     } catch (error) {
       console.error("Error fetching managers:", error);
       Toast.error("Failed to load managers.");
     }
   };
 
-  fetchManagers();
-}, []);
+  const fetchAdmins = async () => {
+    try {
+      const res = await adminApi.getAllUsers({
+        role: "admin",
+        page: 1,
+        limit: 100,
+      });
+      setAdmins(res.data?.data?.finalRows || []);
+    } catch (error) {
+      console.error("Error fetching admins:", error);
+      Toast.error("Failed to load admins.");
+    }
+  };
+
+  if (userRole) {
+    fetchManagers();
+    if (userRole === "super_admin") {
+      fetchAdmins();
+    }
+  }
+}, [userRole, createdBy]); // ✅ Add `createdBy` as dependency
 
   return (
     <div className="py-6">
@@ -137,10 +199,10 @@ export default function Register() {
         {/* Header */}
        <div className="flex justify-between items-center w-full">
          <div className="text-center mb-1">
-          <p className="text-3xl text-start text font-bold">Register A New User</p>
+          <p className="text-3xl text-start font-semibold mb-4">Register A New User</p>
         </div>
 
-        <div className="pr-">
+        <div>
     <button
       className="bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded"
       onClick={() => navigate("/user-management")}
@@ -345,20 +407,25 @@ export default function Register() {
               <div className="relative">
                 <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <select
-                  value={selectedRole}
-                  onChange={(e) => {
-                    const role = e.target.value;
-                    setSelectedRole(role);
-                    if (role !== "sale_person") setSelectedManagerId("");
-                  }}
-                  className="w-full pl-10 pr-4 py-3 border rounded-lg"
-                >
+  value={selectedRole}
+  onChange={(e) => {
+    const role = e.target.value;
+    setSelectedRole(role);
+    if (role !== "sale_person") {
+      setAssignedManagerId("");
+    }
+    if (role !== "manager") {
+      setAssignedAdminId("");
+    }
+  }}
+  className="w-full pl-10 pr-4 py-3 border rounded-lg"
+>
                   <option value="" disabled>
                     Select your role
                   </option>
                   <option value="sale_person">Sales Person</option>
-                  <option value="admin">Admin</option>
-                  <option value="manager">Manager</option>
+                  {userRole === "super_admin" &&<option value="admin">Admin</option>}
+                  {(userRole === "super_admin"|| userRole === "admin") && <option value="manager">Manager</option>}
                 </select>
                 {/* ...arrow SVG */}
               </div>
@@ -367,31 +434,57 @@ export default function Register() {
               )} */}
             </div>
 
-            {selectedRole === "sale_person" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Assigned Under
-                </label>
-                <div className="relative">
-                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <select
-                    value={selectedManagerId}
-                    onChange={(e) => setSelectedManagerId(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required={selectedRole === "sale_person"}
-                  >
-                    <option value="" disabled>
-                      Select Manager
-                    </option>
-                    {managers.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.firstName} {m.lastName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
+            {userRole === "super_admin" && selectedRole === "manager" && (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Admin Assigned Under
+    </label>
+    <div className="relative">
+      <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      <select
+        value={assignedAdminId} 
+        onChange={(e) => setAssignedAdminId(e.target.value)} 
+        className="w-full pl-10 pr-4 py-3 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        required
+      >
+        <option value="" disabled>
+          Select Admin
+        </option>
+        {admins.map((admin) => (
+          <option key={admin.id} value={admin.id}>
+            {admin.firstName} {admin.lastName}
+          </option>
+        ))}
+      </select>
+    </div>
+  </div>
+)}
+
+           {(userRole === "super_admin" || userRole === "admin") && selectedRole === "sale_person" && (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Manager Assigned Under
+    </label>
+    <div className="relative">
+      <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      <select
+        value={assignedManagerId} // 👈 updated
+        onChange={(e) => setAssignedManagerId(e.target.value)} // 👈 updated
+        className="w-full pl-10 pr-4 py-3 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        required
+      >
+        <option value="" disabled>
+          Select Manager
+        </option>
+        {managers.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.firstName} {m.lastName}
+          </option>
+        ))}
+      </select>
+    </div>
+  </div>
+)}
 
             {/* Submit */}
             <button

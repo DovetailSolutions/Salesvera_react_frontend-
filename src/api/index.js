@@ -34,6 +34,9 @@ export const adminApi = {
 
   getMySalespersons: ({ managerId, page = 1 }) =>
     axios.get("/admin/mysaleperson", { params: { managerId, page } }),
+
+   getAdminManagers: () =>
+    axios.get("/admin/mysaleperson"),
 };
 
 export const meetingApi = {

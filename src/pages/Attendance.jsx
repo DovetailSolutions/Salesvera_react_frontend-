@@ -5,6 +5,11 @@ import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router";
 import { FaAngleLeft } from "react-icons/fa";
 import { FaAngleRight } from "react-icons/fa";
+import { MdOutlineTimer } from "react-icons/md";
+import { LiaUserClockSolid } from "react-icons/lia";
+import { IoAlertCircleOutline } from "react-icons/io5";
+import { PiClockUserLight } from "react-icons/pi";
+import { LuCalendarClock } from "react-icons/lu";
 
 // Reuse the same auth hook
 const useAuth = () => {
@@ -107,7 +112,7 @@ export default function Attendance() {
           totalPages: 1,
           limit: 10,
         });
-        fetchTodayAttendanceForUsers(filteredRows); // ✅ Fetch today's attendance
+        fetchTodayAttendanceForUsers(filteredRows); 
       } else {
         const params = { page, limit: 10 };
         if (search) params.search = search;
@@ -127,7 +132,7 @@ export default function Attendance() {
           totalPages: Math.ceil((data.total || 0) / (data.limit || 10)),
           limit: data.limit || 10,
         });
-        fetchTodayAttendanceForUsers(data.finalRows); // ✅ Fetch today's attendance
+        fetchTodayAttendanceForUsers(data.finalRows); 
       }
     } catch (err) {
       console.error("Failed to fetch users:", err);
@@ -276,13 +281,13 @@ export default function Attendance() {
         );
       },
     },
-    todayColumn, // ✅ Added today's status
+    todayColumn, 
   ];
 
   const columns = isManager
     ? baseColumns
     : [
-        ...baseColumns.slice(0, -1), // all except todayColumn
+        ...baseColumns.slice(0, -1), 
         {
           key: "assignedUnder",
           label: "Assigned Under",
@@ -297,7 +302,7 @@ export default function Attendance() {
             );
           },
         },
-        baseColumns[baseColumns.length - 1], // re-add todayColumn at the end
+        baseColumns[baseColumns.length - 1], 
       ];
 
   const actions = [];
@@ -305,6 +310,12 @@ export default function Attendance() {
   return (
     <div className="py-6 relative">
       <Toaster position="top-right" />
+
+      <div className="mb-4">
+        <h2 className="text-3xl font-semibold">
+          {isManager ? "My Team Attendance" : "User Attendance"}
+        </h2>
+      </div>
 
       {/* Search & Filter UI */}
       <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
@@ -337,12 +348,6 @@ export default function Attendance() {
             </div>
           )}
         </div>
-      </div>
-
-      <div className="mb-4">
-        <h2 className="text-3xl font-semibold">
-          {isManager ? "My Team Attendance" : "User Attendance"}
-        </h2>
       </div>
 
       <Table
@@ -379,7 +384,7 @@ export default function Attendance() {
 
             <h3 className="text-xl font-semibold mb-4">
               Attendance for{" "}
-              <span className="text-blue-600 capitalize">
+              <span className="text-(--primary-blue) capitalize">
                 {selectedUser.firstName} {selectedUser.lastName}
               </span>
             </h3>
@@ -442,7 +447,7 @@ export default function Attendance() {
                         <div className="flex items-center justify-between mb-3 px-1">
                           <button
                             onClick={prevMonth}
-                            className="p-2 rounded-full transition hover:bg-gray-100"
+                            className="!p-2 rounded-full transition"
                             aria-label="Previous month"
                           >
                             <FaAngleLeft className="text-lg" />
@@ -455,7 +460,7 @@ export default function Attendance() {
                           </h4>
                           <button
                             onClick={nextMonth}
-                            className="p-2 rounded-full transition hover:bg-gray-100"
+                            className="!p-2 rounded-full transition"
                             aria-label="Next month"
                           >
                             <FaAngleRight className="text-lg" />
@@ -551,20 +556,26 @@ export default function Attendance() {
       }
 
       const formatTime = (isoStr) => {
-        if (!isoStr) return "—";
-        const dt = new Date(isoStr);
-        return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      };
+  if (!isoStr) return "—";
+  const dt = new Date(isoStr);
+  if (isNaN(dt.getTime())) return "—"; // invalid date check
+
+  return dt.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true // or false for 24-hour format
+  });
+};
 
       return (
         <div className="text-sm space-y-1 grid grid-cols-2">
-          <div><span className="text-xs font-medium">Punch In:</span> {formatTime(record.punch_in)}</div>
-          <div><span className="text-xs font-medium">Punch Out:</span> {formatTime(record.punch_out)}</div>
-          <div><span className="text-xs font-medium">Working Hours:</span> {record.working_hours ? `${record.working_hours.toFixed(2)} hrs` : "—"}</div>
-          <div><span className="text-xs font-medium">Late:</span> {record.late ? "Yes" : "No"}</div>
-          <div><span className="text-xs font-medium">Overtime:</span> {record.overtime ? `${record.overtime.toFixed(2)} hrs` : "—"}</div>
-          <div><span className="text-xs font-medium">Status:</span> {record.status.charAt(0).toUpperCase() + record.status.slice(1)}</div>
-        </div>
+           <div className="flex items-center gap-1"><LuCalendarClock className={`${record.status === "present"? "text-(--primary-green)":"text-red-600"}`} /><span className="text-xs font-medium">Status:</span> {record.status.charAt(0).toUpperCase() + record.status.slice(1)}</div>
+          <div className="flex items-center gap-1"><LiaUserClockSolid className="text-(--primary-green)" /><span className="text-xs font-medium">Working Hours:</span> {record.working_hours ? `${record.working_hours.toFixed(2)} hrs` : "—"}</div>
+          <div className="flex items-center gap-1"><MdOutlineTimer className="text-(--primary-blue)" /><span className="text-xs font-medium">Punch In:</span> {formatTime(record.punch_in)}</div>
+          <div className="flex items-center gap-1"><MdOutlineTimer className="text-(--primary-blue)" /><span className="text-xs font-medium">Punch Out:</span> {formatTime(record.punch_out)}</div>
+          <div className="flex items-center gap-1"><IoAlertCircleOutline className="text-red-600" /><span className="text-xs font-medium">Late:</span> {record.late ? "Yes" : "No"}</div>
+          <div className="flex items-center gap-1"><PiClockUserLight className="text-red-600" /><span className="text-xs font-medium">Overtime:</span> {record.overtime ? `${record.overtime.toFixed(2)} hrs` : "—"}</div>         
+        </div> 
       );
     })()}
   </div>

@@ -19,6 +19,8 @@ export default function MeetingManagement() {
     limit: 10,
   });
 
+  const [isManagerDropdownOpen, setIsManagerDropdownOpen] = useState(false);
+
   const [filteredMeetings, setFilteredMeetings] = useState([]);
 
   const [selectedSalesperson, setSelectedSalesperson] = useState(null);
@@ -48,7 +50,7 @@ const filteredSalespersons = useMemo(() => {
 
   const fetchManagers = async (search = "") => {
     try {
-      const res = await adminApi.getAllUsers({ role, search });
+      const res = await adminApi.getAllUsers({ role, search, limit: 100 });
       if (res.data?.success) setManagers(res.data.data?.finalRows || []);
     } catch (err) {
       console.error(err);
@@ -194,24 +196,95 @@ const applyMeetingFilter = (meetings, tab, search = "") => {
   setFilteredMeetings(filtered);
 };
 
+const handleExportMeetings = () => {
+  if (filteredMeetings.length === 0) return;
+
+  // Define headers as they appear in your table
+  const headers = [
+    "Company",
+    "Contact",
+    "Mobile",
+    "Email",
+    "Check-in",
+    "Check-out",
+    "Purpose",
+  ];
+
+  // Map data to match headers
+  const rows = filteredMeetings.map((meeting) => {
+    return {
+      Company: meeting.companyName || "N/A",
+      Contact: meeting.personName || "N/A",
+      Mobile: meeting.mobileNumber || "N/A",
+      Email: meeting.companyEmail || "N/A",
+      "Check-in": meeting.meetingTimeIn
+        ? new Date(meeting.meetingTimeIn).toLocaleString()
+        : "N/A",
+      "Check-out": meeting.meetingTimeOut
+        ? new Date(meeting.meetingTimeOut).toLocaleString()
+        : "—",
+      Purpose: meeting.meetingPurpose || "N/A",
+    };
+  });
+
+  // Convert to CSV
+  const csvContent = [
+    headers.join(","),
+    ...rows.map((row) =>
+      headers
+        .map((header) => {
+          const value = String(row[header] ?? "").replace(/"/g, '""'); // Escape quotes
+          return `"${value}"`; // Wrap in quotes to handle commas in data
+        })
+        .join(",")
+    ),
+  ].join("\n");
+
+  // Create and trigger download
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute(
+    "download",
+    `meetings_${selectedSalesperson?.firstName}_${selectedSalesperson?.lastName}_${activeTab}.csv`
+  );
+  link.style.visibility = "hidden";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
   {/* Header: Add padding and remove bottom margin */}
-  <div className="px-4 py-4">
+  <div className=" py-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">
+          <h1 className="text-3xl font-semibold">
           Meeting Management
         </h1>
-           <div>
-            <button
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded">
-              + Schedule Meeting
-            </button>
-          </div>
+          {/* In your header section, next to "+ Schedule Meeting" */}
+<div className="flex gap-2">
+  <button
+    className="bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded"
+  >
+    + Schedule Meeting
+  </button>
+
+  {selectedSalesperson && filteredMeetings.length > 0 && (
+    <button
+      onClick={handleExportMeetings}
+      className="bg-green-600 hover:bg-green-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded"
+    >
+      Export Meetings (CSV)
+    </button>
+  )}
+</div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden p-4">
+      <div className="flex-1 overflow-hidden">
   <div className="flex flex-col lg:flex-row gap-5 h-full">
 
        {/* Left Panel */}

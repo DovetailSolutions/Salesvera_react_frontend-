@@ -250,17 +250,17 @@ export default function Table({
                   ...
                 </span>
               ) : (
-                <button
+                <div
                   key={item}
                   onClick={() => onPageChange(item)}
-                  className={` !rounded-lg transition-colors ${
+                  className={` !rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
                     currentPage === item
                       ? "!bg-[#10B981] text-white !px-5 !py-1" 
-                      : "!bg-white !text-black border border-black hover:bg-gray-100 !px-4 !py-1" 
+                      : "!bg-white !text-black border border-black hover:bg-gray-100 !px-5 !py-1" 
                   }`}
                 >
                   {item}
-                </button>
+                </div>
               )
             )}
 

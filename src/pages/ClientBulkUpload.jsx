@@ -189,6 +189,7 @@ arena,ankit,7875345632,arena@gmail.com`;
 
   return (
     <div className="w-full py-6">
+      <h1 className="text-3xl font-semibold mb-6">Client Management</h1>
       <button
         onClick={downloadSampleCSV}
         className="flex items-center gap-2 px-4 py-2.5 text-white font-medium rounded-md text-sm transition"
