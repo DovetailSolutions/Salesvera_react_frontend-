@@ -1,36 +1,22 @@
-import React, { useState, useEffect } from "react"; // 👈 add useEffect
+import React, { useContext } from "react";
 import SidePanel from "./SidePanel";
 import { Outlet } from "react-router-dom";
 import Topbar from "./Topbar";
 import Footer from "./Footer";
-import { authApi } from "../api";
+import { AuthContext } from "../context/AuthProvider"; 
 
 export default function Layout({ routes }) {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true); // optional: better UX
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await authApi.getProfile();
-        if (response.data?.success && response.data?.data) {
-          setCurrentUser(response.data.data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch user profile:", error);
-        // Optionally handle auth errors (e.g., redirect to login)
-      } finally {
-        setLoading(false);
-      }
-    };
+  const { loading } = useContext(AuthContext);
 
-    fetchProfile();
-  }, []);
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen flex">
-      <SidePanel routes={routes} currentUser={currentUser} />
-      <main className="flex-1 ml-56 p-2"> {/* Use ml-56, not ml-54 */}
+      <SidePanel routes={routes} />
+      <main className="flex-1 ml-56 p-2">
         <Topbar />
         <Outlet />
         <Footer />

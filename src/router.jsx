@@ -27,6 +27,7 @@ import { CiCalendar } from "react-icons/ci";
 import { CiUser } from "react-icons/ci";
 import { PiUsersThreeLight } from "react-icons/pi";
 import LeaveApproval from "./pages/LeaveApproval";
+import ExpenseManagement from "./pages/ExpenseManagement";
 
 export const allRoutes = [
   {
@@ -56,8 +57,14 @@ export const allRoutes = [
         roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
-        path: "/leave-approval",
-        label: "Leave Approval",
+        path: "/leave-requests",
+        label: "Leave Requests",
+        icon: <CiCalendar />,
+        roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
+      },
+      {
+        path: "/expense-management",
+        label: "Expenses",
         icon: <CiCalendar />,
         roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
@@ -130,7 +137,8 @@ export default function Router() {
           <Route path="user-management" element={<UserManagement />} />
           <Route path="client-management" element={<ClientBulkUpload />} />
           <Route path="attendance-management" element={<Attendance />} />
-          <Route path="leave-approval" element={<LeaveApproval />} />
+          <Route path="leave-requests" element={<LeaveApproval />} />
+          <Route path="expense-management" element={<ExpenseManagement />} />
         </Route>
       </Route>
 

@@ -167,21 +167,47 @@ const applyMeetingFilter = (meetings, tab, search = "") => {
   const now = new Date();
   let filtered = meetings;
 
-  // Time-based filtering
+  // Helper: Convert any date to YYYY-MM-DD in LOCAL time (not UTC)
+  const toLocalDate = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+      .toISOString()
+      .split('T')[0];
+  };
+
+  const todayStr = toLocalDate(now);
+
   if (tab === "Today") {
-    filtered = filtered.filter(m => isSameDay(new Date(m.meetingTimeIn), now));
-  } else if (tab === "This Week") {
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay());
     filtered = filtered.filter(m => {
-      const meetingDate = new Date(m.meetingTimeIn);
-      return meetingDate >= weekStart && meetingDate <= now;
+      if (!m.meetingTimeIn) return false;
+      return toLocalDate(new Date(m.meetingTimeIn)) === todayStr;
+    });
+  } else if (tab === "This Week") {
+    // Week starts on Sunday (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    const dayOfWeek = now.getDay();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - dayOfWeek);
+    const weekStartStr = toLocalDate(weekStart);
+
+    filtered = filtered.filter(m => {
+      if (!m.meetingTimeIn) return false;
+      const meetingDateStr = toLocalDate(new Date(m.meetingTimeIn));
+      return meetingDateStr >= weekStartStr && meetingDateStr <= todayStr;
     });
   } else if (tab === "This Month") {
-    filtered = filtered.filter(m => isSameMonth(new Date(m.meetingTimeIn), now));
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const monthPrefix = `${year}-${month}`;
+
+    filtered = filtered.filter(m => {
+      if (!m.meetingTimeIn) return false;
+      const meetingDateStr = toLocalDate(new Date(m.meetingTimeIn));
+      return meetingDateStr.startsWith(monthPrefix);
+    });
   }
 
-  // Search filtering
+  // Search filtering (unchanged)
   if (search.trim()) {
     const term = search.toLowerCase();
     filtered = filtered.filter(m =>

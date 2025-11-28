@@ -1,82 +1,83 @@
-import React, { createContext, useState, useEffect } from 'react'
-import { authApi } from '../api/index'
-import axiosInstance from '../api/axiosInstance'
+// src/context/AuthProvider.js
+import { createContext, useState, useEffect } from 'react';
+import { authApi } from '../api';
+import axiosInstance from '../api/axiosInstance';
 
-export const AuthContext = createContext()
+export const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function init() {
+    const init = async () => {
       try {
-        // Get stored tokens and user
-        const storedAccessToken = localStorage.getItem('accessToken')
-        const storedRefreshToken = localStorage.getItem('refreshToken')
-        const storedUser = localStorage.getItem('user')
+        const storedAccessToken = localStorage.getItem('accessToken');
+        const storedUser = localStorage.getItem('user');
 
-        // Restore tokens to axios if available
         if (storedAccessToken) {
-          axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${storedAccessToken}`
+          axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${storedAccessToken}`;
         }
 
-        // Restore user from localStorage if exists
+        // ✅ Use cached user immediately (no API call)
         if (storedUser) {
-          setUser(JSON.parse(storedUser))
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          setLoading(false);
+          return;
         }
 
-        // Optionally verify the session by hitting getProfile()
-        const r = await authApi.getProfile()
-        setUser(r.data)
+        // 🔥 Fetch and extract user correctly
+        const res = await authApi.getProfile();
+        
+        // 💡 Critical: extract the inner user object
+        const userData = res.data?.data; // ✅ This is the actual user
+
+        if (!userData) throw new Error("Invalid profile response");
+
+        // Save to localStorage and state
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
       } catch (e) {
-        console.warn('Auth init failed:', e)
-        logout() // clear everything if token invalid
+        console.warn('Auth init failed:', e);
+        // Optional: redirect to login if needed
+        localStorage.removeItem('user');
+        localStorage.removeItem('accessToken');
+        setUser(null);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-    init()
-  }, [])
+    };
+
+    init();
+  }, []);
 
   const login = async (credentials) => {
-    const r = await authApi.login(credentials)
-    const { accessToken, refreshToken, user } = r.data.data
+    const r = await authApi.login(credentials);
+    const { accessToken, refreshToken, user: userData } = r.data.data;
 
-    if (accessToken) {
-      // Store tokens and user in localStorage
-      localStorage.setItem('accessToken', accessToken)
-      localStorage.setItem('refreshToken', refreshToken)
-      localStorage.setItem('user', JSON.stringify(user))
-      localStorage.setItem('roles',user.role)
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('user', JSON.stringify(userData)); 
+    localStorage.setItem('roles', userData.role);
 
-      // Set Authorization header
-      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
-    }
+    axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+    setUser(userData);
+    return r;
+  };
 
-    setUser(user)
-    return r
-  }
-
-  const logout = async () => {
-    try {
-      await authApi.logout()
-    } catch (e) {
-      // ignore logout errors
-    }
-
-    // Clear everything
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('user')
-    localStorage.removeItem('roles')
-    delete axiosInstance.defaults.headers.common['Authorization']
-    setUser(null)
-  }
+  const logout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('roles');
+    delete axiosInstance.defaults.headers.common['Authorization'];
+    setUser(null);
+  };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
-  )
+  );
 }

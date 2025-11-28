@@ -37,6 +37,14 @@ export const adminApi = {
 
    getAdminManagers: () =>
     axios.get("/admin/mysaleperson"),
+
+   getAdminManagers: () => axios.get("/admin/admin-manager"), 
+
+  getLeaveList: (params = {}) =>
+  axios.get("/admin/get-leave-list", { params }),
+
+  approveLeave: (data) =>
+    axios.patch("/admin/approved-leave", data),
 };
 
 export const meetingApi = {
@@ -44,9 +52,9 @@ export const meetingApi = {
     const params = {};
     
     if (empty) {
-      params.empty = true; // ✅ This fetches all meetings
+      params.empty = true; 
     } else if (userId) {
-      params.userId = userId; // only add userId if not using empty
+      params.userId = userId; 
     }
 
     if (date) params.date = date;
@@ -61,10 +69,11 @@ export const meetingApi = {
 };
 
 export const attendanceApi = {
-  getAttendance: ({ userId, page = 1, limit = 10 }) =>
-    axios.get("/admin/get-attendance", {
-      params: { userId, page, limit },
-    }),
+  getAllUsersForAttendance: ({ page = 1, limit = 10 } = {}) =>
+    axios.get("/admin/get-attendance", { params: { page, limit } }),
+
+  getUserAttendance: ({ userId, page = 1, limit = 10 }) =>
+    axios.get("/admin/user-attendance", { params: { userId, page, limit } }),
 };
 
 export default { authApi, menuapi, adminApi, clientApi };

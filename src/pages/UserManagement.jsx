@@ -92,40 +92,42 @@ export default function UserManagement() {
     totalPages: Math.ceil(filtered.length / limit),
     limit,
   });
-} else if (isAdmin) {
-      // Get managers created by this admin
-      const mgrRes = await adminApi.getAdminManagers();
-      const mgrData = mgrRes.data?.data || mgrRes.data;
-      const allManagers = Array.isArray(mgrData?.rows) ? mgrData.rows : [];
+   } else if (isAdmin) {
+    try {
+      const res = await adminApi.getAdminManagers();
+      const response = res.data;
+      const adminUser = response.data?.user;
 
-      let combinedList = allManagers.map(mgr => ({
-        ...mgr,
-        _type: 'manager',
-        _assignedName: `${user.firstName} ${user.lastName}`.trim() || "Admin"
-      }));
+      if (!adminUser || !Array.isArray(adminUser.createdUsers)) {
+        setUsers([]);
+        setPagination({ currentPage: 1, totalItems: 0, totalPages: 1, limit: 10 });
+        return;
+      }
 
-      if (allManagers.length > 0) {
-        const salesPromises = allManagers.map(mgr =>
-          adminApi.getMySalespersons({ managerId: mgr.id, page: 1 })
-        );
-        const salesResponses = await Promise.allSettled(salesPromises);
-        salesResponses.forEach((result, idx) => {
-          if (result.status === "fulfilled") {
-            const mgr = allManagers[idx];
-            const salesData = result.value.data?.data || result.value.data;
-            const rows = Array.isArray(salesData?.rows) ? salesData.rows : [];
-            combinedList.push(...rows.map(sp => ({
-              ...sp,
-              _type: 'salesperson',
-              _assignedName: `${mgr.firstName} ${mgr.lastName}`.trim()
-            })));
-          }
+      const adminName = `${user.firstName} ${user.lastName}`.trim() || "Admin";
+      let combinedList = [];
+
+      for (const manager of adminUser.createdUsers) {
+        combinedList.push({
+          ...manager,
+          _type: "manager",
+          _assignedName: adminName,
         });
+
+        if (Array.isArray(manager.createdUsers)) {
+          for (const sp of manager.createdUsers) {
+            combinedList.push({
+              ...sp,
+              _type: "salesperson",
+              _assignedName: `${manager.firstName} ${manager.lastName}`.trim() || "—",
+            });
+          }
+        }
       }
 
       const term = search.toLowerCase().trim();
       const filtered = term
-        ? combinedList.filter(item =>
+        ? combinedList.filter((item) =>
             (item.firstName?.toLowerCase().includes(term)) ||
             (item.lastName?.toLowerCase().includes(term)) ||
             (item.email?.toLowerCase().includes(term)) ||
@@ -143,7 +145,12 @@ export default function UserManagement() {
         totalPages: Math.ceil(filtered.length / limit),
         limit,
       });
-    } else {
+    } catch (err) {
+      console.error("Failed to fetch admin team:", err);
+      toast.error("Failed to load team data");
+      setUsers([]);
+      setPagination({ currentPage: 1, totalItems: 0, totalPages: 1, limit: 10 });
+    }} else {
       // Super admin: real server pagination
       const params = { page, limit: 10 };
       if (search) params.search = search;
@@ -229,28 +236,29 @@ useEffect(() => {
   : [
       ...baseColumns,
       {
-        key: "assignedUnder",
-        label: "Assigned Under",
-        render: (row) => {
-          let name = "—";
+  key: "assignedUnder",
+  label: "Assigned Under",
+  render: (row) => {
+    let name = "—";
 
-          if (isAdmin) {
-            // Only show for salespersons
-            if (row._type === 'salesperson') {
-              name = row._assignedName || "—";
-            }
-          } else {
-            // Super admin: show direct creator
-            if (row.creator) {
-              name = [row.creator.firstName, row.creator.lastName]
-                .filter(Boolean)
-                .join(" ");
-            }
-          }
+    if (isAdmin) {
+      // Admin view: only show for salespersons
+      if (row._type === 'salesperson') {
+        name = row._assignedName || "—";
+      }
+    } else {
+      // Super admin view: show creator, EXCEPT for admin users
+      if (row.creator && row.role !== "admin") {
+        name = [row.creator.firstName, row.creator.lastName]
+          .filter(Boolean)
+          .join(" ");
+      }
+      // If row.role === "admin", leave name as "—"
+    }
 
-          return name !== "—" ? <span>{name}</span> : <span className="text-gray-400">—</span>;
-        },
-      },
+    return name !== "—" ? <span>{name}</span> : <span className="text-gray-400">—</span>;
+  },
+}
     ]; 
 
   const actions = [];
