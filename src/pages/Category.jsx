@@ -1,11 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import Table from "../components/Table";
 import { menuapi } from "../api";
 import { MdEdit } from "react-icons/md";
 import { MdDelete } from "react-icons/md";
+import { AuthContext } from "../context/AuthProvider"; 
 
 export default function Category() {
+  const { user } = useContext(AuthContext); 
+  const isManager = user.role === "manager";
+
   const [categories, setCategories] = useState([]); // full list from API
   const [loading, setLoading] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -226,15 +230,16 @@ const isCategoryNameDuplicate = (name, excludeId = null) => {
             className="w-full px-3 py-2 border-1 border-gray-300 rounded-full focus:outline-none focus:ring focus:ring-blue-200"
           />
         </div>
-        <button
+        {
+          isManager ? "" : <button
           onClick={() => setIsAddModalOpen(true)}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ml-4"
         >
           +Add New Category
         </button>
+        }
       </div>
 
-      {/* Add Category Modal */}
       {/* Add Category Modal */}
 {isAddModalOpen && (
   <div className="fixed inset-0 flex items-center justify-center z-50">

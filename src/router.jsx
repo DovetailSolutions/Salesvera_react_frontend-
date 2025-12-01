@@ -84,7 +84,7 @@ export const allRoutes = [
         path: "/category",
         label: "Categories",
         icon: <BiCategory />,
-        roles: [ROLES.BASE_ADMIN],
+        roles: [ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
         path: "/meeting-management",
