@@ -212,8 +212,8 @@ const isCategoryNameDuplicate = (name, excludeId = null) => {
 ];
 
   return (
-    <div className="py-6">
-      <Toaster position="top-right" />
+    <div className="py-6 relative h-screen">
+      <Toaster position="top-right absolute" />
       <h1 className="text-3xl font-semibold mb-6">Category Management</h1>
 
       <div className="flex justify-between items-center mb-6">

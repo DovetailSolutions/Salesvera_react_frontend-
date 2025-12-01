@@ -264,7 +264,7 @@ useEffect(() => {
   const actions = [];
 
   return (
-    <div className="py-6">
+    <div className="py-6 h-screen">
       <Toaster position="top-right" />
 
       <div className="mb-4">

@@ -45,6 +45,13 @@ export const adminApi = {
 
   approveLeave: (data) =>
     axios.patch("/admin/approved-leave", data),
+
+  getExpenses: () => axios.get("/admin/get-expense"),
+
+  getUserExpense: (params) => axios.get("/admin/user-expense", { params }),
+
+  approveExpense: (data) =>
+  axios.patch("/admin/approved-expense", data),
 };
 
 export const meetingApi = {

@@ -188,7 +188,7 @@ arena,ankit,7875345632,arena@gmail.com`;
   };
 
   return (
-    <div className="w-full py-6">
+    <div className="w-full py-6 h-screen">
       <h1 className="text-3xl font-semibold mb-6">Client Management</h1>
       <button
         onClick={downloadSampleCSV}

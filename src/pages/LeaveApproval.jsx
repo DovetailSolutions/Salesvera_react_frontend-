@@ -52,32 +52,34 @@ export default function LeaveApproval() {
   }, []);
 
   const handleApprove = async (row) => {
-    try {
-      await adminApi.approveLeave({
-        employee_id: row.user.id,
-        status: "approved"
-      });
-      toast.success("Leave approved");
-      fetchLeaves();
-    } catch (err) {
-      console.error("Approve error:", err);
-      toast.error("Failed to approve leave");
-    }
-  };
+  try {
+    await adminApi.approveLeave({
+      leaveID: row.id,
+      employee_id: row.user.id,
+      status: "approved"
+    });
+    toast.success("Leave approved");
+    fetchLeaves();
+  } catch (err) {
+    console.error("Approve error:", err.response || err);
+    toast.error("Failed to approve leave");
+  }
+};
 
-  const handleReject = async (row) => {
-    try {
-      await adminApi.rejectLeave({
-        employee_id: row.user.id,
-        status: "rejected"
-      });
-      toast.success("Leave rejected");
-      fetchLeaves();
-    } catch (err) {
-      console.error("Reject error:", err);
-      toast.error("Failed to reject leave");
-    }
-  };
+const handleReject = async (row) => {
+  try {
+    await adminApi.approveLeave({
+      leaveID: row.id,
+      employee_id: row.user.id,
+      status: "rejected" 
+    });
+    toast.success("Leave rejected");
+    fetchLeaves();
+  } catch (err) {
+    console.error("Reject error:", err.response || err);
+    toast.error("Failed to reject leave");
+  }
+};
 
   // Search by employee name, email, or reason
   const filteredLeaves = leaves.filter((leave) => {
@@ -178,11 +180,11 @@ export default function LeaveApproval() {
   ];
 
   return (
-    <div className="py-6 px-4 sm:px-6">
-      <Toaster position="top-right" />
+    <div className="py-6 relative h-screen">
+      <Toaster position="top-right absolute" />
 
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Leave Requests</h1>
+        <h1 className="text-3xl font-semibold">Leave Requests</h1>
       </div>
 
       <div className="mb-6 max-w-2xl">

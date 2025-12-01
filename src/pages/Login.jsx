@@ -27,8 +27,10 @@ export default function Login() {
     try {
       await login(data);
       Toast.success("You have been successfully logged in.");
-      navigate("/");
-      window.location.reload();
+     setTimeout(()=> {navigate("/");
+       window.location.reload();
+     },[1000])
+     
     } catch (e) {
       Toast.error("Login failed. Please check your credentials.");
     }
