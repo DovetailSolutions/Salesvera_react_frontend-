@@ -27,6 +27,7 @@
     "react-toastify": "^11.0.5",
     "recharts": "^3.4.1",
     "tailwindcss": "^4.1.17",
+    "xlsx": "^0.18.5",
     "yup": "^1.7.1"
   },
   "devDependencies": {

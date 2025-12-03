@@ -1,44 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { FaDownload, FaFileUpload, FaSearch } from 'react-icons/fa';
+import React, { useState, useEffect, useContext } from 'react';
+import { FaDownload, FaFileUpload, FaSearch, FaTimes } from 'react-icons/fa';
 import { clientApi, meetingApi } from '../api';
 import Table from '../components/Table';
 import Toast from "../components/Toast";
+import { AuthContext } from '../context/AuthProvider'; 
 
-// Column definitions (kept for reference and reuse)
 const MEETING_COLUMNS = [
   { key: 'id', label: 'Meeting ID', sortable: true },
   { key: 'companyName', label: 'Company', sortable: true },
   { key: 'personName', label: 'Contact Person', sortable: true },
   { key: 'mobileNumber', label: 'Mobile', sortable: true },
   { key: 'companyEmail', label: 'Email', sortable: true },
-  // { 
-  //   key: 'meetingTimeIn', 
-  //   label: 'Check-in', 
-  //   sortable: true,
-  //   render: (value) => value ? new Date(value).toLocaleString('en-US', {
-  //     month: 'short',
-  //     day: 'numeric',
-  //     hour: '2-digit',
-  //     minute: '2-digit'
-  //   }) : '—'
-  // },
-  // { 
-  //   key: 'meetingTimeOut', 
-  //   label: 'Check-out', 
-  //   sortable: true,
-  //   render: (value) => value ? new Date(value).toLocaleString('en-US', {
-  //     month: 'short',
-  //     day: 'numeric',
-  //     hour: '2-digit',
-  //     minute: '2-digit'
-  //   }) : '—'
-  // },
-  { 
-    key: 'meetingPurpose', 
-    label: 'Purpose', 
-    sortable: true,
-    render: (value) => value || '—'
-  },
 ];
 
 const transformMeetingForDisplay = (meeting) => {
@@ -59,10 +31,22 @@ function ClientBulkUpload() {
   const [uploadStatus, setUploadStatus] = useState(null);
   const [uploadMessage, setUploadMessage] = useState('');
 
-  const [meetings, setMeetings] = useState([]); // This will now hold pre-rendered rows
+  const { user } = useContext(AuthContext); 
+  const isManager = user.role === "manager";
+
+  const [meetings, setMeetings] = useState([]); 
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [totalCount, setTotalCount] = useState(0);
+
+  // ✨ Add Client Modal State
+  const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
+  const [newClient, setNewClient] = useState({
+    companyName: '',
+    personName: '',
+    mobileNumber: '',
+    companyEmail: '',
+  });
 
   const sampleCSV = `companyName,personName,mobileNumber,companyEmail
 dovetail,vishu,9988855444,dovetail@gmail.com
@@ -99,49 +83,100 @@ arena,ankit,7875345632,arena@gmail.com`;
   };
 
   const handleUpload = async () => {
-  if (!selectedFile) {
-    Toast.error('No file selected.');
-    return;
-  }
-
-  setUploadStatus('loading');
-
-  const formData = new FormData();
-  formData.append('csv', selectedFile);
-
-  try {
-    const response = await clientApi.bulkUploads(formData);
-    const resData = response.data;
-
-    if (resData?.success) {
-      // 🟢 Main success toast
-      Toast.success(resData.message || 'Bulk upload successful!');
-
-      // ℹ️ Detailed info toast with counts
-      const { totalCSV = 0, inserted = 0, duplicatesSkipped = 0 } = resData.data || {};
-      const detailMessage = `${totalCSV} record(s) processed. ${inserted} added, ${duplicatesSkipped} duplicates skipped.`;
-      Toast.info(detailMessage);
-    } else {
-      // Handle case where API returns success: false
-      const errorMsg = resData?.message || 'Upload failed.';
-      Toast.error(errorMsg);
+    if (!selectedFile) {
+      Toast.error('No file selected.');
+      return;
     }
 
-    // Reset UI
-    setSelectedFile(null);
-    setUploadStatus(null);
-    fetchMeetings(searchTerm); // refresh table
+    setUploadStatus('loading');
 
-  } catch (error) {
-    const errorMsg =
-      error.response?.data?.errorMessage ||
-      error.response?.data?.message ||
-      error.message ||
-      'Upload failed. Please try again.';
-    Toast.error(`Upload failed: ${errorMsg}`);
-    setUploadStatus('error');
-  }
-};
+    const formData = new FormData();
+    formData.append('csv', selectedFile);
+
+    try {
+      const response = await clientApi.bulkUploads(formData);
+      const resData = response.data;
+
+      if (resData?.success) {
+        Toast.success(resData.message || 'Bulk upload successful!');
+        const { totalCSV = 0, inserted = 0, duplicatesSkipped = 0 } = resData.data || {};
+        if (duplicatesSkipped > 0 || totalCSV !== inserted) {
+          const detailMessage = `${totalCSV} record(s) processed. ${inserted} added, ${duplicatesSkipped} duplicates skipped.`;
+          Toast.info(detailMessage);
+        }
+      } else {
+        const errorMsg = resData?.message || 'Upload failed.';
+        Toast.error(errorMsg);
+      }
+
+      setSelectedFile(null);
+      setUploadStatus(null);
+      fetchMeetings(searchTerm);
+
+    } catch (error) {
+      const errorMsg =
+        error.response?.data?.errorMessage ||
+        error.response?.data?.message ||
+        error.message ||
+        'Upload failed. Please try again.';
+      Toast.error(`Upload failed: ${errorMsg}`);
+      setUploadStatus('error');
+    }
+  };
+
+  // ✨ Handle Add Single Client
+  const handleAddClient = async () => {
+    const { companyName, personName, mobileNumber, companyEmail } = newClient;
+
+    if (!companyName || !personName || !mobileNumber || !companyEmail) {
+      Toast.error('Please fill all fields.');
+      return;
+    }
+
+    // Basic mobile validation (10-15 digits)
+    if (!/^\d{10,15}$/.test(mobileNumber)) {
+      Toast.error('Please enter a valid mobile number (10–15 digits).');
+      return;
+    }
+
+    // Basic email validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(companyEmail)) {
+      Toast.error('Please enter a valid email address.');
+      return;
+    }
+
+    try {
+      const response = await clientApi.createClient(newClient);
+      if (response.data?.success) {
+        Toast.success('Client added successfully!');
+        setIsAddClientModalOpen(false);
+        resetClientForm();
+        fetchMeetings(searchTerm); // refresh list
+      } else {
+        Toast.error(response.data?.message || 'Failed to add client.');
+      }
+    } catch (error) {
+      const errorMsg =
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to add client. Please try again.';
+      Toast.error(`Error: ${errorMsg}`);
+    }
+  };
+
+  const resetClientForm = () => {
+    setNewClient({
+      companyName: '',
+      personName: '',
+      mobileNumber: '',
+      companyEmail: '',
+    });
+  };
+
+  const handleClientInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewClient((prev) => ({ ...prev, [name]: value }));
+  };
 
   const fetchMeetings = async (search = '') => {
     setLoadingMeetings(true);
@@ -153,7 +188,6 @@ arena,ankit,7875345632,arena@gmail.com`;
 
       const result = response.data;
       if (result?.success && Array.isArray(result.data?.rows)) {
-        // ✅ Transform raw data into safe display values
         const displayMeetings = result.data.rows.map(transformMeetingForDisplay);
         setMeetings(displayMeetings);
         setTotalCount(result.data.total);
@@ -190,48 +224,61 @@ arena,ankit,7875345632,arena@gmail.com`;
   return (
     <div className="w-full py-6 h-screen">
       <h1 className="text-3xl font-semibold mb-6">Client Management</h1>
-      <button
-        onClick={downloadSampleCSV}
-        className="flex items-center gap-2 px-4 py-2.5 text-white font-medium rounded-md text-sm transition"
-      >
-        <FaDownload /> Download Sample CSV
-      </button>
-
-      <div className="mt-2 p-6 border border-gray-200 rounded-lg bg-gray-50">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <FaFileUpload /> Upload Clients CSV/Excel
-        </h3>
-
-        <div className="mb-4">
-          <input
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            onChange={handleFileChange}
-            className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-          />
+      
+      {!isManager && (
+        <div className='flex justify-between items-center w-full mb-6'>
+          <button
+            onClick={downloadSampleCSV}
+            className="flex items-center gap-2 px-4 py-2.5 text-white font-medium rounded-md text-sm bg-blue-600 hover:bg-blue-700 transition"
+          >
+            <FaDownload /> Download Sample CSV
+          </button>
+          
+          <button
+            onClick={() => setIsAddClientModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded flex items-center gap-1"
+          >
+            + Add Client
+          </button>
         </div>
+      )}
 
-        {selectedFile && (
-          <p className="text-sm text-gray-600 mb-3">
-            Selected: <span className="font-medium">{selectedFile.name}</span>
-          </p>
-        )}
+      {!isManager && (
+        <div className="mt-2 p-6 border border-gray-200 rounded-lg bg-gray-50">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <FaFileUpload /> Upload Clients CSV/Excel
+          </h3>
 
-        <button
-          onClick={handleUpload}
-          disabled={!selectedFile || uploadStatus === 'loading'}
-          className={`w-full py-2.5 px-4 rounded-md text-white font-medium text-sm flex items-center justify-center gap-2 ${
-            uploadStatus === 'loading'
-              ? 'bg-gray-400 cursor-not-allowed'
-              : selectedFile
-              ? 'bg-green-600 hover:bg-green-700'
-              : 'bg-gray-400 cursor-not-allowed'
-          }`}
-        >
-          {uploadStatus === 'loading' ? 'Uploading...' : 'Upload File'}
-        </button>
+          <div className="mb-4">
+            <input
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              onChange={handleFileChange}
+              className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer"
+            />
+          </div>
 
-      </div>
+          {selectedFile && (
+            <p className="text-sm text-gray-600 mb-3">
+              Selected: <span className="font-medium">{selectedFile.name}</span>
+            </p>
+          )}
+
+          <button
+            onClick={handleUpload}
+            disabled={!selectedFile || uploadStatus === 'loading'}
+            className={`w-full py-2.5 px-4 rounded-md text-white font-medium text-sm flex items-center justify-center gap-2 ${
+              uploadStatus === 'loading'
+                ? 'bg-gray-400 cursor-not-allowed'
+                : selectedFile
+                ? 'bg-green-600 hover:bg-green-700'
+                : 'bg-gray-400 cursor-not-allowed'
+            }`}
+          >
+            {uploadStatus === 'loading' ? 'Uploading...' : 'Upload File'}
+          </button>
+        </div>
+      )}
 
       <div className="mt-8">
         <form onSubmit={handleSearchSubmit} className="relative max-w-md">
@@ -268,6 +315,103 @@ arena,ankit,7875345632,arena@gmail.com`;
           </div>
         )}
       </div>
+
+{isAddClientModalOpen && (
+  <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-gray-200">
+      <div className="flex justify-between items-center p-4">
+        <h2 className="text-xl font-bold">Add New Client</h2>
+        <button
+          onClick={() => {
+            setIsAddClientModalOpen(false);
+            resetClientForm();
+          }}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <FaTimes />
+        </button>
+      </div>
+
+      <div className="p-4 space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Company Name *
+          </label>
+          <input
+            type="text"
+            name="companyName"
+            value={newClient.companyName}
+            onChange={handleClientInputChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring focus:ring-blue-200"
+            placeholder="e.g., Arena"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Contact Person *
+          </label>
+          <input
+            type="text"
+            name="personName"
+            value={newClient.personName}
+            onChange={handleClientInputChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring focus:ring-blue-200"
+            placeholder="e.g., Ankit"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Mobile Number *
+          </label>
+          <input
+            type="text"
+            name="mobileNumber"
+            value={newClient.mobileNumber}
+            onChange={handleClientInputChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring focus:ring-blue-200"
+            placeholder="e.g., 7875345632"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Company Email *
+          </label>
+          <input
+            type="email"
+            name="companyEmail"
+            value={newClient.companyEmail}
+            onChange={handleClientInputChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring focus:ring-blue-200"
+            placeholder="e.g., arena@gmail.com"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3 p-4">
+        <button
+          type="button"
+          onClick={() => {
+            setIsAddClientModalOpen(false);
+            resetClientForm();
+          }}
+          className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleAddClient}
+          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+        >
+          Add Client
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

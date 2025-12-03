@@ -279,7 +279,7 @@ const isCategoryNameDuplicate = (name, excludeId = null) => {
       <Table
         columns={columns}
         data={filteredCategories}
-        actions={actions}
+        actions={isManager ? [] : actions}
         keyField="id"
         emptyMessage="No categories found"
         shadow="shadow-md"

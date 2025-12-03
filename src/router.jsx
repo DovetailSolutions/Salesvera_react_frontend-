@@ -28,6 +28,7 @@ import { CiUser } from "react-icons/ci";
 import { PiUsersThreeLight } from "react-icons/pi";
 import LeaveApproval from "./pages/LeaveApproval";
 import ExpenseManagement from "./pages/ExpenseManagement";
+import { TbMoneybag } from "react-icons/tb";
 
 export const allRoutes = [
   {
@@ -52,20 +53,20 @@ export const allRoutes = [
       },
        {
         path: "/attendance-management",
-        label: "Attendance",
+        label: "User Attendance",
         icon: <CiCalendar />,
         roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
         path: "/leave-requests",
-        label: "Leave Requests",
+        label: "Leave Management",
         icon: <CiCalendar />,
         roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
         path: "/expense-management",
-        label: "Expenses",
-        icon: <CiCalendar />,
+        label: "User Expenses",
+        icon: <TbMoneybag />,
         roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       // {
@@ -78,7 +79,7 @@ export const allRoutes = [
         path: "/client-management",
         label: "Client Management",
         icon: <PiUsersThreeLight />,
-        roles: [ ROLES.BASE_ADMIN ],
+        roles: [ ROLES.BASE_ADMIN, ROLES.MANAGER ],
       },
       {
         path: "/category",
@@ -88,7 +89,7 @@ export const allRoutes = [
       },
       {
         path: "/meeting-management",
-        label: "Meetings",
+        label: "User Meetings",
         icon: <RiGroup3Line />,
         roles: [ROLES.BASE_ADMIN, ROLES.MANAGER],
       },

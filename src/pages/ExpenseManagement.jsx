@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo, useContext } from "react";
+import React, { useState, useEffect, useMemo, useContext, useCallback } from "react";
 import { adminApi } from "../api";
-import { FaCheck } from "react-icons/fa";
-import { IoMdClose } from "react-icons/io";
 import { AuthContext } from "../context/AuthProvider";
 import toast, { Toaster } from "react-hot-toast";
+import Table from "../components/Table";
+import { FaCheck, FaEye } from "react-icons/fa";
+import { IoMdClose } from "react-icons/io";
 
 const ExpenseManagement = () => {
   const { user } = useContext(AuthContext);
@@ -13,7 +14,7 @@ const ExpenseManagement = () => {
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("all");
-  const [searchTerm, setSearchTerm] = useState(""); // ✅ Added search state
+  const [searchTerm, setSearchTerm] = useState("");
   const pageSize = 10;
 
   const currentUserRole = user?.role;
@@ -23,7 +24,6 @@ const ExpenseManagement = () => {
     { value: "pending", label: "Pending" },
     { value: "approved", label: "Approved" },
     { value: "rejected", label: "Rejected" },
-    { value: "not_clear", label: "Not Clear" },
   ];
 
   const fetchExpenses = async () => {
@@ -49,7 +49,6 @@ const ExpenseManagement = () => {
     }
   }, [user]);
 
-  // ✅ Reset pagination when filter or search changes
   useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter, searchTerm]);
@@ -58,31 +57,41 @@ const ExpenseManagement = () => {
     const adminStatus = row.approvedByAdmin;
     const superAdminStatus = row.approvedBySuperAdmin;
 
-    if (adminStatus === "rejected" || superAdminStatus === "rejected") return "Rejected";
-    if (adminStatus === "not_clear") return "Not Clear";
-    if (adminStatus === "accepted" && superAdminStatus === "accepted") return "Approved";
-    if (adminStatus === "accepted" && superAdminStatus === "pending") return "Pending";
+    if (adminStatus === "rejected" || superAdminStatus === "rejected") {
+      return "Rejected";
+    }
+    if (adminStatus === "accepted" && superAdminStatus === "accepted") {
+      return "Approved";
+    }
+    if (adminStatus === "accepted" && superAdminStatus === "pending") {
+      if (currentUserRole === "admin") {
+        return "Pending";
+      }
+      return "Pending by Admin";
+    }
     return "Pending";
   };
 
   const filteredExpenses = useMemo(() => {
     if (!currentUserRole) return [];
 
-    // Role-based visibility
     let visibleExpenses = expenses.filter((expense) => {
       if (currentUserRole === "manager") return true;
       if (currentUserRole === "admin") return expense.approvedByAdmin === "accepted";
       return false;
     });
 
-    // Status filter
     if (statusFilter !== "all") {
       visibleExpenses = visibleExpenses.filter((expense) => {
-        return getStatus(expense).toLowerCase() === statusFilter;
+        const currentStatus = getStatus(expense);
+        if (statusFilter === "approved") {
+          return currentStatus === "Approved" || currentStatus === "Pending by Admin";
+        } else {
+          return currentStatus.toLowerCase() === statusFilter;
+        }
       });
     }
 
-    // 🔍 Search filter
     const term = searchTerm.toLowerCase().trim();
     if (term) {
       visibleExpenses = visibleExpenses.filter((expense) => {
@@ -113,13 +122,24 @@ const ExpenseManagement = () => {
     switch (status.toLowerCase()) {
       case "approved": return "text-green-600 bg-green-100";
       case "rejected": return "text-red-600 bg-red-100";
-      case "not clear": return "text-orange-600 bg-orange-100";
       case "pending": return "text-yellow-600 bg-yellow-100";
+      case "pending by admin": return "text-blue-600 bg-blue-100";
       default: return "text-gray-600 bg-gray-100";
     }
   };
 
-  const handleApprove = async (expense) => {
+  const openUserExpenseModal = (expense) => {
+    setSelectedExpense(expense);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setSelectedExpense(null);
+  };
+
+  // ✅ Add handleApprove and handleReject with useCallback
+  const handleApprove = useCallback(async (expense) => {
     const updatedExpense = {
       ...expense,
       ...(currentUserRole === "manager"
@@ -143,6 +163,7 @@ const ExpenseManagement = () => {
     try {
       await adminApi.approveExpense(payload);
       toast.success("Expense approved");
+      fetchExpenses(); // Refresh
     } catch (error) {
       console.error("Approve error:", error);
       toast.error("Failed to approve expense");
@@ -150,9 +171,9 @@ const ExpenseManagement = () => {
         prev.map((exp) => (exp.id === expense.id ? expense : exp))
       );
     }
-  };
+  }, [currentUserRole, fetchExpenses]);
 
-  const handleReject = async (expense) => {
+  const handleReject = useCallback(async (expense) => {
     const updatedExpense = {
       ...expense,
       ...(currentUserRole === "manager"
@@ -176,6 +197,7 @@ const ExpenseManagement = () => {
     try {
       await adminApi.approveExpense(payload);
       toast.success("Expense rejected");
+      fetchExpenses(); // Refresh
     } catch (error) {
       console.error("Reject error:", error);
       toast.error("Failed to reject expense");
@@ -183,17 +205,7 @@ const ExpenseManagement = () => {
         prev.map((exp) => (exp.id === expense.id ? expense : exp))
       );
     }
-  };
-
-  const openUserExpenseModal = (expense) => {
-    setSelectedExpense(expense);
-    setModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-    setSelectedExpense(null);
-  };
+  }, [currentUserRole, fetchExpenses]);
 
   const columns = [
     {
@@ -225,64 +237,50 @@ const ExpenseManagement = () => {
         );
       },
     },
-    {
-      key: "actions",
-      label: "Actions",
-      render: (row) => {
-        const adminStatus = row.approvedByAdmin;
-        const superAdminStatus = row.approvedBySuperAdmin;
-        const isManager = currentUserRole === "manager";
-        const isAdmin = currentUserRole === "admin";
-
-        if (isManager && adminStatus === "pending") {
-          return (
-            <div className="flex gap-2">
-              <div
-                onClick={(e) => { e.stopPropagation(); handleApprove(row); }}
-                className="py-1 px-3 bg-green-600 text-white rounded hover:bg-green-700 transition shadow-sm cursor-pointer"
-                title="Approve"
-              >
-                <FaCheck size={12} />
-              </div>
-              <div
-                onClick={(e) => { e.stopPropagation(); handleReject(row); }}
-                className="py-1 px-3 bg-red-600 text-white rounded hover:bg-red-700 transition shadow-sm cursor-pointer"
-                title="Reject"
-              >
-                <IoMdClose size={12} />
-              </div>
-            </div>
-          );
-        }
-
-        if (isAdmin && adminStatus === "accepted" && superAdminStatus === "pending") {
-          return (
-            <div className="flex gap-2">
-              <div
-                onClick={(e) => { e.stopPropagation(); handleApprove(row); }}
-                className="py-1 px-3 bg-green-600 text-white rounded hover:bg-green-700 transition shadow-sm cursor-pointer"
-                title="Approve"
-              >
-                <FaCheck size={12} />
-              </div>
-              <div
-                onClick={(e) => { e.stopPropagation(); handleReject(row); }}
-                className="py-1 px-3 bg-red-600 text-white rounded hover:bg-red-700 transition shadow-sm cursor-pointer"
-                title="Reject"
-              >
-                <IoMdClose size={12} />
-              </div>
-            </div>
-          );
-        }
-
-        return <span className="text-gray-400 italic text-xs">—</span>;
-      },
-    },
   ];
 
-  const handleRowClick = (row) => {
-    openUserExpenseModal(row);
+  const actions = useMemo(() => [
+    {
+      type: "menu",
+      label: "Actions",
+      className: "px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition",
+      menuItems: [
+        {
+          label: "Accept",
+          onClick: (row) => handleApprove(row),
+          icon: <FaCheck className="text-green-500" />,
+          condition: (row) => {
+            const status = getStatus(row);
+            if (currentUserRole === "manager") return status === "Pending";
+            if (currentUserRole === "admin") return status === "Pending by Admin";
+            return false;
+          },
+          className: "text-green-600 hover:bg-green-50",
+        },
+        {
+          label: "Reject",
+          onClick: (row) => handleReject(row),
+          icon: <IoMdClose className="text-red-500" />,
+          condition: (row) => {
+            const status = getStatus(row);
+            if (currentUserRole === "manager") return status === "Pending";
+            if (currentUserRole === "admin") return status === "Pending by Admin";
+            return false;
+          },
+          className: "text-red-600 hover:bg-red-50",
+        },
+        {
+          label: "View",
+          onClick: (row) => openUserExpenseModal(row),
+          icon: <FaEye className="text-blue-500" />,
+          className: "text-blue-600 hover:bg-blue-50",
+        },
+      ],
+    },
+  ], [currentUserRole, handleApprove, handleReject, openUserExpenseModal, getStatus]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
   if (!user) {
@@ -291,22 +289,20 @@ const ExpenseManagement = () => {
 
   return (
     <div className="py-6 relative h-screen">
-      <Toaster position="top-right absolute" />
+      <Toaster position="top-right" />
 
       <h1 className="text-3xl font-semibold mb-4">Expense Management</h1>
 
       <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
         <div className="flex flex-wrap items-center gap-4 flex-1 max-w-3xl">
-          {/* Search Bar */}
           <input
             type="text"
             placeholder="Search by name, title, or amount..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`px-5 py-2 rounded-full border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent shadow-sm w-full sm:w-auto flex-1 min-w-[200px] custom-border`}
+            className="px-5 py-2 rounded-full border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent shadow-sm w-full sm:w-auto flex-1 min-w-[200px]"
           />
 
-          {/* Status Filter Dropdown */}
           <div className="flex gap-2 items-center">
             <span className="text-sm text-gray-400">Filter by status: </span>
             <select
@@ -324,132 +320,30 @@ const ExpenseManagement = () => {
         </div>
       </div>
 
-      <div className="w-full paneltheme rounded mt-4 py-2 overflow-x-auto lg:overflow-x-hidden">
-        <table className="w-full text-sm border-collapse table-fixed">
-          <thead>
-            <tr>
-              <th className="px-3 py-2 font-semibold text-xs text-left text-black bg-[#3B82F60D] rounded-l-xl">
-                Sr No
-              </th>
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  className={`px-3 py-2 text-xs text-black font-semibold bg-[#3B82F60D] ${
-                    col.align || "text-left"
-                  }`}
-                >
-                  {col.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={columns.length + 1} className="text-center py-4 text-gray-500">
-                  Loading expenses...
-                </td>
-              </tr>
-            ) : paginatedData.length > 0 ? (
-              paginatedData.map((row, idx) => {
-                const bgColor = idx % 2 === 0 ? "bg-[#3B82F603]" : "bg-[#3B82F60D]";
-                return (
-                  <tr
-                    key={row.id}
-                    className={`${bgColor} cursor-pointer hover:bg-blue-50 transition`}
-                    onClick={() => handleRowClick(row)}
-                  >
-                    <td className="px-3 py-1.5 text-xs text-black">
-                      {(currentPage - 1) * pageSize + (idx + 1)}
-                    </td>
-                    {columns.map((col) => (
-                      <td key={col.key} className="px-3 py-1.5 text-xs text-black">
-                        {col.render ? col.render(row) : row[col.key]}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td
-                  colSpan={columns.length + 1}
-                  className="text-center text-xs text-black py-3 bg-[#3B82F603]"
-                >
-                  No expenses found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      {loading ? (
+        <div className="w-full paneltheme rounded mt-4 p-4 text-center text-gray-500">
+          Loading expenses...
+        </div>
+      ) : (
+        <Table
+          columns={columns}
+          data={paginatedData}
+          actions={actions}
+          keyField="id"
+          emptyMessage="No expenses found."
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalCount={filteredExpenses.length}
+          onPageChange={handlePageChange}
+          shadow="shadow-sm"
+          // Removed onRowClick — use "View" in menu instead
+        />
+      )}
 
-        {/* Pagination */}
-        {filteredExpenses.length > pageSize && (
-          <div className="py-2 pb-4 pt-5">
-            <div className="flex items-center justify-center mt-2 px-2 py-1 relative">
-              <span className="text-sm text-gray-600 absolute left-0">
-                Page {currentPage} of {Math.ceil(filteredExpenses.length / pageSize)}
-              </span>
-              <div className="flex gap-1 justify-center">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="!px-3 !py-3 rounded disabled:opacity-50 border border-gray-300 bg-white text-black hover:bg-gray-100"
-                >
-                  <FaAngleLeft />
-                </button>
-                {Array.from({ length: Math.ceil(filteredExpenses.length / pageSize) }, (_, i) => i + 1)
-                  .filter(
-                    (num) =>
-                      num <= 3 ||
-                      num > Math.ceil(filteredExpenses.length / pageSize) - 2 ||
-                      Math.abs(num - currentPage) <= 1
-                  )
-                  .reduce((acc, num, i, arr) => {
-                    if (i > 0 && num - arr[i - 1] > 1) acc.push("ellipsis");
-                    acc.push(num);
-                    return acc;
-                  }, [])
-                  .map((item, idx) =>
-                    item === "ellipsis" ? (
-                      <span key={`e-${idx}`} className="px-3 py-1">
-                        ...
-                      </span>
-                    ) : (
-                      <div
-                        key={item}
-                        onClick={() => setCurrentPage(item)}
-                        className={`!rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
-                          currentPage === item
-                            ? "!bg-[#10B981] text-white !px-5 !py-1"
-                            : "!bg-white !text-black border border-black hover:bg-gray-100 !px-5 !py-1"
-                        }`}
-                      >
-                        {item}
-                      </div>
-                    )
-                  )}
-                <button
-                  onClick={() =>
-                    setCurrentPage((p) =>
-                      Math.min(Math.ceil(filteredExpenses.length / pageSize), p + 1)
-                    )
-                  }
-                  disabled={currentPage === Math.ceil(filteredExpenses.length / pageSize)}
-                  className="!px-3 !py-3 rounded disabled:opacity-50 border border-gray-300 bg-white text-black hover:bg-gray-100"
-                >
-                  <FaAngleRight />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ✅ Fixed Modal: shows only the clicked expense */}
+      {/* Modal */}
       {modalOpen && selectedExpense && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6 relative border border-gray-200">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6 py-10 relative border border-gray-200">
             <div
               onClick={closeModal}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 transition cursor-pointer"
@@ -482,7 +376,9 @@ const ExpenseManagement = () => {
                   <div>
                     <span className="text-xs text-gray-500">Amount</span>
                     <p className="font-medium text-gray-800">
-                      ₹{selectedExpense.total_amount !== null ? selectedExpense.total_amount.toLocaleString() : "—"}
+                      ₹{selectedExpense.total_amount !== null
+                        ? selectedExpense.total_amount.toLocaleString()
+                        : "—"}
                     </p>
                   </div>
                   <div>
@@ -546,18 +442,5 @@ const ExpenseManagement = () => {
     </div>
   );
 };
-
-// Pagination Icons
-const FaAngleLeft = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-  </svg>
-);
-
-const FaAngleRight = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-  </svg>
-);
 
 export default ExpenseManagement;

@@ -108,7 +108,7 @@ const handleReject = async (row) => {
     {
       key: "email",
       label: "Email",
-      render: (row) => <div>{row.user?.email || "—"}</div>,
+      render: (row) => <div className="break-words max-w-xs">{row.user?.email || "—"}</div>,
     },
     {
       key: "from_date",

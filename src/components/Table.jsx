@@ -167,22 +167,23 @@ export default function Table({
                           {action.label}
                         </button>
                         {openMenuId === menuId && (
-                          <div className="absolute right-0 mt-1 bg-white rounded w-40 z-50 border">
+                          <div className="fixed right-9 mt-1 bg-white rounded w-40 z-50 border">
                             {action.menuItems.map((item, mi) => {
                               if (item.condition && !item.condition(row)) return null;
                               return (
                                 <div
-                                  key={mi}
-                                  onClick={() => {
-                                    setOpenMenuId(null);
-                                    item.onClick(row);
-                                  }}
-                                  className={`block w-full text-left px-3 py-1.5 text-xs text-black hover:bg-gray-100 ${
-                                    item.className || ""
-                                  }`}
-                                >
-                                  {item.label}
-                                </div>
+  key={mi}
+  onClick={() => {
+    setOpenMenuId(null);
+    item.onClick(row);
+  }}
+  className={`flex items-center gap-2 px-3 py-2 text-sm cursor-pointer ${
+    item.className || "text-gray-700 hover:bg-gray-100"
+  }`}
+>
+  {item.icon && <span className="flex-shrink-0">{item.icon}</span>}
+  <span>{item.label}</span>
+</div>
                               );
                             })}
                           </div>

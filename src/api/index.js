@@ -69,10 +69,14 @@ export const meetingApi = {
 
     return axios.get("/admin/getusermeeting", { params });
   },
+
+  assignMeeting: (data) => 
+    axios.post("/admin/assign-meeting", data),
 };
 
  export const clientApi = {
   bulkUploads: (data) => axios.post("/admin/bulk-upload", data),
+  createClient: (data) => axios.post("/admin/create-client", data),
 };
 
 export const attendanceApi = {
@@ -81,6 +85,9 @@ export const attendanceApi = {
 
   getUserAttendance: ({ userId, page = 1, limit = 10 }) =>
     axios.get("/admin/user-attendance", { params: { userId, page, limit } }),
+
+  getAttendanceBook: (params = {}) =>
+    axios.get("/admin/attendance-book", { params }),
 };
 
 export default { authApi, menuapi, adminApi, clientApi };

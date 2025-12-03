@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import Table from "../components/Table";
 import { adminApi, attendanceApi } from "../api";
 import toast, { Toaster } from "react-hot-toast";
-import { useNavigate } from "react-router";
 import { FaAngleLeft } from "react-icons/fa";
 import { FaAngleRight } from "react-icons/fa";
 import { MdOutlineTimer } from "react-icons/md";
@@ -10,6 +9,8 @@ import { LiaUserClockSolid } from "react-icons/lia";
 import { IoAlertCircleOutline } from "react-icons/io5";
 import { PiClockUserLight } from "react-icons/pi";
 import { LuCalendarClock } from "react-icons/lu";
+import { Calendar } from "lucide-react";
+import AttendanceRegister from "./AttendanceRegister";
 
 const useAuth = () => {
   const userData = JSON.parse(localStorage.getItem("user"));
@@ -39,8 +40,15 @@ export default function Attendance() {
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [todayAttendanceMap, setTodayAttendanceMap] = useState({});
 
-  const navigate = useNavigate();
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
 
+  const openAttendanceRegister = () => {
+    setIsRegisterOpen(true);
+  };
+
+  const closeRegister = () => {
+    setIsRegisterOpen(false);
+  };
   const toLocalDateString = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -137,101 +145,131 @@ export default function Attendance() {
   };
 
   const todayColumn = {
-    key: "todayAttendance",
-    label: "Today",
+  key: "todayAttendance",
+  label: "Today",
+  render: (row) => {
+    const status = todayAttendanceMap[row.id] || "absent";
+    let bgColor = "bg-red-400",
+      text = "Absent";
+
+    if (status === "present") {
+      bgColor = "bg-[#10B981]";
+      text = "Present";
+    }
+
+    return (
+      <div onClick={() => handleRowClick(row)} className="cursor-pointer">
+        <span
+          className={`${bgColor} text-white text-xs font-medium rounded-full px-3 py-1 inline-block`}
+          title={text}
+        >
+          {text}
+        </span>
+      </div>
+    );
+  },
+};
+
+const baseColumns = [
+  {
+    key: "firstName",
+    label: "First Name",
+    render: (row) => (
+      <div className="cursor-pointer capitalize" onClick={() => handleRowClick(row)}>
+        {row.firstName}
+      </div>
+    ),
+  },
+  {
+    key: "lastName",
+    label: "Last Name",
+    render: (row) => (
+      <div className="cursor-pointer capitalize" onClick={() => handleRowClick(row)}>
+        {row.lastName}
+      </div>
+    ),
+  },
+  {
+    key: "email",
+    label: "Email",
+    render: (row) => (
+      <div className="break-words max-w-xs cursor-pointer" onClick={() => handleRowClick(row)}>
+        {row.email}
+      </div>
+    ),
+  },
+  {
+    key: "phone",
+    label: "Phone",
+    render: (row) => (
+      <div className="cursor-pointer" onClick={() => handleRowClick(row)}>
+        {row.phone}
+      </div>
+    ),
+  },
+  {
+    key: "role",
+    label: "Role",
     render: (row) => {
-      const status = todayAttendanceMap[row.id] || "absent";
-      let bgColor = "bg-red-400",
-        text = "Absent";
-
-      if (status === "present") {
-        bgColor = "bg-[#10B981]";
-        text = "Present";
-      }
-
+      const displayRole =
+        row.role === "sale_person"
+          ? "Salesperson"
+          : row.role === "manager"
+          ? "Manager"
+          : row.role.charAt(0).toUpperCase() + row.role.slice(1);
       return (
-        <div onClick={() => handleRowClick(row)} className="cursor-pointer">
-          <div
-            className={`${bgColor} text-white text-xs font-medium rounded-full px-3 py-1 w-fit mx-auto`}
-            title={text}
-          >
-            {text}
-          </div>
+        <div className="cursor-pointer" onClick={() => handleRowClick(row)}>
+          {displayRole}
         </div>
       );
     },
-  };
+  },
+  todayColumn,
+];
 
-  const baseColumns = [
-    {
-      key: "firstName",
-      label: "First Name",
-      render: (row) => (
-        <div className="cursor-pointer capitalize" onClick={() => handleRowClick(row)}>
-          {row.firstName}
-        </div>
-      ),
-    },
-    {
-      key: "lastName",
-      label: "Last Name",
-      render: (row) => (
-        <div className="cursor-pointer capitalize" onClick={() => handleRowClick(row)}>
-          {row.lastName}
-        </div>
-      ),
-    },
-    {
-      key: "email",
-      label: "Email",
-      render: (row) => (
-        <div className="break-words max-w-xs cursor-pointer" onClick={() => handleRowClick(row)}>
-          {row.email}
-        </div>
-      ),
-    },
-    {
-      key: "phone",
-      label: "Phone",
-      render: (row) => (
-        <div className="cursor-pointer" onClick={() => handleRowClick(row)}>
-          {row.phone}
-        </div>
-      ),
-    },
-    {
-      key: "role",
-      label: "Role",
-      render: (row) => {
-        const displayRole =
-          row.role === "sale_person"
-            ? "Salesperson"
-            : row.role === "manager"
-            ? "Manager"
-            : row.role.charAt(0).toUpperCase() + row.role.slice(1);
-        return (
-          <div className="cursor-pointer" onClick={() => handleRowClick(row)}>
-            {displayRole}
-          </div>
-        );
-      },
-    },
-    todayColumn,
-  ];
+const actionsColumn = {
+  key: "actions",
+  label: "Actions",
+  render: (row) => (
+    <div
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        handleRowClick(row);
+      }}
+      className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition w-fit cursor-pointer"
+      title="View Attendance"
+      aria-label={`View attendance for ${row.firstName} ${row.lastName}`}
+    >
+      <Calendar className="w-5 h-5" />
+    </div>
+  ),
+};
 
-  const columns = isManager
-    ? baseColumns
-    : [...baseColumns.slice(0, -1), baseColumns[baseColumns.length - 1]];
+const columns = [...baseColumns, actionsColumn];
 
   return (
     <div className="py-6 relative h-screen">
       <Toaster position="top-right absolute" />
 
-      <div className="mb-4">
+      <div className="mb-4 flex justify-between items-center flex-wrap gap-4">
         <h2 className="text-3xl font-semibold">
           {isManager ? "My Team Attendance" : "User Attendance"}
         </h2>
+
+        <button
+          onClick={openAttendanceRegister}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium flex items-center gap-2"
+        >
+          <Calendar className="w-4 h-4" />
+          Attendance Register
+        </button>
       </div>
+
+      <AttendanceRegister
+        isOpen={isRegisterOpen}
+        onClose={closeRegister}
+      />
 
       <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
         <div className="flex flex-wrap items-center gap-4 flex-1 max-w-3xl">

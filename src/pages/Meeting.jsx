@@ -90,8 +90,8 @@ export default function MeetingManagement() {
         setFilteredMeetings([]);
       }
     } catch (err) {
-      console.error("Meeting fetch error:", err);
-      Toast.error("Failed to load meetings");
+      // console.error("Meeting fetch error:", err);
+      // Toast.error("Failed to load meetings");
       setMeetings([]);
       setFilteredMeetings([]);
     } finally {
@@ -101,62 +101,57 @@ export default function MeetingManagement() {
 
   // Apply meeting filters (tab + search)
   const applyMeetingFilter = (meetings, tab, search = "") => {
+  let filtered = [...meetings];
+
+  if (tab === "Today") {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    filtered = filtered.filter(m => {
+      if (!m.meetingTimeIn) return false;
+      const mt = new Date(m.meetingTimeIn);
+      return mt >= start && mt <= end;
+    });
+  } else if (tab === "This Week") {
     const now = new Date();
-    let filtered = meetings;
+    const day = now.getDay(); // Sunday = 0
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - day);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+    filtered = filtered.filter(m => {
+      if (!m.meetingTimeIn) return false;
+      const mt = new Date(m.meetingTimeIn);
+      return mt >= weekStart && mt <= weekEnd;
+    });
+  } else if (tab === "This Month") {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    filtered = filtered.filter(m => {
+      if (!m.meetingTimeIn) return false;
+      const mt = new Date(m.meetingTimeIn);
+      return mt.getFullYear() === year && mt.getMonth() === month;
+    });
+  }
 
-    const toLocalDate = (date) => {
-      if (!date) return '';
-      const d = new Date(date);
-      return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-        .toISOString()
-        .split('T')[0];
-    };
+  // Apply search
+  if (search.trim()) {
+    const term = search.toLowerCase();
+    filtered = filtered.filter(m =>
+      (m.companyName && m.companyName.toLowerCase().includes(term)) ||
+      (m.personName && m.personName.toLowerCase().includes(term)) ||
+      (m.mobileNumber && m.mobileNumber.includes(term)) ||
+      (m.companyEmail && m.companyEmail.toLowerCase().includes(term)) ||
+      (m.meetingPurpose && m.meetingPurpose.toLowerCase().includes(term))
+    );
+  }
 
-    const todayStr = toLocalDate(now);
-
-    if (tab === "Today") {
-      filtered = filtered.filter(m => {
-        if (!m.meetingTimeIn) return false;
-        return toLocalDate(new Date(m.meetingTimeIn)) === todayStr;
-      });
-    } else if (tab === "This Week") {
-      const dayOfWeek = now.getDay();
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - dayOfWeek);
-      const weekStartStr = toLocalDate(weekStart);
-
-      filtered = filtered.filter(m => {
-        if (!m.meetingTimeIn) return false;
-        const meetingDateStr = toLocalDate(new Date(m.meetingTimeIn));
-        return meetingDateStr >= weekStartStr && meetingDateStr <= todayStr;
-      });
-    } else if (tab === "This Month") {
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const monthPrefix = `${year}-${month}`;
-
-      filtered = filtered.filter(m => {
-        if (!m.meetingTimeIn) return false;
-        const meetingDateStr = toLocalDate(new Date(m.meetingTimeIn));
-        return meetingDateStr.startsWith(monthPrefix);
-      });
-    }
-
-    // Search filtering
-    if (search.trim()) {
-      const term = search.toLowerCase();
-      filtered = filtered.filter(m =>
-        (m.companyName && m.companyName.toLowerCase().includes(term)) ||
-        (m.personName && m.personName.toLowerCase().includes(term)) ||
-        (m.mobileNumber && m.mobileNumber.includes(term)) ||
-        (m.companyEmail && m.companyEmail.toLowerCase().includes(term)) ||
-        (m.meetingPurpose && m.meetingPurpose.toLowerCase().includes(term))
-      );
-    }
-
-    setFilteredMeetings(filtered);
-  };
-
+  setFilteredMeetings(filtered);
+};
   // Handle export meetings
   const handleExportMeetings = () => {
     if (filteredMeetings.length === 0) return;
