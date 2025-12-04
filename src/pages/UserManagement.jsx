@@ -3,6 +3,7 @@ import Table from "../components/Table";
 import { adminApi } from "../api";
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router";
+import Loader from "../components/Loader";
 
 const useAuth = () => {
   const userData = JSON.parse(localStorage.getItem("user"));
@@ -347,9 +348,7 @@ export default function UserManagement() {
       />
 
       {loading && (
-        <div className="text-center mt-4 text-gray-500 text-sm">
-          Loading users...
-        </div>
+          <Loader />     
       )}
     </div>
   );

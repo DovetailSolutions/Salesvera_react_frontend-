@@ -5,6 +5,7 @@ import { menuapi } from "../api";
 import { MdEdit } from "react-icons/md";
 import { MdDelete } from "react-icons/md";
 import { AuthContext } from "../context/AuthProvider"; 
+import Loader from "../components/Loader";
 
 export default function Category() {
   const { user } = useContext(AuthContext); 
@@ -286,7 +287,7 @@ const isCategoryNameDuplicate = (name, excludeId = null) => {
       />
 
       {loading && (
-        <div className="text-center mt-4 text-gray-500 text-sm">Loading...</div>
+        <Loader />
       )}
     </div>
   );

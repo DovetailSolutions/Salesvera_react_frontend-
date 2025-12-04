@@ -8,7 +8,7 @@ import React from "react";
  *  - message: string (optional text under loader)
  *  - backdrop: boolean (if true shows semi-opaque backdrop; default: false)
  */
-function Loader({ variant = "spinner", size = 48, message = "", backdrop = false }) {
+function Loader({ variant = "dots", size = 48, message = "", backdrop = false }) {
   const commonContainer =
     "min-h-screen w-full fixed top-0 left-0 flex justify-center items-center z-20 bg-white";
 

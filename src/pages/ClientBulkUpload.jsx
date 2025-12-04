@@ -4,6 +4,7 @@ import { clientApi, meetingApi } from '../api';
 import Table from '../components/Table';
 import Toast from "../components/Toast";
 import { AuthContext } from '../context/AuthProvider'; 
+import Loader from '../components/Loader';
 
 const MEETING_COLUMNS = [
   { key: 'id', label: 'Meeting ID', sortable: true },
@@ -296,7 +297,7 @@ arena,ankit,7875345632,arena@gmail.com`;
 
       <div className="mt-6">
         {loadingMeetings ? (
-          <div className="text-center py-4 text-gray-500">Loading meetings...</div>
+          <Loader />
         ) : meetings.length > 0 ? (
           <Table
             columns={MEETING_COLUMNS.map(col => ({

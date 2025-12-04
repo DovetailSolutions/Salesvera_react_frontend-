@@ -11,6 +11,7 @@ import { PiClockUserLight } from "react-icons/pi";
 import { LuCalendarClock } from "react-icons/lu";
 import { Calendar } from "lucide-react";
 import AttendanceRegister from "./AttendanceRegister";
+import Loader from "../components/Loader";
 
 const useAuth = () => {
   const userData = JSON.parse(localStorage.getItem("user"));
@@ -153,7 +154,6 @@ export default function Attendance() {
   try {
     const res = await adminApi.getUserLeave(user.id);
     
-    // ✅ Correct path: res.data.data.leave
     const leaves = Array.isArray(res.data?.data?.leave) ? res.data.data.leave : [];
     setLeaveHistory(leaves);
   } catch (err) {
@@ -254,7 +254,6 @@ export default function Attendance() {
     todayColumn,
   ];
 
-  // 👇 UPDATED: Actions dropdown now includes "Leaves"
   const actions = [
     {
       type: "menu",
@@ -270,7 +269,7 @@ export default function Attendance() {
         {
           label: "Leaves",
           onClick: (row) => handleViewLeaves(row),
-          icon: <span className="text-orange-500">L</span>,
+          icon: <Calendar className="w-4 h-4 text-orange-600" />,
           className: "text-orange-600 hover:bg-orange-50",
         },
       ],
@@ -396,14 +395,12 @@ export default function Attendance() {
       )}
 
       {loading && viewMode === "attendance" && (
-        <div className="text-center mt-4 text-gray-500 text-sm">
-          Loading users...
-        </div>
+        <Loader />
       )}
 
       {loadingLeaves && viewMode === "leaves" && (
         <div className="text-center mt-4 text-gray-500 text-sm">
-          Loading leave history...
+          <Loader />
         </div>
       )}
 

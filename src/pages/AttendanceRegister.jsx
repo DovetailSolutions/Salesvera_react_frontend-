@@ -29,29 +29,46 @@ const AttendanceRegister = ({ isOpen, onClose }) => {
       setApiUsers(users);
 
       const transformedAttendance = {};
-      users.forEach(user => {
-        const mappedDays = {};
-        const daysInMonth = new Date(year, month, 0).getDate();
+const today = new Date();
+const currentYear = currentMonth.getFullYear();
+const currentMonthIndex = currentMonth.getMonth(); // 0-based
 
-        for (let day = 1; day <= daysInMonth; day++) {
-          const dayStr = String(day);
-          const apiStatus = user.days?.[dayStr];
+users.forEach(user => {
+  const mappedDays = {};
+  const daysInMonth = new Date(currentYear, currentMonthIndex + 1, 0).getDate();
 
-          const date = new Date(year, month - 1, day);
-          const dayOfWeek = date.getDay();
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(currentYear, currentMonthIndex, day);
+    const dayOfWeek = date.getDay(); // 0 = Sun, 6 = Sat
 
-          if (dayOfWeek === 0 || dayOfWeek === 6) {
-            mappedDays[day] = 'OFF';
-          } else if (apiStatus === 'present') {
-            mappedDays[day] = 'P';
-          } else if (apiStatus === 'leaveApproved') {
-            mappedDays[day] = 'L';
-          } else {
-            mappedDays[day] = 'A';
-          }
-        }
-        transformedAttendance[user.id] = mappedDays;
-      });
+    // Determine if this date is in the future
+    const isFutureDate =
+      currentYear > today.getFullYear() ||
+      (currentYear === today.getFullYear() && currentMonthIndex > today.getMonth()) ||
+      (currentYear === today.getFullYear() &&
+       currentMonthIndex === today.getMonth() &&
+       day > today.getDate());
+
+    // Only Sunday is OFF; Saturday is working
+    if (dayOfWeek === 0) {
+      mappedDays[day] = 'OFF';
+    } else if (isFutureDate) {
+      // Future dates: show only gray with date, no status
+      mappedDays[day] = '-';
+    } else {
+      // Past or today: show actual status
+      const apiStatus = user.days?.[String(day)];
+      if (apiStatus === 'present') {
+        mappedDays[day] = 'P';
+      } else if (apiStatus === 'leaveApproved') {
+        mappedDays[day] = 'L';
+      } else {
+        mappedDays[day] = 'A'; // default for missing or other statuses
+      }
+    }
+  }
+  transformedAttendance[user.id] = mappedDays;
+});
 
       setAttendanceData(transformedAttendance);
     } catch (error) {
@@ -71,7 +88,7 @@ const AttendanceRegister = ({ isOpen, onClose }) => {
     return apiUsers.map(user => ({
       id: user.id,
       name: user.name,
-      category: user.role === 'sale_person' ? 'Sales' : 'Manager',
+      category: user.role === 'sale_person' ? 'Sales Person' : 'Manager',
       role: user.role,
     }));
   }, [apiUsers]);
@@ -483,11 +500,15 @@ const AttendanceRegister = ({ isOpen, onClose }) => {
                             const status = attendanceData[emp.id]?.[day] || 'A';
                             return (
                               <td key={day} className="px-0.5 py-1 text-center">
-  <div
-    className={`w-8 h-14 rounded flex items-center justify-center text-[10px] font-medium ${getStatusColor(status)}`}
-  >
+ {status === '-' ? (
+  <div className="w-8 h-14 bg-gray-100 text-gray-400 rounded flex items-center justify-center text-[10px] font-medium">
+    {day}
+  </div>
+) : (
+  <div className={`w-8 h-14 rounded flex items-center justify-center text-[10px] font-medium ${getStatusColor(status)}`}>
     {status}
   </div>
+)}
 </td>
                             );
                           })}
