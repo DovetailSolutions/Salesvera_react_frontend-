@@ -39,7 +39,6 @@ function ClientBulkUpload() {
   const [searchTerm, setSearchTerm] = useState('');
   const [totalCount, setTotalCount] = useState(0);
 
-  // ✨ Add Client Modal State
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [newClient, setNewClient] = useState({
     companyName: '',
