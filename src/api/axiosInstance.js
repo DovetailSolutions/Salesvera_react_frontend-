@@ -38,7 +38,7 @@ axiosInstance.interceptors.response.use(
       isRefreshing = true
 
       try {
-        const r = await axios.post(`${API_BASE}/auth/refresh`, {}, { withCredentials: true })
+        const r = await axios.post(`${API_BASE}/api/refreshtoken`, {}, { withCredentials: true })
         const newToken = r.data.accessToken
         axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
         processQueue(null, newToken)
