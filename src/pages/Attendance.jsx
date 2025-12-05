@@ -314,7 +314,7 @@ export default function Attendance() {
 ];
 
   return (
-    <div className="py-6 relative h-screen">
+    <div className="py-2 relative h-screen">
       <Toaster position="top-right" />
 
       <div className="mb-4 flex justify-between items-center flex-wrap gap-4">

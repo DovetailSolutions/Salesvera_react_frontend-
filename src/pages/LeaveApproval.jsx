@@ -215,7 +215,7 @@ export default function LeaveApproval() {
   };
 
   return (
-    <div className="py-6 h-screen">
+    <div className="py-2 h-screen">
       <Toaster position="top-right" />
 
       <div className="mb-6 flex justify-between items-center flex-wrap gap-4">

@@ -280,7 +280,7 @@ export default function UserManagement() {
   const showRoleFilter = !isManager;
 
   return (
-    <div className="py-6 h-screen">
+    <div className="py-2 h-screen">
       <Toaster position="top-right" />
 
       <div className="mb-4">
