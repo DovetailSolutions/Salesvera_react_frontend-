@@ -336,7 +336,7 @@ export default function Attendance() {
         ) : (
           <>
             <h2 className="text-3xl font-semibold">
-              {isManager ? "My Team Attendance" : "User Attendance"}
+              Team Attendance
             </h2>
 
             <button
