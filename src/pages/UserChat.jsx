@@ -94,6 +94,7 @@ function UserChat() {
     });
 
     socket.on('UserList', (response) => {
+      console.log('📥 Received UserList response:', response);
       if (response.success) {
         const userMap = new Map();
         for (const participant of response.data) {
