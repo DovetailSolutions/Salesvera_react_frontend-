@@ -3,6 +3,7 @@ import Table from "../components/Table";
 import Toast from "../components/Toast";
 import { AuthContext } from "../context/AuthProvider";
 import { adminApi, meetingApi } from "../api";
+import Loader from "../components/Loader";
 
 export default function MeetingManagement() {
   const { user } = useContext(AuthContext);
@@ -222,6 +223,8 @@ export default function MeetingManagement() {
 
   const isManager = user?.role === "manager";
   const isAdmin = user?.role === "admin";
+
+  if (loading) return <Loader variant="dots"/>
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">

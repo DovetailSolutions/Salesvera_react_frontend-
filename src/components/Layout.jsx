@@ -4,13 +4,14 @@ import { Outlet } from "react-router-dom";
 import Topbar from "./Topbar";
 import Footer from "./Footer";
 import { AuthContext } from "../context/AuthProvider"; 
+import Loader from "./Loader";
 
 export default function Layout({ routes }) {
 
   const { loading } = useContext(AuthContext);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <Loader/>
   }
 
   return (

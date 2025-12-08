@@ -21,11 +21,11 @@ export default function LeaveApproval() {
       }
 
       // Flatten: each leave becomes a row with user info merged in
-      const flattenedLeaves = users.flatMap(user => {
+      const flattenedLeaves = users.flatMap((user) => {
         if (!Array.isArray(user.Leaves) || user.Leaves.length === 0) {
           return [];
         }
-        return user.Leaves.map(leave => ({
+        return user.Leaves.map((leave) => ({
           ...leave,
           user: {
             id: user.id,
@@ -52,34 +52,34 @@ export default function LeaveApproval() {
   }, []);
 
   const handleApprove = async (row) => {
-  try {
-    await adminApi.approveLeave({
-      leaveID: row.id,
-      employee_id: row.user.id,
-      status: "approved"
-    });
-    toast.success("Leave approved");
-    fetchLeaves();
-  } catch (err) {
-    console.error("Approve error:", err.response || err);
-    toast.error("Failed to approve leave");
-  }
-};
+    try {
+      await adminApi.approveLeave({
+        leaveID: row.id,
+        employee_id: row.user.id,
+        status: "approved",
+      });
+      toast.success("Leave approved");
+      fetchLeaves();
+    } catch (err) {
+      console.error("Approve error:", err.response || err);
+      toast.error("Failed to approve leave");
+    }
+  };
 
-const handleReject = async (row) => {
-  try {
-    await adminApi.approveLeave({
-      leaveID: row.id,
-      employee_id: row.user.id,
-      status: "rejected" 
-    });
-    toast.success("Leave rejected");
-    fetchLeaves();
-  } catch (err) {
-    console.error("Reject error:", err.response || err);
-    toast.error("Failed to reject leave");
-  }
-};
+  const handleReject = async (row) => {
+    try {
+      await adminApi.approveLeave({
+        leaveID: row.id,
+        employee_id: row.user.id,
+        status: "rejected",
+      });
+      toast.success("Leave rejected");
+      fetchLeaves();
+    } catch (err) {
+      console.error("Reject error:", err.response || err);
+      toast.error("Failed to reject leave");
+    }
+  };
 
   // Search by employee name, email, or reason
   const filteredLeaves = leaves.filter((leave) => {
@@ -108,7 +108,9 @@ const handleReject = async (row) => {
     {
       key: "email",
       label: "Email",
-      render: (row) => <div className="break-words max-w-xs">{row.user?.email || "—"}</div>,
+      render: (row) => (
+        <div className="break-words max-w-xs">{row.user?.email || "—"}</div>
+      ),
     },
     {
       key: "from_date",
@@ -145,7 +147,9 @@ const handleReject = async (row) => {
         }
 
         return (
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${bgColor} ${textColor}`}>
+          <span
+            className={`px-2 py-1 rounded-full text-xs font-medium ${bgColor} ${textColor}`}
+          >
             {status.charAt(0).toUpperCase() + status.slice(1)}
           </span>
         );
@@ -206,7 +210,9 @@ const handleReject = async (row) => {
       />
 
       {loading && (
-        <div className="text-center mt-6 text-gray-500">Loading leave requests...</div>
+        <div className="text-center mt-6 text-gray-500">
+          Loading leave requests...
+        </div>
       )}
     </div>
   );

@@ -27,10 +27,10 @@ export default function Login() {
     try {
       await login(data);
       Toast.success("You have been successfully logged in.");
-     setTimeout(()=> {navigate("/");
-       window.location.reload();
-     },[1000])
-     
+      setTimeout(() => {
+        navigate("/");
+        window.location.reload();
+      }, [1000]);
     } catch (e) {
       Toast.error("Login failed. Please check your credentials.");
     }
@@ -51,7 +51,9 @@ export default function Login() {
         </div>
         {/* <h2 className="text-2xl font-semibold text-gray-600 mb-6 text-center">Sign In</h2> */}
         <div className="mb-5">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Email
+          </label>
           <input
             type="email"
             {...register("email")}
@@ -64,7 +66,9 @@ export default function Login() {
         </div>
 
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Password
+          </label>
           <div className="relative">
             <input
               type={show ? "text" : "password"}
@@ -82,7 +86,9 @@ export default function Login() {
             </div>
           </div>
           {errors.password && (
-            <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>
+            <p className="mt-1 text-sm text-red-500">
+              {errors.password.message}
+            </p>
           )}
         </div>
 

@@ -45,13 +45,13 @@ export const allRoutes = [
   {
     category: "Menu",
     routes: [
-       {
+      {
         path: "/user-management",
         label: "User Management",
         icon: <CiUser />,
         roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
-       {
+      {
         path: "/attendance-management",
         label: "User Attendance",
         icon: <CiCalendar />,
@@ -75,11 +75,11 @@ export const allRoutes = [
       //   icon: <TiUserAddOutline />,
       //   roles: [ROLES.ADMIN],
       // },
-       {
+      {
         path: "/client-management",
         label: "Client Management",
         icon: <PiUsersThreeLight />,
-        roles: [ ROLES.BASE_ADMIN, ROLES.MANAGER ],
+        roles: [ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
         path: "/category",

@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useContext, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useContext,
+  useCallback,
+} from "react";
 import { adminApi } from "../api";
 import { AuthContext } from "../context/AuthProvider";
 import toast, { Toaster } from "react-hot-toast";
@@ -77,7 +83,8 @@ const ExpenseManagement = () => {
 
     let visibleExpenses = expenses.filter((expense) => {
       if (currentUserRole === "manager") return true;
-      if (currentUserRole === "admin") return expense.approvedByAdmin === "accepted";
+      if (currentUserRole === "admin")
+        return expense.approvedByAdmin === "accepted";
       return false;
     });
 
@@ -85,7 +92,9 @@ const ExpenseManagement = () => {
       visibleExpenses = visibleExpenses.filter((expense) => {
         const currentStatus = getStatus(expense);
         if (statusFilter === "approved") {
-          return currentStatus === "Approved" || currentStatus === "Pending by Admin";
+          return (
+            currentStatus === "Approved" || currentStatus === "Pending by Admin"
+          );
         } else {
           return currentStatus.toLowerCase() === statusFilter;
         }
@@ -100,7 +109,7 @@ const ExpenseManagement = () => {
           (user.firstName && user.firstName.toLowerCase().includes(term)) ||
           (user.lastName && user.lastName.toLowerCase().includes(term)) ||
           (expense.title && expense.title.toLowerCase().includes(term)) ||
-          (expense.total_amount?.toString().includes(term))
+          expense.total_amount?.toString().includes(term)
         );
       });
     }
@@ -120,11 +129,16 @@ const ExpenseManagement = () => {
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
-      case "approved": return "text-green-600 bg-green-100";
-      case "rejected": return "text-red-600 bg-red-100";
-      case "pending": return "text-yellow-600 bg-yellow-100";
-      case "pending by admin": return "text-blue-600 bg-blue-100";
-      default: return "text-gray-600 bg-gray-100";
+      case "approved":
+        return "text-green-600 bg-green-100";
+      case "rejected":
+        return "text-red-600 bg-red-100";
+      case "pending":
+        return "text-yellow-600 bg-yellow-100";
+      case "pending by admin":
+        return "text-blue-600 bg-blue-100";
+      default:
+        return "text-gray-600 bg-gray-100";
     }
   };
 
@@ -139,80 +153,87 @@ const ExpenseManagement = () => {
   };
 
   // ✅ Add handleApprove and handleReject with useCallback
-  const handleApprove = useCallback(async (expense) => {
-    const updatedExpense = {
-      ...expense,
-      ...(currentUserRole === "manager"
-        ? { approvedByAdmin: "accepted" }
-        : { approvedBySuperAdmin: "accepted" }),
-    };
+  const handleApprove = useCallback(
+    async (expense) => {
+      const updatedExpense = {
+        ...expense,
+        ...(currentUserRole === "manager"
+          ? { approvedByAdmin: "accepted" }
+          : { approvedBySuperAdmin: "accepted" }),
+      };
 
-    setExpenses((prev) =>
-      prev.map((exp) => (exp.id === expense.id ? updatedExpense : exp))
-    );
-
-    const payload = {
-      expenseId: expense.id,
-      userId: expense.userId,
-      role: currentUserRole,
-      ...(currentUserRole === "manager"
-        ? { approvedByAdmin: "accepted" }
-        : { approvedBySuperAdmin: "accepted" }),
-    };
-
-    try {
-      await adminApi.approveExpense(payload);
-      toast.success("Expense approved");
-      fetchExpenses(); // Refresh
-    } catch (error) {
-      console.error("Approve error:", error);
-      toast.error("Failed to approve expense");
       setExpenses((prev) =>
-        prev.map((exp) => (exp.id === expense.id ? expense : exp))
+        prev.map((exp) => (exp.id === expense.id ? updatedExpense : exp))
       );
-    }
-  }, [currentUserRole, fetchExpenses]);
 
-  const handleReject = useCallback(async (expense) => {
-    const updatedExpense = {
-      ...expense,
-      ...(currentUserRole === "manager"
-        ? { approvedByAdmin: "rejected" }
-        : { approvedBySuperAdmin: "rejected" }),
-    };
+      const payload = {
+        expenseId: expense.id,
+        userId: expense.userId,
+        role: currentUserRole,
+        ...(currentUserRole === "manager"
+          ? { approvedByAdmin: "accepted" }
+          : { approvedBySuperAdmin: "accepted" }),
+      };
 
-    setExpenses((prev) =>
-      prev.map((exp) => (exp.id === expense.id ? updatedExpense : exp))
-    );
+      try {
+        await adminApi.approveExpense(payload);
+        toast.success("Expense approved");
+        fetchExpenses(); // Refresh
+      } catch (error) {
+        console.error("Approve error:", error);
+        toast.error("Failed to approve expense");
+        setExpenses((prev) =>
+          prev.map((exp) => (exp.id === expense.id ? expense : exp))
+        );
+      }
+    },
+    [currentUserRole, fetchExpenses]
+  );
 
-    const payload = {
-      expenseId: expense.id,
-      userId: expense.userId,
-      role: currentUserRole,
-      ...(currentUserRole === "manager"
-        ? { approvedByAdmin: "rejected" }
-        : { approvedBySuperAdmin: "rejected" }),
-    };
+  const handleReject = useCallback(
+    async (expense) => {
+      const updatedExpense = {
+        ...expense,
+        ...(currentUserRole === "manager"
+          ? { approvedByAdmin: "rejected" }
+          : { approvedBySuperAdmin: "rejected" }),
+      };
 
-    try {
-      await adminApi.approveExpense(payload);
-      toast.success("Expense rejected");
-      fetchExpenses(); // Refresh
-    } catch (error) {
-      console.error("Reject error:", error);
-      toast.error("Failed to reject expense");
       setExpenses((prev) =>
-        prev.map((exp) => (exp.id === expense.id ? expense : exp))
+        prev.map((exp) => (exp.id === expense.id ? updatedExpense : exp))
       );
-    }
-  }, [currentUserRole, fetchExpenses]);
+
+      const payload = {
+        expenseId: expense.id,
+        userId: expense.userId,
+        role: currentUserRole,
+        ...(currentUserRole === "manager"
+          ? { approvedByAdmin: "rejected" }
+          : { approvedBySuperAdmin: "rejected" }),
+      };
+
+      try {
+        await adminApi.approveExpense(payload);
+        toast.success("Expense rejected");
+        fetchExpenses(); // Refresh
+      } catch (error) {
+        console.error("Reject error:", error);
+        toast.error("Failed to reject expense");
+        setExpenses((prev) =>
+          prev.map((exp) => (exp.id === expense.id ? expense : exp))
+        );
+      }
+    },
+    [currentUserRole, fetchExpenses]
+  );
 
   const columns = [
     {
       key: "user",
       label: "Employee",
       render: (row) =>
-        `${row.user?.firstName || ""} ${row.user?.lastName || ""}`.trim() || "—",
+        `${row.user?.firstName || ""} ${row.user?.lastName || ""}`.trim() ||
+        "—",
     },
     { key: "title", label: "Title" },
     {
@@ -231,7 +252,11 @@ const ExpenseManagement = () => {
       render: (row) => {
         const status = getStatus(row);
         return (
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+          <span
+            className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+              status
+            )}`}
+          >
             {status}
           </span>
         );
@@ -239,45 +264,57 @@ const ExpenseManagement = () => {
     },
   ];
 
-  const actions = useMemo(() => [
-    {
-      type: "menu",
-      label: "Actions",
-      className: "px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition",
-      menuItems: [
-        {
-          label: "Accept",
-          onClick: (row) => handleApprove(row),
-          icon: <FaCheck className="text-green-500" />,
-          condition: (row) => {
-            const status = getStatus(row);
-            if (currentUserRole === "manager") return status === "Pending";
-            if (currentUserRole === "admin") return status === "Pending by Admin";
-            return false;
+  const actions = useMemo(
+    () => [
+      {
+        type: "menu",
+        label: "Actions",
+        className:
+          "px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition",
+        menuItems: [
+          {
+            label: "Accept",
+            onClick: (row) => handleApprove(row),
+            icon: <FaCheck className="text-green-500" />,
+            condition: (row) => {
+              const status = getStatus(row);
+              if (currentUserRole === "manager") return status === "Pending";
+              if (currentUserRole === "admin")
+                return status === "Pending by Admin";
+              return false;
+            },
+            className: "text-green-600 hover:bg-green-50",
           },
-          className: "text-green-600 hover:bg-green-50",
-        },
-        {
-          label: "Reject",
-          onClick: (row) => handleReject(row),
-          icon: <IoMdClose className="text-red-500" />,
-          condition: (row) => {
-            const status = getStatus(row);
-            if (currentUserRole === "manager") return status === "Pending";
-            if (currentUserRole === "admin") return status === "Pending by Admin";
-            return false;
+          {
+            label: "Reject",
+            onClick: (row) => handleReject(row),
+            icon: <IoMdClose className="text-red-500" />,
+            condition: (row) => {
+              const status = getStatus(row);
+              if (currentUserRole === "manager") return status === "Pending";
+              if (currentUserRole === "admin")
+                return status === "Pending by Admin";
+              return false;
+            },
+            className: "text-red-600 hover:bg-red-50",
           },
-          className: "text-red-600 hover:bg-red-50",
-        },
-        {
-          label: "View",
-          onClick: (row) => openUserExpenseModal(row),
-          icon: <FaEye className="text-blue-500" />,
-          className: "text-blue-600 hover:bg-blue-50",
-        },
-      ],
-    },
-  ], [currentUserRole, handleApprove, handleReject, openUserExpenseModal, getStatus]);
+          {
+            label: "View",
+            onClick: (row) => openUserExpenseModal(row),
+            icon: <FaEye className="text-blue-500" />,
+            className: "text-blue-600 hover:bg-blue-50",
+          },
+        ],
+      },
+    ],
+    [
+      currentUserRole,
+      handleApprove,
+      handleReject,
+      openUserExpenseModal,
+      getStatus,
+    ]
+  );
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -353,11 +390,14 @@ const ExpenseManagement = () => {
             </div>
 
             <div className="text-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-800">Expense Details</h2>
+              <h2 className="text-xl font-semibold text-gray-800">
+                Expense Details
+              </h2>
               <p className="text-sm text-gray-500 mt-1">
                 For{" "}
                 <span className="font-medium text-blue-600">
-                  {selectedExpense.user?.firstName} {selectedExpense.user?.lastName}
+                  {selectedExpense.user?.firstName}{" "}
+                  {selectedExpense.user?.lastName}
                 </span>
               </p>
             </div>
@@ -376,7 +416,8 @@ const ExpenseManagement = () => {
                   <div>
                     <span className="text-xs text-gray-500">Amount</span>
                     <p className="font-medium text-gray-800">
-                      ₹{selectedExpense.total_amount !== null
+                      ₹
+                      {selectedExpense.total_amount !== null
                         ? selectedExpense.total_amount.toLocaleString()
                         : "—"}
                     </p>
@@ -395,8 +436,11 @@ const ExpenseManagement = () => {
                   </div>
                 </div>
                 <div className="mt-3">
-                  <p className="text-xs font-medium text-gray-600 mb-2">Bill Attachment</p>
-                  {Array.isArray(selectedExpense.billImage) && selectedExpense.billImage.length > 0 ? (
+                  <p className="text-xs font-medium text-gray-600 mb-2">
+                    Bill Attachment
+                  </p>
+                  {Array.isArray(selectedExpense.billImage) &&
+                  selectedExpense.billImage.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {selectedExpense.billImage.map((img, idx) => (
                         <a
@@ -413,7 +457,8 @@ const ExpenseManagement = () => {
                             onError={(e) => {
                               e.target.src =
                                 "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24'%3E%3Cpath fill='%2394a3b8' d='M6 2q-.825 0-1.412-.587T4 2V2h16v20H4V2h0Zm0 2v16h16V4H6Zm2 2h1v10H8V6Zm3 0h1v10h-1V6Zm3 0h1v10h-1V6Zm-6 2v6h1V8Zm3 0v6h1V8Zm3 0v6h1V8Z'/%3E";
-                              e.target.className = "w-full h-full object-contain bg-gray-100";
+                              e.target.className =
+                                "w-full h-full object-contain bg-gray-100";
                             }}
                           />
                         </a>
