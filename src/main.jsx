@@ -9,7 +9,7 @@ import { AuthProvider } from './context/AuthProvider'
 const queryClient = new QueryClient()
 
 createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
+  // <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
@@ -17,5 +17,5 @@ createRoot(document.getElementById('root')).render(
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>
-  </React.StrictMode>
+  // </React.StrictMode>
 )

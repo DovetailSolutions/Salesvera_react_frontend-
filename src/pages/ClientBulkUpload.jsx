@@ -32,6 +32,8 @@ function ClientBulkUpload() {
   const [uploadStatus, setUploadStatus] = useState(null);
   const [uploadMessage, setUploadMessage] = useState('');
 
+  const [bulkUpload, setBulkUpload] = useState(false);
+
   const { user } = useContext(AuthContext); 
   const isManager = user.role === "manager";
 
@@ -124,7 +126,6 @@ arena,ankit,7875345632,arena@gmail.com`;
     }
   };
 
-  // ✨ Handle Add Single Client
   const handleAddClient = async () => {
     const { companyName, personName, mobileNumber, companyEmail } = newClient;
 
@@ -222,17 +223,30 @@ arena,ankit,7875345632,arena@gmail.com`;
   };
 
   return (
-    <div className="w-full py-6 h-screen">
+    <div className="w-full py-2 h-screen">
       <h1 className="text-3xl font-semibold mb-6">Client Management</h1>
       
       {!isManager && (
         <div className='flex justify-between items-center w-full mb-6'>
-          <button
+          <div className='flex items-center gap-2'>
+            <button
             onClick={downloadSampleCSV}
             className="flex items-center gap-2 px-4 py-2.5 text-white font-medium rounded-md text-sm bg-blue-600 hover:bg-blue-700 transition"
           >
             <FaDownload /> Download Sample CSV
           </button>
+
+          {
+            !isManager && <>
+            <button
+            onClick={()=>setBulkUpload(true)}
+            className="flex items-center gap-2 px-4 py-2.5 text-white font-medium rounded-md text-sm bg-blue-600 hover:bg-blue-700 transition"
+          >
+            <FaFileUpload /> Bulk Upload
+          </button>
+            </>
+          }
+          </div>
           
           <button
             onClick={() => setIsAddClientModalOpen(true)}
@@ -243,42 +257,63 @@ arena,ankit,7875345632,arena@gmail.com`;
         </div>
       )}
 
-      {!isManager && (
-        <div className="mt-2 p-6 border border-gray-200 rounded-lg bg-gray-50">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <FaFileUpload /> Upload Clients CSV/Excel
-          </h3>
-
-          <div className="mb-4">
-            <input
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              onChange={handleFileChange}
-              className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer"
-            />
-          </div>
-
-          {selectedFile && (
-            <p className="text-sm text-gray-600 mb-3">
-              Selected: <span className="font-medium">{selectedFile.name}</span>
-            </p>
-          )}
-
-          <button
-            onClick={handleUpload}
-            disabled={!selectedFile || uploadStatus === 'loading'}
-            className={`w-full py-2.5 px-4 rounded-md text-white font-medium text-sm flex items-center justify-center gap-2 ${
-              uploadStatus === 'loading'
-                ? 'bg-gray-400 cursor-not-allowed'
-                : selectedFile
-                ? 'bg-green-600 hover:bg-green-700'
-                : 'bg-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {uploadStatus === 'loading' ? 'Uploading...' : 'Upload File'}
-          </button>
+      {/* Bulk Upload Modal */}
+{!isManager && bulkUpload && (
+  <div 
+    className="fixed inset-0 flex items-center justify-center z-50"
+    onClick={() => setBulkUpload(false)} // Close on overlay click
+  >
+    <div 
+      className="bg-white rounded-lg shadow-lg w-full max-w-md border border-gray-200 relative"
+      onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+    >
+      {/* Header with Close Button */}
+      <div className="flex justify-between items-center px-6 py-4">
+        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <FaFileUpload /> Upload Clients CSV/Excel
+        </h3>
+        <div
+          onClick={() => setBulkUpload(false)}
+          className="text-gray-500 hover:text-gray-700 cursor-pointer"
+        >
+          <FaTimes />
         </div>
-      )}
+      </div>
+
+      {/* Modal Body */}
+      <div className="p-6">
+        <div className="mb-4">
+          <input
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            onChange={handleFileChange}
+            className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer"
+          />
+        </div>
+
+        {selectedFile && (
+          <p className="text-sm text-gray-600 mb-3">
+            Selected: <span className="font-medium">{selectedFile.name}</span>
+          </p>
+        )}
+
+        <button
+          onClick={handleUpload}
+          disabled={!selectedFile || uploadStatus === 'loading'}
+          className={`w-full py-2.5 px-4 rounded-md text-white font-medium text-sm flex items-center justify-center gap-2 ${
+            uploadStatus === 'loading'
+              ? 'bg-gray-400 cursor-not-allowed'
+              : selectedFile
+              ? 'bg-green-600 hover:bg-green-700'
+              : 'bg-gray-400 cursor-not-allowed'
+          }`}
+        >
+          {uploadStatus === 'loading' ? 'Uploading...' : 'Upload File'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       <div className="mt-8">
         <form onSubmit={handleSearchSubmit} className="relative max-w-md">
@@ -321,15 +356,15 @@ arena,ankit,7875345632,arena@gmail.com`;
     <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-gray-200">
       <div className="flex justify-between items-center p-4">
         <h2 className="text-xl font-bold">Add New Client</h2>
-        <button
+        <div
           onClick={() => {
             setIsAddClientModalOpen(false);
             resetClientForm();
           }}
-          className="text-gray-500 hover:text-gray-700"
+          className="text-gray-500 hover:text-gray-700 cursor-pointer"
         >
           <FaTimes />
-        </button>
+        </div>
       </div>
 
       <div className="p-4 space-y-4">

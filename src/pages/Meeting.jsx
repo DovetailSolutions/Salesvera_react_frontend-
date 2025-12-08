@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useContext } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import Table from "../components/Table";
 import Toast from "../components/Toast";
 import { AuthContext } from "../context/AuthProvider";
@@ -12,16 +12,16 @@ export default function MeetingManagement() {
   const [salespersons, setSalespersons] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("All Time");
-  const [filteredMeetings, setFilteredMeetings] = useState([]);
   const [selectedSalesperson, setSelectedSalesperson] = useState(null);
-  const [meetings, setMeetings] = useState([]);
+  
+  // ✅ Backend pagination state
+  const [meetings, setMeetings] = useState([]); // current page only
+  const [totalMeetings, setTotalMeetings] = useState(0);
   const [meetingsLoading, setMeetingsLoading] = useState(false);
-  const [meetingPagination, setMeetingPagination] = useState({
-    currentPage: 1,
-    pageSize: 7,
-  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10; // fixed limit
 
-  // Schedule Meeting Modal State
+  // Schedule Meeting Modal State (unchanged)
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [scheduleForm, setScheduleForm] = useState({
     meetingId: "",
@@ -31,23 +31,19 @@ export default function MeetingManagement() {
   const [availableMeetings, setAvailableMeetings] = useState([]);
   const [meetingsForDropdownLoading, setMeetingsForDropdownLoading] = useState(false);
 
-  const paginatedMeetings = useMemo(() => {
-    const { currentPage, pageSize } = meetingPagination;
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredMeetings.slice(startIndex, startIndex + pageSize);
-  }, [filteredMeetings, meetingPagination]);
+  // ❌ REMOVED: filteredMeetings, paginatedMeetings, meetingPagination
 
-  const filteredSalespersons = useMemo(() => {
-    if (!globalSearch.trim()) return salespersons;
+  const filteredSalespersons = salespersons.filter(sp => {
+    if (!globalSearch.trim()) return true;
     const term = globalSearch.toLowerCase();
-    return salespersons.filter(sp =>
+    return (
       `${sp.firstName} ${sp.lastName}`.toLowerCase().includes(term) ||
       sp.email.toLowerCase().includes(term) ||
       (sp.phone && sp.phone.includes(term))
     );
-  }, [salespersons, globalSearch]);
+  });
 
-  // Fetch managers (admin only)
+  // Fetch managers (admin only) - unchanged
   const fetchManagers = async () => {
     try {
       const res = await adminApi.getAdminManagers();
@@ -67,11 +63,11 @@ export default function MeetingManagement() {
     }
   };
 
-  // Fetch salespersons
+  // Fetch salespersons - unchanged
   const fetchSalespersons = async (managerId) => {
     try {
       setLoading(true);
-      const res = await adminApi.getMySalespersons({ managerId, page: 1 });
+      const res = await adminApi.getMySalespersons({ managerId, page: 1, limit: 10 });
       const data = res.data?.data || {};
       setSalespersons(data.rows || []);
     } catch (err) {
@@ -83,127 +79,49 @@ export default function MeetingManagement() {
     }
   };
 
-  // Fetch meetings for selected salesperson
-  const fetchMeetings = async (userId) => {
+  // ✅ NEW: Fetch meetings with backend pagination + filters
+  const fetchMeetings = async (userId, page = 1, search = "", tab = "All Time") => {
     if (!userId) return;
     setMeetingsLoading(true);
     try {
-      const res = await meetingApi.getUserMeetings({ userId });
+      // Map tab to backend filter value
+      let timeFilter = "";
+      if (tab === "Today") timeFilter = "today";
+      else if (tab === "This Week") timeFilter = "week";
+      else if (tab === "This Month") timeFilter = "month";
+
+      const params = {
+        userId,
+        page,
+        limit: pageSize,
+        ...(search.trim() && { search: search.trim() }),
+        ...(timeFilter && { timeFilter }),
+      };
+
+      const res = await meetingApi.getUserMeetings(params);
       if (res.data?.success) {
-        const allMeetings = res.data.data?.rows || [];
-        setMeetings(allMeetings);
-        applyMeetingFilter(allMeetings, activeTab, globalSearch);
+        const data = res.data.data || {};
+        setMeetings(data.rows || []);
+        setTotalMeetings(data.pagination?.totalItems || data.total || 0);
       } else {
         setMeetings([]);
-        setFilteredMeetings([]);
+        setTotalMeetings(0);
       }
     } catch (err) {
+      console.error("Failed to fetch meetings:", err);
       setMeetings([]);
-      setFilteredMeetings([]);
+      setTotalMeetings(0);
     } finally {
       setMeetingsLoading(false);
     }
   };
 
-  // Apply meeting filters
-  const applyMeetingFilter = (meetings, tab, search = "") => {
-    let filtered = [...meetings];
-
-    if (tab === "Today") {
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      const end = new Date();
-      end.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(m => {
-        if (!m.meetingTimeIn) return false;
-        const mt = new Date(m.meetingTimeIn);
-        return mt >= start && mt <= end;
-      });
-    } else if (tab === "This Week") {
-      const now = new Date();
-      const day = now.getDay();
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - day);
-      weekStart.setHours(0, 0, 0, 0);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(m => {
-        if (!m.meetingTimeIn) return false;
-        const mt = new Date(m.meetingTimeIn);
-        return mt >= weekStart && mt <= weekEnd;
-      });
-    } else if (tab === "This Month") {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth();
-      filtered = filtered.filter(m => {
-        if (!m.meetingTimeIn) return false;
-        const mt = new Date(m.meetingTimeIn);
-        return mt.getFullYear() === year && mt.getMonth() === month;
-      });
-    }
-
-    if (search.trim()) {
-      const term = search.toLowerCase();
-      filtered = filtered.filter(m =>
-        (m.companyName && m.companyName.toLowerCase().includes(term)) ||
-        (m.personName && m.personName.toLowerCase().includes(term)) ||
-        (m.mobileNumber && m.mobileNumber.includes(term)) ||
-        (m.companyEmail && m.companyEmail.toLowerCase().includes(term)) ||
-        (m.meetingPurpose && m.meetingPurpose.toLowerCase().includes(term))
-      );
-    }
-
-    setFilteredMeetings(filtered);
-  };
-
-  // Export meetings to CSV
+  // Export meetings to CSV - disabled for backend pagination
   const handleExportMeetings = () => {
-    if (filteredMeetings.length === 0) return;
-
-    const headers = ["Company", "Contact", "Mobile", "Email", "Check-in", "Check-out", "Purpose"];
-    const rows = filteredMeetings.map((meeting) => ({
-      Company: meeting.companyName || "N/A",
-      Contact: meeting.personName || "N/A",
-      Mobile: meeting.mobileNumber || "N/A",
-      Email: meeting.companyEmail || "N/A",
-      "Check-in": meeting.meetingTimeIn
-        ? new Date(meeting.meetingTimeIn).toLocaleString()
-        : "N/A",
-      "Check-out": meeting.meetingTimeOut
-        ? new Date(meeting.meetingTimeOut).toLocaleString()
-        : "—",
-      Purpose: meeting.meetingPurpose || "N/A",
-    }));
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) =>
-        headers
-          .map((header) => {
-            const value = String(row[header] ?? "").replace(/"/g, '""');
-            return `"${value}"`;
-          })
-          .join(",")
-      ),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `meetings_${selectedSalesperson?.firstName}_${selectedSalesperson?.lastName}_${activeTab}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    Toast.error("Export requires loading all meetings. Not supported with pagination.");
   };
 
-  // Form handlers
+  // Form handlers - unchanged
   const handleScheduleInputChange = (e) => {
     const { name, value } = e.target;
     setScheduleForm((prev) => ({ ...prev, [name]: value }));
@@ -238,7 +156,7 @@ export default function MeetingManagement() {
         Toast.success("Meeting scheduled successfully!");
         setIsScheduleModalOpen(false);
         resetScheduleForm();
-        fetchMeetings(selectedSalesperson.id);
+        fetchMeetings(selectedSalesperson.id, currentPage, globalSearch, activeTab);
       } else {
         Toast.error(res.data?.message || "Failed to schedule meeting.");
       }
@@ -253,7 +171,7 @@ export default function MeetingManagement() {
     }
   };
 
-  // Initialize user data
+  // Initialize user data - unchanged
   useEffect(() => {
     if (!user) return;
     if (user.role === "admin") {
@@ -263,23 +181,25 @@ export default function MeetingManagement() {
     }
   }, [user]);
 
-  // Apply filters when dependencies change
+  // ✅ Fetch meetings when dependencies change
   useEffect(() => {
     if (selectedSalesperson) {
-      applyMeetingFilter(meetings, activeTab, globalSearch);
+      fetchMeetings(selectedSalesperson.id, currentPage, globalSearch, activeTab);
+    } else {
+      setMeetings([]);
+      setTotalMeetings(0);
     }
-  }, [globalSearch, activeTab, selectedSalesperson, meetings]);
+  }, [selectedSalesperson, currentPage, globalSearch, activeTab]);
 
-  // Reset pagination on filter change
+  // ✅ Reset to page 1 on filter/tab change
   useEffect(() => {
-    setMeetingPagination((prev) => ({ ...prev, currentPage: 1 }));
-  }, [activeTab, globalSearch]);
+    setCurrentPage(1);
+  }, [globalSearch, activeTab]);
 
-  // ✅ CORRECT: Fetch available meetings only when modal opens
+  // Fetch available meetings for modal - unchanged
   useEffect(() => {
     if (isScheduleModalOpen && selectedSalesperson) {
       setMeetingsForDropdownLoading(true);
-      setAvailableMeetings([]);
       meetingApi
         .getUserMeetings({ empty: true })
         .then((res) => {
@@ -299,7 +219,7 @@ export default function MeetingManagement() {
           setMeetingsForDropdownLoading(false);
         });
     } else {
-      setAvailableMeetings([]); // Optional: clear when closed
+      setAvailableMeetings([]);
     }
   }, [isScheduleModalOpen, selectedSalesperson]);
 
@@ -309,7 +229,7 @@ export default function MeetingManagement() {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Header */}
-      <div className="py-4">
+      <div className="py-2">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-semibold">Meeting Management</h1>
           <div className="flex gap-2">
@@ -325,7 +245,7 @@ export default function MeetingManagement() {
             >
               + Schedule Meeting
             </button>
-            {selectedSalesperson && filteredMeetings.length > 0 && (
+            {selectedSalesperson && totalMeetings > 0 && (
               <button
                 onClick={handleExportMeetings}
                 className="bg-green-600 hover:bg-green-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded"
@@ -337,7 +257,7 @@ export default function MeetingManagement() {
         </div>
       </div>
 
-      {/* Schedule Meeting Modal */}
+      {/* Schedule Meeting Modal (unchanged) */}
       {isScheduleModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-gray-200">
@@ -443,7 +363,7 @@ export default function MeetingManagement() {
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
         <div className="flex flex-col lg:flex-row gap-5 h-full">
-          {/* Left Panel */}
+          {/* Left Panel (unchanged) */}
           <div className="w-full lg:w-[16rem] flex flex-col h-full">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden p-4">
               {isAdmin && (
@@ -499,7 +419,8 @@ export default function MeetingManagement() {
                         key={sp.id}
                         onClick={() => {
                           setSelectedSalesperson(sp);
-                          fetchMeetings(sp.id);
+                          setCurrentPage(1); // reset page when selecting new salesperson
+                          fetchMeetings(sp.id, 1, globalSearch, activeTab);
                         }}
                         className={`relative rounded-3xl border p-3 cursor-pointer transition-all duration-200 hover:shadow-sm ${
                           selectedSalesperson?.id === sp.id
@@ -552,10 +473,7 @@ export default function MeetingManagement() {
                     {["All Time", "Today", "This Week", "This Month"].map((tab) => (
                       <div
                         key={tab}
-                        onClick={() => {
-                          setActiveTab(tab);
-                          applyMeetingFilter(meetings, tab, globalSearch);
-                        }}
+                        onClick={() => setActiveTab(tab)}
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
                           activeTab === tab
                             ? "bg-blue-500 text-white"
@@ -577,6 +495,7 @@ export default function MeetingManagement() {
                         Meetings: {selectedSalesperson.firstName} {selectedSalesperson.lastName}
                       </h3>
                     </div>
+                    {/* ✅ Backend pagination: pass raw data + total */}
                     <Table
                       columns={[
                         { key: "companyName", label: "Company", render: (row) => row.companyName || "—" },
@@ -599,23 +518,14 @@ export default function MeetingManagement() {
                           render: (row) =>
                             row.meetingTimeOut ? new Date(row.meetingTimeOut).toLocaleString() : "—",
                         },
-                        // {
-                        //   key: "meetingPurpose",
-                        //   label: "Purpose",
-                        //   render: (row) => (
-                        //     <span className="line-clamp-1">{row.meetingPurpose || "N/A"}</span>
-                        //   ),
-                        // },
                       ]}
-                      data={paginatedMeetings}
+                      data={meetings} // ✅ only current page from backend
                       keyField="id"
                       emptyMessage="No meetings found"
-                      currentPage={meetingPagination.currentPage}
-                      pageSize={meetingPagination.pageSize}
-                      totalCount={filteredMeetings.length}
-                      onPageChange={(page) =>
-                        setMeetingPagination((prev) => ({ ...prev, currentPage: page }))
-                      }
+                      currentPage={currentPage}
+                      pageSize={pageSize}
+                      totalCount={totalMeetings} // ✅ from backend
+                      onPageChange={setCurrentPage} // ✅ triggers new fetch
                       loading={meetingsLoading}
                     />
                   </div>
@@ -638,7 +548,7 @@ export default function MeetingManagement() {
                   <span className="text-4xl font-bold">{filteredSalespersons.length} </span> Total Members
                 </div>
                 <div className="flex items-center justify-center gap-2 bg-[#3B82F60D] p-5 rounded-xl">
-                  <span className="text-4xl font-bold">{meetings.length} </span> Total Meetings
+                  <span className="text-4xl font-bold">{totalMeetings} </span> Total Meetings
                 </div>
               </div>
             </div>
