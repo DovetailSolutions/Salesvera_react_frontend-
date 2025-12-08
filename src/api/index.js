@@ -35,13 +35,13 @@ export const adminApi = {
   getMySalespersons: ({ managerId, page = 1 }) =>
     axios.get("/admin/mysaleperson", { params: { managerId, page } }),
 
-   getAdminManagers: () =>
-    axios.get("/admin/mysaleperson"),
-
    getAdminManagers: () => axios.get("/admin/admin-manager"), 
 
   getLeaveList: (params = {}) =>
   axios.get("/admin/get-leave-list", { params }),
+
+  getUserLeave: (userId) =>
+    axios.get("/admin/user-leave", { params: { userId } }),
 
   approveLeave: (data) =>
     axios.patch("/admin/approved-leave", data),
@@ -52,6 +52,8 @@ export const adminApi = {
 
   approveExpense: (data) =>
   axios.patch("/admin/approved-expense", data),
+
+   getOwnLeave: () => axios.get("/admin/getown-leave"),
 };
 
 export const meetingApi = {

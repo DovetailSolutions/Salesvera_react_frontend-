@@ -11,6 +11,7 @@ import toast, { Toaster } from "react-hot-toast";
 import Table from "../components/Table";
 import { FaCheck, FaEye } from "react-icons/fa";
 import { IoMdClose } from "react-icons/io";
+import Loader from "../components/Loader";
 
 const ExpenseManagement = () => {
   const { user } = useContext(AuthContext);
@@ -325,7 +326,7 @@ const ExpenseManagement = () => {
   }
 
   return (
-    <div className="py-6 relative h-screen">
+    <div className="py-2 relative h-screen">
       <Toaster position="top-right" />
 
       <h1 className="text-3xl font-semibold mb-4">Expense Management</h1>
@@ -358,9 +359,7 @@ const ExpenseManagement = () => {
       </div>
 
       {loading ? (
-        <div className="w-full paneltheme rounded mt-4 p-4 text-center text-gray-500">
-          Loading expenses...
-        </div>
+        <Loader />
       ) : (
         <Table
           columns={columns}

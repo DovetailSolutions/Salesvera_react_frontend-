@@ -8,7 +8,11 @@ export default function SidePanel({ routes = [] }) {
   const { user } = useContext(AuthContext);
 
   return (
+<<<<<<< HEAD
     <aside className="w-54 shadow-md min-h-screen text-white fixed z-50">
+=======
+    <aside className="w-54 shadow-md min-h-screen text-white fixed z-40">
+>>>>>>> 3d77f006a2a3db1e9e00aee1d54bc121ccd56311
       <div className="py-6 text-center text-2xl mt-4">
         <span className="logo-font text-[var(--primary-blue)]">Sales</span>
         <span className="logo-font text-[var(--primary-green)]">vera</span>

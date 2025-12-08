@@ -3,6 +3,7 @@ import Table from "../components/Table";
 import { adminApi } from "../api";
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router";
+import Loader from "../components/Loader";
 
 const useAuth = () => {
   const userData = JSON.parse(localStorage.getItem("user"));
@@ -15,6 +16,7 @@ export default function UserManagement() {
   const { user } = useAuth();
   const isManager = user.role === "manager";
   const isAdmin = user.role === "admin";
+  const isSuperAdmin = !isManager && !isAdmin; // only super admin sees "admin" users
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -30,162 +32,175 @@ export default function UserManagement() {
   const navigate = useNavigate();
 
   const fetchUsers = async (page = 1, search = "") => {
-  try {
-    setLoading(true);
-
-    if (isManager) {
-  // Fetch ALL salespersons (across all pages) since total is small (12)
-  let allSalespersons = [];
-  let currentPage = 1;
-  let totalFetched = 0;
-  let totalExpected = 0;
-
-  try {
-    // We'll fetch at least one page to get total count
-    let firstPageRes = await adminApi.getMySalespersons({ managerId: user.id, page: 1 });
-    let firstPageData = firstPageRes.data?.data || firstPageRes.data;
-    totalExpected = firstPageData.total || 0;
-    const limit = firstPageData.limit || 10;
-
-    if (Array.isArray(firstPageData.rows)) {
-      allSalespersons = [...firstPageData.rows];
-      totalFetched = firstPageData.rows.length;
-    }
-
-    // Fetch remaining pages if needed
-    while (totalFetched < totalExpected) {
-      currentPage++;
-      const nextPageRes = await adminApi.getMySalespersons({ managerId: user.id, page: currentPage });
-      const nextPageData = nextPageRes.data?.data || nextPageRes.data;
-      const nextRows = Array.isArray(nextPageData?.rows) ? nextPageData.rows : [];
-      
-      if (nextRows.length === 0) break;
-
-      allSalespersons.push(...nextRows);
-      totalFetched += nextRows.length;
-    }
-  } catch (err) {
-    console.error("Failed to fetch all salespersons for manager:", err);
-    toast.error("Failed to load full sales team");
-    allSalespersons = [];
-  }
-
-  // Apply client-side search (if any)
-  const term = search.toLowerCase().trim();
-  const filtered = term
-    ? allSalespersons.filter(u =>
-        (u.firstName?.toLowerCase().includes(term)) ||
-        (u.lastName?.toLowerCase().includes(term)) ||
-        (u.email?.toLowerCase().includes(term)) ||
-        (u.phone?.toLowerCase().includes(term))
-      )
-    : allSalespersons;
-
-  // Paginate the filtered list
-  const limit = 10;
-  const paginated = paginateArray(filtered, page, limit);
-
-  setUsers(paginated);
-  setPagination({
-    currentPage: page,
-    totalItems: filtered.length,
-    totalPages: Math.ceil(filtered.length / limit),
-    limit,
-  });
-   } else if (isAdmin) {
     try {
-      const res = await adminApi.getAdminManagers();
-      const response = res.data;
-      const adminUser = response.data?.user;
+      setLoading(true);
 
-      if (!adminUser || !Array.isArray(adminUser.createdUsers)) {
-        setUsers([]);
-        setPagination({ currentPage: 1, totalItems: 0, totalPages: 1, limit: 10 });
-        return;
-      }
+      if (isManager) {
+        // Fetch ALL salespersons (across all pages) since total is small (12)
+        let allSalespersons = [];
+        let currentPage = 1;
+        let totalFetched = 0;
+        let totalExpected = 0;
 
-      const adminName = `${user.firstName} ${user.lastName}`.trim() || "Admin";
-      let combinedList = [];
+        try {
+          // We'll fetch at least one page to get total count
+          let firstPageRes = await adminApi.getMySalespersons({ managerId: user.id, page: 1 });
+          let firstPageData = firstPageRes.data?.data || firstPageRes.data;
+          totalExpected = firstPageData.total || 0;
+          const limit = firstPageData.limit || 10;
 
-      for (const manager of adminUser.createdUsers) {
-        combinedList.push({
-          ...manager,
-          _type: "manager",
-          _assignedName: adminName,
+          if (Array.isArray(firstPageData.rows)) {
+            allSalespersons = [...firstPageData.rows];
+            totalFetched = firstPageData.rows.length;
+          }
+
+          // Fetch remaining pages if needed
+          while (totalFetched < totalExpected) {
+            currentPage++;
+            const nextPageRes = await adminApi.getMySalespersons({ managerId: user.id, page: currentPage });
+            const nextPageData = nextPageRes.data?.data || nextPageRes.data;
+            const nextRows = Array.isArray(nextPageData?.rows) ? nextPageData.rows : [];
+            
+            if (nextRows.length === 0) break;
+
+            allSalespersons.push(...nextRows);
+            totalFetched += nextRows.length;
+          }
+        } catch (err) {
+          console.error("Failed to fetch all salespersons for manager:", err);
+          toast.error("Failed to load full sales team");
+          allSalespersons = [];
+        }
+
+        // Apply client-side search (if any)
+        const term = search.toLowerCase().trim();
+        const filtered = term
+          ? allSalespersons.filter(u =>
+              (u.firstName?.toLowerCase().includes(term)) ||
+              (u.lastName?.toLowerCase().includes(term)) ||
+              (u.email?.toLowerCase().includes(term)) ||
+              (u.phone?.toLowerCase().includes(term))
+            )
+          : allSalespersons;
+
+        // Paginate the filtered list
+        const limit = 10;
+        const paginated = paginateArray(filtered, page, limit);
+
+        setUsers(paginated);
+        setPagination({
+          currentPage: page,
+          totalItems: filtered.length,
+          totalPages: Math.ceil(filtered.length / limit),
+          limit,
         });
+      } else if (isAdmin) {
+        try {
+          const res = await adminApi.getAdminManagers();
+          const response = res.data;
+          const adminUser = response.data?.user;
 
-        if (Array.isArray(manager.createdUsers)) {
-          for (const sp of manager.createdUsers) {
+          if (!adminUser || !Array.isArray(adminUser.createdUsers)) {
+            setUsers([]);
+            setPagination({ currentPage: 1, totalItems: 0, totalPages: 1, limit: 10 });
+            return;
+          }
+
+          const adminName = `${user.firstName} ${user.lastName}`.trim() || "Admin";
+          let combinedList = [];
+
+          for (const manager of adminUser.createdUsers) {
             combinedList.push({
-              ...sp,
-              _type: "salesperson",
-              _assignedName: `${manager.firstName} ${manager.lastName}`.trim() || "—",
+              ...manager,
+              _type: "manager",
+              _assignedName: adminName,
+            });
+
+            if (Array.isArray(manager.createdUsers)) {
+              for (const sp of manager.createdUsers) {
+                combinedList.push({
+                  ...sp,
+                  _type: "salesperson",
+                  _assignedName: `${manager.firstName} ${manager.lastName}`.trim() || "—",
+                });
+              }
+            }
+          }
+
+          const term = search.toLowerCase().trim();
+          let filtered = combinedList;
+
+          // Apply search filter
+          if (term) {
+            filtered = filtered.filter((item) =>
+              (item.firstName?.toLowerCase().includes(term)) ||
+              (item.lastName?.toLowerCase().includes(term)) ||
+              (item.email?.toLowerCase().includes(term)) ||
+              (item.phone?.toLowerCase().includes(term))
+            );
+          }
+
+          // Apply role filter
+          if (roleFilter !== "all") {
+            filtered = filtered.filter(item => {
+              if (roleFilter === "manager") return item._type === "manager";
+              if (roleFilter === "sale_person") return item._type === "salesperson";
+              return true;
             });
           }
+
+          const limit = 10;
+          const paginated = paginateArray(filtered, page, limit);
+
+          setUsers(paginated);
+          setPagination({
+            currentPage: page,
+            totalItems: filtered.length,
+            totalPages: Math.ceil(filtered.length / limit),
+            limit,
+          });
+        } catch (err) {
+          console.error("Failed to fetch admin team:", err);
+          toast.error("Failed to load team data");
+          setUsers([]);
+          setPagination({ currentPage: 1, totalItems: 0, totalPages: 1, limit: 10 });
         }
+      } else {
+        // Super admin: real server pagination
+        const params = { page, limit: 10 };
+        if (search) params.search = search;
+        if (roleFilter !== "all") params.role = roleFilter;
+
+        const res = await adminApi.getAllUsers(params);
+        const data = res.data?.data || res.data;
+        const finalRows = Array.isArray(data?.finalRows) ? data.finalRows : [];
+
+        setUsers(finalRows);
+        setPagination({
+          currentPage: data.page || page,
+          totalItems: data.total || 0,
+          totalPages: Math.ceil((data.total || 0) / (data.limit || 10)),
+          limit: data.limit || 10,
+        });
       }
-
-      const term = search.toLowerCase().trim();
-      const filtered = term
-        ? combinedList.filter((item) =>
-            (item.firstName?.toLowerCase().includes(term)) ||
-            (item.lastName?.toLowerCase().includes(term)) ||
-            (item.email?.toLowerCase().includes(term)) ||
-            (item.phone?.toLowerCase().includes(term))
-          )
-        : combinedList;
-
-      const limit = 10;
-      const paginated = paginateArray(filtered, page, limit);
-
-      setUsers(paginated);
-      setPagination({
-        currentPage: page,
-        totalItems: filtered.length,
-        totalPages: Math.ceil(filtered.length / limit),
-        limit,
-      });
     } catch (err) {
-      console.error("Failed to fetch admin team:", err);
-      toast.error("Failed to load team data");
+      console.error("Failed to fetch users:", err);
+      toast.error("Failed to load users");
       setUsers([]);
       setPagination({ currentPage: 1, totalItems: 0, totalPages: 1, limit: 10 });
-    }} else {
-      // Super admin: real server pagination
-      const params = { page, limit: 10 };
-      if (search) params.search = search;
-      if (roleFilter !== "all") params.role = roleFilter;
-
-      const res = await adminApi.getAllUsers(params);
-      const data = res.data?.data || res.data;
-      const finalRows = Array.isArray(data?.finalRows) ? data.finalRows : [];
-
-      setUsers(finalRows);
-      setPagination({
-        currentPage: data.page || page,
-        totalItems: data.total || 0,
-        totalPages: Math.ceil((data.total || 0) / (data.limit || 10)),
-        limit: data.limit || 10,
-      });
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Failed to fetch users:", err);
-    toast.error("Failed to load users");
-    setUsers([]);
-    setPagination({ currentPage: 1, totalItems: 0, totalPages: 1, limit: 10 });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-const paginateArray = (array, page, limit) => {
-  const start = (page - 1) * limit;
-  return array.slice(start, start + limit);
-};
+  const paginateArray = (array, page, limit) => {
+    const start = (page - 1) * limit;
+    return array.slice(start, start + limit);
+  };
 
-useEffect(() => {
-  fetchUsers(pagination.currentPage, searchTerm);
-}, [isManager, isAdmin, user.id, searchTerm, pagination.currentPage]);
+  useEffect(() => {
+    fetchUsers(pagination.currentPage, searchTerm);
+  }, [isManager, isAdmin, user.id, searchTerm, pagination.currentPage, roleFilter]);
 
   const handleSearch = (e) => {
     const value = e.target.value;
@@ -196,9 +211,7 @@ useEffect(() => {
   const handleRoleChange = (e) => {
     const value = e.target.value;
     setRoleFilter(value);
-    if (!isManager && !isAdmin) {
-      fetchUsers(1, searchTerm);
-    }
+    fetchUsers(1, searchTerm);
   };
 
   const baseColumns = [
@@ -232,39 +245,42 @@ useEffect(() => {
   ];
 
   const columns = isManager
-  ? baseColumns 
-  : [
-      ...baseColumns,
-      {
-  key: "assignedUnder",
-  label: "Assigned Under",
-  render: (row) => {
-    let name = "—";
+    ? baseColumns 
+    : [
+        ...baseColumns,
+        {
+          key: "assignedUnder",
+          label: "Assigned Under",
+          render: (row) => {
+            let name = "—";
 
-    if (isAdmin) {
-      // Admin view: only show for salespersons
-      if (row._type === 'salesperson') {
-        name = row._assignedName || "—";
-      }
-    } else {
-      // Super admin view: show creator, EXCEPT for admin users
-      if (row.creator && row.role !== "admin") {
-        name = [row.creator.firstName, row.creator.lastName]
-          .filter(Boolean)
-          .join(" ");
-      }
-      // If row.role === "admin", leave name as "—"
-    }
+            if (isAdmin) {
+              // Admin view: only show for salespersons
+              if (row._type === 'salesperson') {
+                name = row._assignedName || "—";
+              }
+            } else {
+              // Super admin view: show creator, EXCEPT for admin users
+              if (row.creator && row.role !== "admin") {
+                name = [row.creator.firstName, row.creator.lastName]
+                  .filter(Boolean)
+                  .join(" ");
+              }
+              // If row.role === "admin", leave name as "—"
+            }
 
-    return name !== "—" ? <span>{name}</span> : <span className="text-gray-400">—</span>;
-  },
-}
-    ]; 
+            return name !== "—" ? <span>{name}</span> : <span className="text-gray-400">—</span>;
+          },
+        }
+      ]; 
 
   const actions = [];
 
+  // Determine if role filter should be shown
+  const showRoleFilter = !isManager;
+
   return (
-    <div className="py-6 h-screen">
+    <div className="py-2 h-screen">
       <Toaster position="top-right" />
 
       <div className="mb-4">
@@ -291,8 +307,8 @@ useEffect(() => {
             className={`px-5 py-2 rounded-full border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent shadow-sm w-full sm:w-auto flex-1 min-w-[200px] custom-border`}
           />
 
-          {/* Role Filter – super_admin only */}
-          {!isManager && !isAdmin && (
+          {/* Role Filter – show for admin and super admin */}
+          {showRoleFilter && (
             <div className="flex gap-2 items-center">
               <span className="text-sm text-gray-400">Filter by role: </span>
               <select
@@ -301,7 +317,7 @@ useEffect(() => {
                 className="px-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-sm w-full sm:w-auto"
               >
                 <option value="all">All Roles</option>
-                <option value="admin">Admin</option>
+                {isSuperAdmin && <option value="admin">Admin</option>}
                 <option value="manager">Manager</option>
                 <option value="sale_person">Salesperson</option>
               </select>
@@ -332,9 +348,7 @@ useEffect(() => {
       />
 
       {loading && (
-        <div className="text-center mt-4 text-gray-500 text-sm">
-          Loading users...
-        </div>
+          <Loader />     
       )}
     </div>
   );

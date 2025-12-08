@@ -105,9 +105,9 @@ export default function Table({
       ))}
 
       {actions.length > 0 && (
-        <th className="px-3 py-2 text-end font-semibold text-xs text-black bg-[#3B82F60D] rounded-r-xl">
-          Actions
-        </th>
+        <th className="px-3 py-2 text-left font-semibold text-xs text-black bg-[#3B82F60D] rounded-r-xl">
+  Actions
+</th>
       )}
     </tr>
   </thead>
@@ -129,7 +129,7 @@ export default function Table({
               </td>
             ))}
             {actions.length > 0 && (
-              <td className="px-3 py-1.5 flex items-center justify-end gap-2 relative text-xs text-black">
+              <td className="px-3 py-1.5 flex items-center justify-start gap-2 relative text-xs text-black">
                 {actions.map((action, idx) => {
                   if (action.condition && !action.condition(row)) return null;
                  if (action.type === "button") {

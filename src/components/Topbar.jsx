@@ -43,7 +43,6 @@ const [showNewPassword, setShowNewPassword] = useState(false);
     }
   };
 
-  // ✅ Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -55,7 +54,7 @@ const [showNewPassword, setShowNewPassword] = useState(false);
   }, []);
 
   return (
-    <div className="border-1 border-gray-200 rounded-xl p-2">
+    <div className="border-1 border-gray-200 rounded-b-xl p-2 sticky top-0 bg-white z-50">
       <Toaster position="top-right" />
 
       <div className="flex items-center justify-between px-4 py-2 bg-white sticky top-2 z-50">

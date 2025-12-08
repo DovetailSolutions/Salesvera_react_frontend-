@@ -29,6 +29,7 @@ import { PiUsersThreeLight } from "react-icons/pi";
 import LeaveApproval from "./pages/LeaveApproval";
 import ExpenseManagement from "./pages/ExpenseManagement";
 import { TbMoneybag } from "react-icons/tb";
+import UserChat from "./pages/UserChat";
 
 export const allRoutes = [
   {
@@ -38,7 +39,7 @@ export const allRoutes = [
         path: "/",
         label: "Dashboard",
         icon: <LuLayoutDashboard />,
-        roles: [ROLES.ADMIN, ROLES.BASE_ADMIN],
+        roles: [ ROLES.ADMIN, ROLES.BASE_ADMIN],
       },
     ],
   },
@@ -49,25 +50,31 @@ export const allRoutes = [
         path: "/user-management",
         label: "User Management",
         icon: <CiUser />,
-        roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
+        roles: [ ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
+      },
+      {
+        path: "/user-chat",
+        label: "Team Chat",
+        icon: <CiUser />,
+        roles: [ ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
         path: "/attendance-management",
-        label: "User Attendance",
+        label: "Team Attendance",
         icon: <CiCalendar />,
-        roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
+        roles: [ ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
         path: "/leave-requests",
         label: "Leave Management",
         icon: <CiCalendar />,
-        roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
+        roles: [ ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
         path: "/expense-management",
-        label: "User Expenses",
+        label: "Team Expenses",
         icon: <TbMoneybag />,
-        roles: [ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
+        roles: [ ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       // {
       //   path: "/registration",
@@ -140,6 +147,7 @@ export default function Router() {
           <Route path="attendance-management" element={<Attendance />} />
           <Route path="leave-requests" element={<LeaveApproval />} />
           <Route path="expense-management" element={<ExpenseManagement />} />
+          <Route path="user-chat" element={<UserChat />} />
         </Route>
       </Route>
 
