@@ -3,8 +3,7 @@ import { AuthContext } from "../context/AuthProvider";
 import { io } from 'socket.io-client';
 import { IoSend } from "react-icons/io5";
 
-// 🔧 CRITICAL: remove trailing spaces
-const SOCKET_URL = 'https://api.salesvera.com';
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 function UserChat() {
   const { user } = useContext(AuthContext);
@@ -18,6 +17,7 @@ function UserChat() {
   const [currentRoom, setCurrentRoom] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [typingUser, setTypingUser] = useState(null);
+
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -25,12 +25,8 @@ function UserChat() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+  useEffect(() => scrollToBottom(), [messages]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // Format message (DO NOT use 'users' state)
   const formatMessage = (rawMsg) => {
     let senderName = 'Unknown';
     if (rawMsg.sender) {
@@ -49,9 +45,9 @@ function UserChat() {
     };
   };
 
-  // Socket setup
+  // ---------------- SOCKET SETUP ----------------
   useEffect(() => {
-    if (!user || !token) {
+    if (!token) {
       setLoading(false);
       setError('User not authenticated.');
       return;
@@ -60,9 +56,7 @@ function UserChat() {
     const socket = io(SOCKET_URL, {
       transports: ['polling', 'websocket'],
       transportOptions: {
-        polling: {
-          extraHeaders: { token }
-        }
+        polling: { extraHeaders: { token } }
       },
       autoConnect: false,
       path: '/socket.io'
@@ -71,97 +65,197 @@ function UserChat() {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('✅ Socket connected - ID:', socket.id);
+      console.log('✅ Connected:', socket.id);
       setConnectionStatus('connected');
       setError(null);
       socket.emit('UserList', { page: 1, limit: 100, search: "" });
       socket.emit('online', { userId: user.id });
     });
 
-    socket.on('connect_error', (err) => {
-      console.error('❌ Socket connection error:', err.message);
+    socket.on('connect_error', err => {
       setConnectionStatus('error');
-      setError('Chat connection failed. Please log in again.');
+      setError('Chat connection failed.');
       setLoading(false);
     });
 
-    socket.on('disconnect', (reason) => {
-      console.log('🔌 Socket disconnected:', reason);
-      setConnectionStatus('disconnected');
-      if (reason === 'io server disconnect') {
-        socket.connect();
-      }
+socket.on("disconnect", async () => {
+  try {
+    await User.update(
+      { onlineStatus: "offline" },
+      { where: { id: userId } }
+    );
+
+    io.emit("onlineUser", {
+      userId,
+      status: "offline"
     });
 
-    socket.on('UserList', (response) => {
-      console.log('📥 Received UserList response:', response);
-      if (response.success) {
-        const userMap = new Map();
-        for (const participant of response.data) {
-          if (participant.user?.id) {
-            userMap.set(participant.user.id, {
-              ...participant.user,
-              onlineStatus: participant.user.onlineStatus || 'offline'
-            });
-          }
+  } catch (err) {
+    console.error("Disconnect error:", err);
+  }
+});
+
+
+socket.on("UserList", async ({ page = 1, limit = 10, search = "" }) => {
+  try {
+    const offset = (page - 1) * limit;
+    search = typeof search === "string" ? search.trim() : "";
+
+    const childIds = await getAllChildUserIds(userId);
+    const validUserIds = [userId, ...childIds];
+
+    let userSearchCondition = {};
+
+    if (search !== "") {
+      userSearchCondition = {
+        [Op.or]: [
+          { firstName: { [Op.iLike]: `%${search}%` } },
+          { lastName: { [Op.iLike]: `%${search}%` } },
+          { email:  { [Op.iLike]: `%${search}%` } },
+        ]
+      };
+    }
+
+    const result = await ChatParticipant.findAndCountAll({
+      where: {
+        userId: validUserIds,
+      },
+      limit,
+      offset,
+      order: [["id", "DESC"]],
+      include: [
+        {
+          model: User,
+          as: "user", 
+          attributes: ["id", "firstName", "lastName", "email", "role", "onlineStatus"],
+          where: userSearchCondition,
+          required: false,
         }
-        const uniqueUsers = Array.from(userMap.values());
-        setUsers(uniqueUsers);
-
-        setActiveUser(prev => {
-          if (!prev || !uniqueUsers.some(u => u.id === prev.id)) {
-            return uniqueUsers[0] || null;
-          }
-          return prev;
-        });
-
-        setLoading(false);
-      } else {
-        setError(response.error || 'Failed to load team members');
-        setLoading(false);
-      }
+      ]
     });
 
-    socket.on('onlineUser', ({ userId, status }) => {
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, onlineStatus: status } : u));
+    io.to(socket.id).emit("UserList", {
+      success: true,
+      total: result.count,
+      totalPages: Math.ceil(result.count / limit),
+      currentPage: page,
+      data: result.rows,
     });
 
-    socket.on('errorMessage', (data) => {
-      console.error('❌ Error from server:', data);
-      setError(data.error || 'An error occurred');
+  } catch (error) {
+    console.error("UserList Error:", error);
+    socket.emit("UserList", {
+      success: false,
+      error: "Unable to fetch user list",
+    });
+  }
+});
+
+
+// --------------------------------------------------------
+// SEND MESSAGE
+// --------------------------------------------------------
+socket.on("sendMessage", async ({ roomId, message }) => {
+  try {
+    const room = await ChatRoom.findOne({ where: { roomId } });
+    if (!room)
+      return socket.emit("errorMessage", { error: "Invalid roomId" });
+
+    const isParticipant = await ChatParticipant.findOne({
+      where: { chatRoomId: room.id, userId },
     });
 
-    socket.on('error', (error) => {
-      console.error('❌ Socket error:', error);
-      setError(error.message || 'An error occurred');
+    if (!isParticipant) {
+      return socket.emit("errorMessage", {
+        error: "You are not a room member",
+      });
+    }
+
+    const newMessage = await Message.create({
+      chatRoomId: room.id,
+      senderId: userId,
+      message,
     });
 
-    console.log('🚀 Connecting socket...');
+    io.to(roomId).emit("receiveMessage", newMessage);
+  } catch (error) {
+    console.error("Send message error:", error);
+    socket.emit("errorMessage", { error: "Failed to send message" });
+  }
+});
+
+
+// --------------------------------------------------------
+// TYPING INDICATOR
+// --------------------------------------------------------
+socket.on("typing", (data) => {
+  io.to(data.roomId).emit("typing", data);
+});
+
+
+// --------------------------------------------------------
+// ONLINE STATUS (FIXED)
+// --------------------------------------------------------
+socket.on("online", async ({ userId }) => {
+  try {
+    await User.update(
+      { onlineStatus: "online" },
+      { where: { id: userId } }
+    );
+
+    io.emit("onlineUser", {
+      userId,
+      status: "online"
+    });
+
+  } catch (err) {
+    console.error("Online error:", err);
+  }
+});
+
+
+// --------------------------------------------------------
+// OFFLINE STATUS ON DISCONNECT
+// --------------------------------------------------------
+socket.on("disconnect", async () => {
+  try {
+    await User.update(
+      { onlineStatus: "offline" },
+      { where: { id: userId } }
+    );
+
+    io.emit("onlineUser", {
+      userId,
+      status: "offline"
+    });
+
+  } catch (err) {
+    console.error("Disconnect error:", err);
+  }
+});
+
+    socket.on('errorMessage', d => setError(d.error || 'Error'));
+    socket.on('error', err => setError(err.message || 'Error'));
+
     socket.connect();
 
     return () => {
-      console.log('🧹 Cleaning up socket connection');
-      if (currentRoom) {
-        socket.emit('leaveRoom', { roomId: currentRoom });
-      }
+      if (currentRoom) socket.emit('leaveRoom', { roomId: currentRoom });
       socket.disconnect();
     };
   }, [user, token]);
 
-  // Room management
+  // ---------------- ROOM JOIN / MESSAGES ----------------
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket || !activeUser || !user) return;
 
-    if (currentRoom) {
-      socket.emit('leaveRoom', { roomId: currentRoom });
-    }
+    if (currentRoom) socket.emit('leaveRoom', { roomId: currentRoom });
 
     const id1 = user.id;
     const id2 = activeUser.id;
     const roomId = id1 < id2 ? `${id1}-${id2}` : `${id2}-${id1}`;
 
-    console.log('🚪 Joining room:', roomId);
     setMessages([]);
     setTypingUser(null);
     setCurrentRoom(roomId);
@@ -169,27 +263,21 @@ function UserChat() {
     socket.emit('joinRoom', { roomId, type: 'private' });
 
     const handleRoomJoined = (data) => {
-      console.log('✅ Room joined successfully:', data);
-      if (data.messages && Array.isArray(data.messages)) {
-        const formatted = data.messages.map(formatMessage);
-        setMessages(formatted);
+      if (Array.isArray(data.messages)) {
+        setMessages(data.messages.map(formatMessage));
       }
     };
 
-    const handleMessage = (rawMsg) => {
-      const msg = formatMessage({ ...rawMsg, roomId: currentRoom });
-      if (msg.roomId === currentRoom) {
-        setMessages(prev => {
-          // 🔥 Dedupe by content + sender + time (not just id)
-          const isDuplicate = prev.some(m =>
-            m.text === msg.text &&
-            m.senderId === msg.senderId &&
-            Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 2000 // within 2 sec
-          );
-          if (isDuplicate) return prev;
-          return [...prev, msg];
-        });
-      }
+    const handleMessage = raw => {
+      const msg = formatMessage({ ...raw, roomId: currentRoom });
+      setMessages(prev => {
+        const isDuplicate = prev.some(m =>
+          m.text === msg.text &&
+          m.senderId === msg.senderId &&
+          Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 2000
+        );
+        return isDuplicate ? prev : [...prev, msg];
+      });
     };
 
     const handleTyping = ({ userId, isTyping }) => {
@@ -197,8 +285,11 @@ function UserChat() {
         const u = users.find(u => u.id === userId);
         if (u) {
           setTypingUser(getFullName(u));
-          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-          typingTimeoutRef.current = setTimeout(() => setTypingUser(null), 3000);
+          clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(
+            () => setTypingUser(null),
+            3000
+          );
         }
       }
     };
@@ -211,60 +302,34 @@ function UserChat() {
       socket.off('roomJoined', handleRoomJoined);
       socket.off('receiveMessage', handleMessage);
       socket.off('typing', handleTyping);
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
-  }, [activeUser, user]); // ✅ REMOVED 'users' from dependencies
+  }, [activeUser, user]);
 
-  const getFullName = (u) => {
-    if (!u) return 'Unknown';
-    return `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
-  };
+  const getFullName = (u) =>
+    `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
 
   const handleSendMessage = (e) => {
     e.preventDefault();
     const input = e.target[0];
     const text = input.value.trim();
-    
-    if (!text || !activeUser || !socketRef.current) return;
+    if (!text || !activeUser) return;
 
-    const socket = socketRef.current;
-    if (!socket.connected) {
-      setError('Connection lost. Reconnecting...');
-      socket.connect();
-      return;
-    }
-
-    // ✅ DO NOT do optimistic update — wait for server
-    socket.emit('sendMessage', {
-      roomId: currentRoom,
-      message: text
-    });
-
-    // 💡 Optional: clear input immediately
+    socketRef.current.emit('sendMessage', { roomId: currentRoom, message: text });
     input.value = '';
   };
 
   const handleTypingStart = () => {
-    if (currentRoom && socketRef.current?.connected) {
-      socketRef.current.emit('typing', {
-        roomId: currentRoom,
-        userId: user.id,
-        isTyping: true
-      });
-    }
+    socketRef.current?.emit('typing', {
+      roomId: currentRoom,
+      userId: user.id,
+      isTyping: true
+    });
   };
 
   if (!user) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading user...</p>
-        </div>
-      </div>
-    );
+    return <div>Loading user...</div>;
   }
-
+  
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
       {/* Header */}
@@ -277,16 +342,15 @@ function UserChat() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-              connectionStatus === 'connected' 
-                ? 'bg-green-100 text-green-700' 
+            <div className={`px-3 py-1 rounded-full text-xs font-medium ${connectionStatus === 'connected'
+                ? 'bg-green-100 text-green-700'
                 : connectionStatus === 'error'
-                ? 'bg-red-100 text-red-700'
-                : 'bg-yellow-100 text-yellow-700'
-            }`}>
-              {connectionStatus === 'connected' ? '🟢 Connected' : 
-               connectionStatus === 'error' ? '🔴 Error' : 
-               '🟡 Connecting...'}
+                  ? 'bg-red-100 text-red-700'
+                  : 'bg-yellow-100 text-yellow-700'
+              }`}>
+              {connectionStatus === 'connected' ? '🟢 Connected' :
+                connectionStatus === 'error' ? '🔴 Error' :
+                  '🟡 Connecting...'}
             </div>
           </div>
         </div>
@@ -306,7 +370,7 @@ function UserChat() {
                   {users.length} member{users.length !== 1 ? 's' : ''}
                 </p>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto p-4 pt-2">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-8 text-slate-500">
@@ -316,7 +380,7 @@ function UserChat() {
                 ) : error ? (
                   <div className="text-center py-6">
                     <div className="text-sm text-red-600 mb-3">{error}</div>
-                    <button 
+                    <button
                       onClick={() => window.location.reload()}
                       className="text-xs text-blue-600 hover:text-blue-700 underline"
                     >
@@ -333,17 +397,15 @@ function UserChat() {
                       <div
                         key={u.id}
                         onClick={() => setActiveUser(u)}
-                        className={`relative rounded-2xl border p-3 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                          activeUser?.id === u.id
+                        className={`relative rounded-2xl border p-3 cursor-pointer transition-all duration-200 hover:shadow-md ${activeUser?.id === u.id
                             ? 'border-blue-500 bg-blue-50 text-blue-800 shadow-sm'
                             : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-start gap-3">
                           <div className="relative">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
-                              activeUser?.id === u.id ? 'bg-blue-600' : 'bg-slate-400'
-                            }`}>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${activeUser?.id === u.id ? 'bg-blue-600' : 'bg-slate-400'
+                              }`}>
                               {(u.firstName?.[0] || u.email?.[0] || '?').toUpperCase()}
                             </div>
                             {u.onlineStatus === 'online' && (
@@ -421,11 +483,10 @@ function UserChat() {
                               className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                             >
                               <div
-                                className={`max-w-xs lg:max-w-md p-3 rounded-2xl shadow-sm ${
-                                  isOwnMessage
+                                className={`max-w-xs lg:max-w-md p-3 rounded-2xl shadow-sm ${isOwnMessage
                                     ? 'bg-blue-600 text-white rounded-br-sm'
                                     : 'bg-white text-slate-800 rounded-bl-sm border border-slate-200'
-                                }`}
+                                  }`}
                               >
                                 {!isOwnMessage && msg.senderName && (
                                   <p className="text-xs font-medium mb-1 opacity-70">
@@ -434,12 +495,11 @@ function UserChat() {
                                 )}
                                 <p className="break-words">{msg.text}</p>
                                 {msg.timestamp && (
-                                  <p className={`text-xs mt-1 ${
-                                    isOwnMessage ? 'text-blue-100' : 'text-slate-400'
-                                  }`}>
-                                    {new Date(msg.timestamp).toLocaleTimeString([], { 
-                                      hour: '2-digit', 
-                                      minute: '2-digit' 
+                                  <p className={`text-xs mt-1 ${isOwnMessage ? 'text-blue-100' : 'text-slate-400'
+                                    }`}>
+                                    {new Date(msg.timestamp).toLocaleTimeString([], {
+                                      hour: '2-digit',
+                                      minute: '2-digit'
                                     })}
                                   </p>
                                 )}
