@@ -44,6 +44,10 @@ export default function MeetingManagement() {
     );
   });
 
+  useEffect(()=>{
+    window.scrollTo(0,0);
+  },[])
+
   // Fetch managers (admin only) - unchanged
   const fetchManagers = async () => {
     try {
@@ -226,8 +230,6 @@ export default function MeetingManagement() {
 
   const isManager = user?.role === "manager";
   const isAdmin = user?.role === "admin";
-
-  if (loading) return <Loader variant="dots"/>
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">

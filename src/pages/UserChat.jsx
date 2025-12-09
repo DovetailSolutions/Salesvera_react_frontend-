@@ -21,6 +21,7 @@ function UserChat() {
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const currentRoomRef = useRef(null); // ✅ Track current room reliably
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -30,24 +31,37 @@ function UserChat() {
     scrollToBottom();
   }, [messages]);
 
-  // Format message (DO NOT use 'users' state)
   const formatMessage = (rawMsg) => {
-    let senderName = 'Unknown';
-    if (rawMsg.sender) {
-      senderName = `${rawMsg.sender.firstName || ''} ${rawMsg.sender.lastName || ''}`.trim() || rawMsg.sender.email;
-    } else if (rawMsg.senderName) {
-      senderName = rawMsg.senderName;
-    }
+  let senderName = 'Unknown';
 
-    return {
-      id: rawMsg.id,
-      roomId: rawMsg.roomId || currentRoom,
-      senderId: rawMsg.senderId,
-      senderName,
-      text: rawMsg.message || rawMsg.text || '',
-      timestamp: rawMsg.createdAt || rawMsg.timestamp || new Date().toISOString(),
-    };
+  // 1. Prefer sender object (if backend ever sends it)
+  if (rawMsg.sender) {
+    senderName = `${rawMsg.sender.firstName || ''} ${rawMsg.sender.lastName || ''}`.trim() || rawMsg.sender.email;
+  }
+  // 2. Fallback: use senderId + local users list
+  else if (rawMsg.senderId) {
+    const senderUser = users.find(u => u.id === rawMsg.senderId);
+    if (senderUser) {
+      senderName = getFullName(senderUser);
+    } else if (rawMsg.senderId === user?.id) {
+      // Message is from the current logged-in user
+      senderName = getFullName(user);
+    }
+  }
+  // (Optional) 3. If you ever send senderName directly, keep this
+  else if (rawMsg.senderName) {
+    senderName = rawMsg.senderName;
+  }
+
+  return {
+    id: rawMsg.id,
+    roomId: rawMsg.roomId || currentRoomRef.current,
+    senderId: rawMsg.senderId,
+    senderName,
+    text: rawMsg.message || rawMsg.text || '',
+    timestamp: rawMsg.createdAt || rawMsg.timestamp || new Date().toISOString(),
   };
+};
 
   // Socket setup
   useEffect(() => {
@@ -94,36 +108,55 @@ function UserChat() {
     });
 
     socket.on('UserList', (response) => {
-      console.log('📥 Received UserList response:', response);
-      if (response.success) {
-        const userMap = new Map();
-        for (const participant of response.data) {
-          if (participant.user?.id) {
-            userMap.set(participant.user.id, {
-              ...participant.user,
-              onlineStatus: participant.user.onlineStatus || 'offline'
-            });
-          }
-        }
-        const uniqueUsers = Array.from(userMap.values());
-        setUsers(uniqueUsers);
+  console.log('📥 Received UserList response:', response);
+  if (response.success) {
+    // 🔄 ADJUSTED: Now each item in response.data IS the user object
+    const uniqueUsers = response.data.map(user => ({
+      ...user,
+      // 🛠️ Handle typo in backend field name: "onlineSatus" → normalize to "onlineStatus"
+      onlineStatus: user.onlineStatus || user.onlineSatus || 'offline'
+    }));
 
-        setActiveUser(prev => {
-          if (!prev || !uniqueUsers.some(u => u.id === prev.id)) {
-            return uniqueUsers[0] || null;
-          }
-          return prev;
-        });
+    setUsers(uniqueUsers);
 
-        setLoading(false);
-      } else {
-        setError(response.error || 'Failed to load team members');
-        setLoading(false);
+    setActiveUser(prev => {
+      if (!prev || !uniqueUsers.some(u => u.id === prev.id)) {
+        return uniqueUsers[0] || null;
       }
+      return prev;
     });
+
+    setLoading(false);
+  } else {
+    setError(response.error || 'Failed to load team members');
+    setLoading(false);
+  }
+});
 
     socket.on('onlineUser', ({ userId, status }) => {
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, onlineStatus: status } : u));
+    });
+
+    socket.on('mychats', (response) => {
+  if (response.success && response.data) {
+    const roomId = currentRoomRef.current;
+    if (!roomId) return;
+    const formatted = response.data.map(msg => formatMessage({ ...msg, roomId })).reverse();
+    console.log('💬 Formatted messages:', formatted); // ← ADD THIS
+    setMessages(formatted);
+  }
+});
+
+    socket.on('seenMessage', (data) => {
+      setMessages(prev =>
+        prev.map(msg => msg.id === data.msg_id ? { ...msg, seen: true } : msg)
+      );
+    });
+
+    socket.on('Deleted', (data) => {
+      if (data?.id) {
+        setMessages(prev => prev.filter(msg => msg.id !== data.id));
+      }
     });
 
     socket.on('errorMessage', (data) => {
@@ -141,8 +174,8 @@ function UserChat() {
 
     return () => {
       console.log('🧹 Cleaning up socket connection');
-      if (currentRoom) {
-        socket.emit('leaveRoom', { roomId: currentRoom });
+      if (currentRoomRef.current) {
+        socket.emit('leaveRoom', { roomId: currentRoomRef.current });
       }
       socket.disconnect();
     };
@@ -165,26 +198,26 @@ function UserChat() {
     setMessages([]);
     setTypingUser(null);
     setCurrentRoom(roomId);
+    currentRoomRef.current = roomId; // ✅ Update ref
 
     socket.emit('joinRoom', { roomId, type: 'private' });
 
+    // ✅ Fetch messages after joining room
+    socket.emit('mychats', { roomId, page: 1, limit: 50 });
+
     const handleRoomJoined = (data) => {
       console.log('✅ Room joined successfully:', data);
-      if (data.messages && Array.isArray(data.messages)) {
-        const formatted = data.messages.map(formatMessage);
-        setMessages(formatted);
-      }
+      // Backend does NOT send messages in roomJoined → so do nothing here
     };
 
     const handleMessage = (rawMsg) => {
-      const msg = formatMessage({ ...rawMsg, roomId: currentRoom });
-      if (msg.roomId === currentRoom) {
+      const msg = formatMessage({ ...rawMsg, roomId: currentRoomRef.current });
+      if (msg.roomId === currentRoomRef.current) {
         setMessages(prev => {
-          // 🔥 Dedupe by content + sender + time (not just id)
           const isDuplicate = prev.some(m =>
             m.text === msg.text &&
             m.senderId === msg.senderId &&
-            Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 2000 // within 2 sec
+            Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 2000
           );
           if (isDuplicate) return prev;
           return [...prev, msg];
@@ -213,7 +246,7 @@ function UserChat() {
       socket.off('typing', handleTyping);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
-  }, [activeUser, user]); // ✅ REMOVED 'users' from dependencies
+  }, [activeUser, user]);
 
   const getFullName = (u) => {
     if (!u) return 'Unknown';
@@ -234,20 +267,18 @@ function UserChat() {
       return;
     }
 
-    // ✅ DO NOT do optimistic update — wait for server
     socket.emit('sendMessage', {
-      roomId: currentRoom,
+      roomId: currentRoomRef.current,
       message: text
     });
 
-    // 💡 Optional: clear input immediately
     input.value = '';
   };
 
   const handleTypingStart = () => {
-    if (currentRoom && socketRef.current?.connected) {
+    if (currentRoomRef.current && socketRef.current?.connected) {
       socketRef.current.emit('typing', {
-        roomId: currentRoom,
+        roomId: currentRoomRef.current,
         userId: user.id,
         isTyping: true
       });

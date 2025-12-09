@@ -24,6 +24,10 @@ export default function Category() {
   const [inlineEditId, setInlineEditId] = useState(null);
   const [inlineEditValue, setInlineEditValue] = useState("");
 
+  useEffect(()=>{
+    window.scrollTo(0,0);
+  },[])
+
   const fetchCategories = async (page = 1, search = "") => {
     try {
       setLoading(true);
@@ -63,34 +67,34 @@ export default function Category() {
   }, [currentPage, searchQuery]);
 
   const handleAddCategory = async () => {
-    const name = tempCategoryName.trim();
-    if (!name) {
-      toast.error("Please enter a category name");
-      return;
-    }
+  const name = tempCategoryName.trim();
+  if (!name) {
+    toast.error("Please enter a category name");
+    return;
+  }
 
-    if (isCategoryNameDuplicate(name)) {
-      toast.error("A category with this name already exists");
-      return;
-    }
+  if (isCategoryNameDuplicate(name)) {
+    toast.error("A category with this name already exists");
+    return;
+  }
 
-    const formData = new URLSearchParams();
-    formData.append("category_name", name);
+  const formData = new URLSearchParams();
+  formData.append("category_name", name);
 
-    try {
-      setLoading(true);
-      await menuapi.createCategory(formData);
-      toast.success("Category added successfully");
-      setIsAddModalOpen(false);
-      setTempCategoryName("");
-      fetchCategories(currentPage, searchQuery);
-    } catch (err) {
-      console.error("Add error:", err);
-      toast.error("Error adding category");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    // ✅ Do NOT set global loading here
+    await menuapi.createCategory(formData);
+    toast.success("Category added successfully");
+    setIsAddModalOpen(false);
+    setTempCategoryName("");
+    // ✅ Refetch without showing full-page loader
+    await fetchCategories(currentPage, searchQuery);
+  } catch (err) {
+    console.error("Add error:", err);
+    toast.error("Error adding category");
+  }
+  // ❌ Remove finally setLoading(false)
+};
 
   const saveInlineEdit = async () => {
     const name = inlineEditValue.trim();

@@ -340,9 +340,11 @@ users.forEach(user => {
 </div>
 
         {loading && (
-          <div className="flex justify-center py-4 text-gray-600">
-            Loading attendance data...
-          </div>
+          <div className="flex flex-col items-center justify-center py-6 text-slate-500">
+                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                      <p className="text-sm">Loading attendance data...</p>
+                    </div>
+          
         )}
 
         {/* ✅ UPDATED STATS BAR: Shows TODAY'S counts only */}

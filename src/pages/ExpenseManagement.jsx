@@ -33,6 +33,10 @@ const ExpenseManagement = () => {
     { value: "rejected", label: "Rejected" },
   ];
 
+  useEffect(()=>{
+    window.scrollTo(0,0);
+  },[])
+
   const fetchExpenses = async () => {
     try {
       setLoading(true);

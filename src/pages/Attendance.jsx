@@ -64,6 +64,10 @@ export default function Attendance() {
     return `${year}-${month}-${day}`;
   };
 
+  useEffect(()=>{
+    window.scrollTo(0,0);
+  },[])
+
   const fetchAttendanceAndUsers = async (search = "") => {
     try {
       setLoading(true);

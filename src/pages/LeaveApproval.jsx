@@ -18,6 +18,10 @@ export default function LeaveApproval() {
   const [loadingMyLeaves, setLoadingMyLeaves] = useState(false);
   const [showMyLeaves, setShowMyLeaves] = useState(false);
 
+  useEffect(()=>{
+    window.scrollTo(0,0);
+  },[])
+
   const fetchLeaves = async () => {
     try {
       setLoading(true);

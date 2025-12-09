@@ -8,11 +8,7 @@ export default function SidePanel({ routes = [] }) {
   const { user } = useContext(AuthContext);
 
   return (
-<<<<<<< HEAD
-    <aside className="w-54 shadow-md min-h-screen text-white fixed z-50">
-=======
     <aside className="w-54 shadow-md min-h-screen text-white fixed z-40">
->>>>>>> 3d77f006a2a3db1e9e00aee1d54bc121ccd56311
       <div className="py-6 text-center text-2xl mt-4">
         <span className="logo-font text-[var(--primary-blue)]">Sales</span>
         <span className="logo-font text-[var(--primary-green)]">vera</span>
@@ -25,14 +21,14 @@ export default function SidePanel({ routes = [] }) {
           </div>
           <div className="text-left">
             {user ? (
-              <>
+              <div className="px-[0.1rem]">
                 <div className="font-semibold text-black">
                   {user.firstName} {user.lastName}
                 </div>
                 <div className="text-xs text-gray-600 capitalize">
                   {user.role?.replace(/_/g, " ")}
                 </div>
-              </>
+              </div>
             ) : (
               <div className="text-black">Loading...</div>
             )}

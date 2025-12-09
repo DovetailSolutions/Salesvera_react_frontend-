@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Table from "../components/Table";
 import { adminApi } from "../api";
 import toast, { Toaster } from "react-hot-toast";
@@ -16,7 +16,7 @@ export default function UserManagement() {
   const { user } = useAuth();
   const isManager = user.role === "manager";
   const isAdmin = user.role === "admin";
-  const isSuperAdmin = !isManager && !isAdmin; // only super admin sees "admin" users
+  const isSuperAdmin = !isManager && !isAdmin;
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -29,63 +29,68 @@ export default function UserManagement() {
     limit: 10,
   });
 
+  // ✅ Cache full sales list for managers
+  const [allSalespersonsCache, setAllSalespersonsCache] = useState([]);
+  const [lastManagerSearch, setLastManagerSearch] = useState("");
+
   const navigate = useNavigate();
 
+  useEffect(()=>{
+    window.scrollTo(0,0);
+  }, [])
+
   const fetchUsers = async (page = 1, search = "") => {
+    // ✅ Only clear data if it's a new semantic query (not just page change)
+    // We keep current data visible during load → no flicker
+    setLoading(true);
+
     try {
-      setLoading(true);
-
       if (isManager) {
-        // Fetch ALL salespersons (across all pages) since total is small (12)
-        let allSalespersons = [];
-        let currentPage = 1;
-        let totalFetched = 0;
-        let totalExpected = 0;
+        const searchTrimmed = search.trim().toLowerCase();
+        let fullList = allSalespersonsCache;
+        let needsRefetch = fullList.length === 0 || searchTrimmed !== lastManagerSearch;
 
-        try {
-          // We'll fetch at least one page to get total count
-          let firstPageRes = await adminApi.getMySalespersons({ managerId: user.id, page: 1 });
-          let firstPageData = firstPageRes.data?.data || firstPageRes.data;
-          totalExpected = firstPageData.total || 0;
-          const limit = firstPageData.limit || 10;
+        if (needsRefetch) {
+          // Fetch ALL salespersons once
+          let allSalespersons = [];
+          let currentPage = 1;
+          let totalFetched = 0;
+          let totalExpected = 0;
 
-          if (Array.isArray(firstPageData.rows)) {
-            allSalespersons = [...firstPageData.rows];
-            totalFetched = firstPageData.rows.length;
-          }
+          const firstRes = await adminApi.getMySalespersons({ managerId: user.id, page: 1 });
+          const firstData = firstRes.data?.data || firstRes.data;
+          totalExpected = firstData.total || 0;
+          const rows = Array.isArray(firstData.rows) ? firstData.rows : [];
+          allSalespersons = [...rows];
+          totalFetched = rows.length;
 
-          // Fetch remaining pages if needed
           while (totalFetched < totalExpected) {
             currentPage++;
-            const nextPageRes = await adminApi.getMySalespersons({ managerId: user.id, page: currentPage });
-            const nextPageData = nextPageRes.data?.data || nextPageRes.data;
-            const nextRows = Array.isArray(nextPageData?.rows) ? nextPageData.rows : [];
-            
+            const nextRes = await adminApi.getMySalespersons({ managerId: user.id, page: currentPage });
+            const nextData = nextRes.data?.data || nextRes.data;
+            const nextRows = Array.isArray(nextData?.rows) ? nextData.rows : [];
             if (nextRows.length === 0) break;
-
             allSalespersons.push(...nextRows);
             totalFetched += nextRows.length;
           }
-        } catch (err) {
-          console.error("Failed to fetch all salespersons for manager:", err);
-          toast.error("Failed to load full sales team");
-          allSalespersons = [];
+
+          setAllSalespersonsCache(allSalespersons);
+          setLastManagerSearch(searchTrimmed);
+          fullList = allSalespersons;
         }
 
-        // Apply client-side search (if any)
-        const term = search.toLowerCase().trim();
-        const filtered = term
-          ? allSalespersons.filter(u =>
-              (u.firstName?.toLowerCase().includes(term)) ||
-              (u.lastName?.toLowerCase().includes(term)) ||
-              (u.email?.toLowerCase().includes(term)) ||
-              (u.phone?.toLowerCase().includes(term))
+        // Client-side filter + paginate
+        const filtered = searchTrimmed
+          ? fullList.filter(u =>
+              (u.firstName?.toLowerCase().includes(searchTrimmed)) ||
+              (u.lastName?.toLowerCase().includes(searchTrimmed)) ||
+              (u.email?.toLowerCase().includes(searchTrimmed)) ||
+              (u.phone?.toLowerCase().includes(searchTrimmed))
             )
-          : allSalespersons;
+          : fullList;
 
-        // Paginate the filtered list
         const limit = 10;
-        const paginated = paginateArray(filtered, page, limit);
+        const paginated = filtered.slice((page - 1) * limit, page * limit);
 
         setUsers(paginated);
         setPagination({
@@ -95,80 +100,63 @@ export default function UserManagement() {
           limit,
         });
       } else if (isAdmin) {
-        try {
-          const res = await adminApi.getAdminManagers();
-          const response = res.data;
-          const adminUser = response.data?.user;
+        const res = await adminApi.getAdminManagers();
+        const response = res.data;
+        const adminUser = response.data?.user;
 
-          if (!adminUser || !Array.isArray(adminUser.createdUsers)) {
-            setUsers([]);
-            setPagination({ currentPage: 1, totalItems: 0, totalPages: 1, limit: 10 });
-            return;
-          }
-
-          const adminName = `${user.firstName} ${user.lastName}`.trim() || "Admin";
-          let combinedList = [];
-
-          for (const manager of adminUser.createdUsers) {
-            combinedList.push({
-              ...manager,
-              _type: "manager",
-              _assignedName: adminName,
-            });
-
-            if (Array.isArray(manager.createdUsers)) {
-              for (const sp of manager.createdUsers) {
-                combinedList.push({
-                  ...sp,
-                  _type: "salesperson",
-                  _assignedName: `${manager.firstName} ${manager.lastName}`.trim() || "—",
-                });
-              }
-            }
-          }
-
-          const term = search.toLowerCase().trim();
-          let filtered = combinedList;
-
-          // Apply search filter
-          if (term) {
-            filtered = filtered.filter((item) =>
-              (item.firstName?.toLowerCase().includes(term)) ||
-              (item.lastName?.toLowerCase().includes(term)) ||
-              (item.email?.toLowerCase().includes(term)) ||
-              (item.phone?.toLowerCase().includes(term))
-            );
-          }
-
-          // Apply role filter
-          if (roleFilter !== "all") {
-            filtered = filtered.filter(item => {
-              if (roleFilter === "manager") return item._type === "manager";
-              if (roleFilter === "sale_person") return item._type === "salesperson";
-              return true;
-            });
-          }
-
-          const limit = 10;
-          const paginated = paginateArray(filtered, page, limit);
-
-          setUsers(paginated);
-          setPagination({
-            currentPage: page,
-            totalItems: filtered.length,
-            totalPages: Math.ceil(filtered.length / limit),
-            limit,
-          });
-        } catch (err) {
-          console.error("Failed to fetch admin team:", err);
-          toast.error("Failed to load team data");
+        if (!adminUser || !Array.isArray(adminUser.createdUsers)) {
           setUsers([]);
           setPagination({ currentPage: 1, totalItems: 0, totalPages: 1, limit: 10 });
+          return;
         }
+
+        const adminName = `${user.firstName} ${user.lastName}`.trim() || "Admin";
+        let combinedList = [];
+
+        for (const manager of adminUser.createdUsers) {
+          combinedList.push({ ...manager, _type: "manager", _assignedName: adminName });
+          if (Array.isArray(manager.createdUsers)) {
+            for (const sp of manager.createdUsers) {
+              combinedList.push({
+                ...sp,
+                _type: "salesperson",
+                _assignedName: `${manager.firstName} ${manager.lastName}`.trim() || "—",
+              });
+            }
+          }
+        }
+
+        let filtered = combinedList;
+        const term = search.trim().toLowerCase();
+        if (term) {
+          filtered = filtered.filter(item =>
+            (item.firstName?.toLowerCase().includes(term)) ||
+            (item.lastName?.toLowerCase().includes(term)) ||
+            (item.email?.toLowerCase().includes(term)) ||
+            (item.phone?.toLowerCase().includes(term))
+          );
+        }
+        if (roleFilter !== "all") {
+          filtered = filtered.filter(item => {
+            if (roleFilter === "manager") return item._type === "manager";
+            if (roleFilter === "sale_person") return item._type === "salesperson";
+            return true;
+          });
+        }
+
+        const limit = 10;
+        const paginated = filtered.slice((page - 1) * limit, page * limit);
+        setUsers(paginated);
+        setPagination({
+          currentPage: page,
+          totalItems: filtered.length,
+          totalPages: Math.ceil(filtered.length / limit),
+          limit,
+        });
       } else {
-        // Super admin: real server pagination
+        // Super admin: real server-side pagination
         const params = { page, limit: 10 };
-        if (search) params.search = search;
+        if (search) params.search = search.trim();
         if (roleFilter !== "all") params.role = roleFilter;
 
         const res = await adminApi.getAllUsers(params);
@@ -193,103 +181,82 @@ export default function UserManagement() {
     }
   };
 
-  const paginateArray = (array, page, limit) => {
-    const start = (page - 1) * limit;
-    return array.slice(start, start + limit);
-  };
+  // ✅ Memoize columns to prevent Table re-renders
+  const columns = useMemo(() => {
+    const base = [
+      { key: "firstName", label: "First Name", render: (row) => <div className="capitalize">{row.firstName}</div> },
+      { key: "lastName", label: "Last Name", render: (row) => <div className="capitalize">{row.lastName}</div> },
+      { key: "email", label: "Email", render: (row) => <div className="break-words max-w-xs">{row.email}</div> },
+      { key: "phone", label: "Phone" },
+      {
+        key: "role",
+        label: "Role",
+        render: (row) => {
+          if (row.role === "sale_person") return <span>Salesperson</span>;
+          if (row.role === "manager") return <span>Manager</span>;
+          return <span className="capitalize">{row.role}</span>;
+        },
+      },
+    ];
+
+    if (isManager) return base;
+
+    return [
+      ...base,
+      {
+        key: "assignedUnder",
+        label: "Assigned Under",
+        render: (row) => {
+          let name = "—";
+          if (isAdmin) {
+            if (row._type === "salesperson") name = row._assignedName || "—";
+          } else {
+            if (row.creator && row.role !== "admin") {
+              name = [row.creator.firstName, row.creator.lastName].filter(Boolean).join(" ");
+            }
+          }
+          return name !== "—" ? <span>{name}</span> : <span className="text-gray-400">—</span>;
+        },
+      },
+    ];
+  }, [isManager, isAdmin]);
+
+  // ✅ Memoize actions (even if empty)
+  const actions = useMemo(() => [], []);
+
+  // ✅ Optimize effect deps
+  useEffect(() => {
+    fetchUsers(1, searchTerm);
+  }, [isManager, isAdmin, user.id, searchTerm, roleFilter]);
 
   useEffect(() => {
-    fetchUsers(pagination.currentPage, searchTerm);
-  }, [isManager, isAdmin, user.id, searchTerm, pagination.currentPage, roleFilter]);
+    if (pagination.currentPage !== 1) {
+      fetchUsers(pagination.currentPage, searchTerm);
+    }
+  }, [pagination.currentPage]);
 
   const handleSearch = (e) => {
     const value = e.target.value;
     setSearchTerm(value);
-    fetchUsers(1, value);
+    // Reset to page 1 on new search
+    setPagination(p => ({ ...p, currentPage: 1 }));
   };
 
   const handleRoleChange = (e) => {
     const value = e.target.value;
     setRoleFilter(value);
-    fetchUsers(1, searchTerm);
+    setPagination(p => ({ ...p, currentPage: 1 }));
   };
 
-  const baseColumns = [
-    {
-      key: "firstName",
-      label: "First Name",
-      render: (row) => <div className="capitalize">{row.firstName}</div>,
-    },
-    {
-      key: "lastName",
-      label: "Last Name",
-      render: (row) => <div className="capitalize">{row.lastName}</div>,
-    },
-    {
-      key: "email",
-      label: "Email",
-      render: (row) => (
-        <div className="break-words max-w-xs">{row.email}</div>
-      ),
-    },
-    { key: "phone", label: "Phone" },
-    {
-      key: "role",
-      label: "Role",
-      render: (row) => {
-        if (row.role === "sale_person") return <span>Salesperson</span>;
-        if (row.role === "manager") return <span>Manager</span>;
-        return <span className="capitalize">{row.role}</span>;
-      },
-    },
-  ];
-
-  const columns = isManager
-    ? baseColumns 
-    : [
-        ...baseColumns,
-        {
-          key: "assignedUnder",
-          label: "Assigned Under",
-          render: (row) => {
-            let name = "—";
-
-            if (isAdmin) {
-              // Admin view: only show for salespersons
-              if (row._type === 'salesperson') {
-                name = row._assignedName || "—";
-              }
-            } else {
-              // Super admin view: show creator, EXCEPT for admin users
-              if (row.creator && row.role !== "admin") {
-                name = [row.creator.firstName, row.creator.lastName]
-                  .filter(Boolean)
-                  .join(" ");
-              }
-              // If row.role === "admin", leave name as "—"
-            }
-
-            return name !== "—" ? <span>{name}</span> : <span className="text-gray-400">—</span>;
-          },
-        }
-      ]; 
-
-  const actions = [];
-
-  // Determine if role filter should be shown
   const showRoleFilter = !isManager;
 
   return (
-    <div className="py-2 h-screen">
+    <div className="py-2 h-screen flex flex-col">
       <Toaster position="top-right" />
 
       <div className="mb-4">
         <h1 className="text-3xl font-semibold">
-          {isManager
-            ? "My Sales Team"
-            : isAdmin
-            ? "My Team"
-            : "Registered Users"}
+          {isManager ? "My Sales Team" : isAdmin ? "My Team" : "Registered Users"}
         </h1>
       </div>
 
@@ -304,10 +271,9 @@ export default function UserManagement() {
             }
             value={searchTerm}
             onChange={handleSearch}
-            className={`px-5 py-2 rounded-full border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent shadow-sm w-full sm:w-auto flex-1 min-w-[200px] custom-border`}
+            className="px-5 py-2 rounded-full border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent shadow-sm w-full sm:w-auto flex-1 min-w-[200px] custom-border"
           />
 
-          {/* Role Filter – show for admin and super admin */}
           {showRoleFilter && (
             <div className="flex gap-2 items-center">
               <span className="text-sm text-gray-400">Filter by role: </span>
@@ -335,21 +301,26 @@ export default function UserManagement() {
         </div>
       </div>
 
-      <Table
-        columns={columns}
-        data={users}
-        actions={actions}
-        keyField="id"
-        emptyMessage="No users found"
-        currentPage={pagination.currentPage}
-        pageSize={pagination.limit}
-        totalCount={pagination.totalItems}
-        onPageChange={(page) => fetchUsers(page, searchTerm)}
-      />
+      {/* ✅ Overlay loader on top of table — NO LAYOUT SHIFT */}
+      <div className="relative flex-1">
+        <Table
+          columns={columns}
+          data={users}
+          actions={actions}
+          keyField="id"
+          emptyMessage={loading ? "Loading..." : "No users found"}
+          currentPage={pagination.currentPage}
+          pageSize={pagination.limit}
+          totalCount={pagination.totalItems}
+          onPageChange={(page) => setPagination(p => ({ ...p, currentPage: page }))}
+        />
 
-      {loading && (
-          <Loader />     
-      )}
+        {loading && (
+          <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10 rounded">
+            <Loader />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
