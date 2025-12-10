@@ -39,7 +39,7 @@ export default function UserManagement() {
     window.scrollTo(0,0);
   }, [])
 
-  const fetchUsers = async (page = 1, search = "") => {
+  const fetchUsers = async (page = pagination.currentPage, search = "") => {
     // ✅ Only clear data if it's a new semantic query (not just page change)
     // We keep current data visible during load → no flicker
     setLoading(true);
@@ -53,7 +53,7 @@ export default function UserManagement() {
         if (needsRefetch) {
           // Fetch ALL salespersons once
           let allSalespersons = [];
-          let currentPage = 1;
+          let currentPage = pagination.currentPage;
           let totalFetched = 0;
           let totalExpected = 0;
 
@@ -224,29 +224,21 @@ export default function UserManagement() {
   // ✅ Memoize actions (even if empty)
   const actions = useMemo(() => [], []);
 
-  // ✅ Optimize effect deps
-  useEffect(() => {
-    fetchUsers(1, searchTerm);
-  }, [isManager, isAdmin, user.id, searchTerm, roleFilter]);
-
-  useEffect(() => {
-    if (pagination.currentPage !== 1) {
-      fetchUsers(pagination.currentPage, searchTerm);
-    }
-  }, [pagination.currentPage]);
+ useEffect(() => {
+  fetchUsers(pagination.currentPage, searchTerm);
+}, [isManager, isAdmin, user.id, searchTerm, roleFilter, pagination.currentPage]);
 
   const handleSearch = (e) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    // Reset to page 1 on new search
-    setPagination(p => ({ ...p, currentPage: 1 }));
-  };
+  const value = e.target.value;
+  setSearchTerm(value);
+  setPagination(p => ({ ...p, currentPage: 1 })); // ✅ crucial
+};
 
-  const handleRoleChange = (e) => {
-    const value = e.target.value;
-    setRoleFilter(value);
-    setPagination(p => ({ ...p, currentPage: 1 }));
-  };
+const handleRoleChange = (e) => {
+  const value = e.target.value;
+  setRoleFilter(value);
+  setPagination(p => ({ ...p, currentPage: 1 })); // ✅ crucial
+};
 
   const showRoleFilter = !isManager;
 

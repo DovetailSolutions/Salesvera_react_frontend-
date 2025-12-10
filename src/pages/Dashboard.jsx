@@ -93,7 +93,7 @@ const auditLogs = [
 ];
 
 const StatCard = ({ title, value, change, icon: Icon, subtext }) => (
-  <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+  <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
     <div className="flex items-start justify-between">
       <div>
         <p className="text-gray-500 text-sm mb-2">{title}</p>
@@ -119,10 +119,10 @@ const StatCard = ({ title, value, change, icon: Icon, subtext }) => (
 
 const Dashboard = () => {
   return (
-    <div className="min-h-screen p-3">
+    <div className="min-h-screen py-2">
       <div className="mx-auto">
         {/* Header */}
-        <h1 className="text-2xl font-bold text-gray-900 mb-4 mt-4">
+        <h1 className="text-3xl font-semibold text-gray-900 mb-4">
           Visual KPI Overview
         </h1>
 
@@ -158,7 +158,7 @@ const Dashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Monthly Sales Revenue */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Monthly Sales Revenue
             </h3>
@@ -174,7 +174,7 @@ const Dashboard = () => {
           </div>
 
           {/* Meeting Trends */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Meeting Trends
             </h3>
@@ -212,7 +212,7 @@ const Dashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Revenue Distribution */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Revenue Distribution
             </h3>
@@ -252,7 +252,7 @@ const Dashboard = () => {
           </div>
 
           {/* Upcoming Meetings & Events */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Upcoming Meetings & Events
             </h3>
@@ -300,7 +300,7 @@ const Dashboard = () => {
         </div>
 
         {/* System Reports / Audit Logs */}
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             System Reports / Audit Logs
           </h3>

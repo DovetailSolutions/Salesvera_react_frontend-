@@ -4,6 +4,7 @@ import Toast from "../components/Toast";
 import { AuthContext } from "../context/AuthProvider";
 import { adminApi, meetingApi } from "../api";
 import Loader from "../components/Loader";
+import { IoSearch } from "react-icons/io5";
 
 export default function MeetingManagement() {
   const { user } = useContext(AuthContext);
@@ -20,7 +21,7 @@ export default function MeetingManagement() {
   const [totalMeetings, setTotalMeetings] = useState(0);
   const [meetingsLoading, setMeetingsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10; // fixed limit
+  const pageSize = 9; // fixed limit
 
   // Schedule Meeting Modal State (unchanged)
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -121,6 +122,7 @@ export default function MeetingManagement() {
     }
   };
 
+
   // Export meetings to CSV - disabled for backend pagination
   const handleExportMeetings = () => {
     Toast.error("Export requires loading all meetings. Not supported with pagination.");
@@ -158,11 +160,15 @@ export default function MeetingManagement() {
 
       const res = await meetingApi.assignMeeting(payload);
       if (res.data?.success) {
-        Toast.success("Meeting scheduled successfully!");
-        setIsScheduleModalOpen(false);
-        resetScheduleForm();
-        fetchMeetings(selectedSalesperson.id, currentPage, globalSearch, activeTab);
-      } else {
+  Toast.success("Meeting scheduled successfully!");
+  setIsScheduleModalOpen(false);
+  resetScheduleForm();
+  // ✅ Just refetch by "refreshing" the current state
+  // Option A (recommended): Reset to page 1 to see new meeting
+  setCurrentPage(1);
+  // OR
+  // Option B: Keep current page — but risk missing if new meeting pushes total
+} else {
         Toast.error(res.data?.message || "Failed to schedule meeting.");
       }
     } catch (error) {
@@ -188,13 +194,14 @@ export default function MeetingManagement() {
 
   // ✅ Fetch meetings when dependencies change
   useEffect(() => {
-    if (selectedSalesperson) {
-      fetchMeetings(selectedSalesperson.id, currentPage, globalSearch, activeTab);
-    } else {
-      setMeetings([]);
-      setTotalMeetings(0);
-    }
-  }, [selectedSalesperson, currentPage, globalSearch, activeTab]);
+  if (selectedSalesperson) {
+    setMeetings([]); // ✅ Clear immediately
+    fetchMeetings(selectedSalesperson.id, currentPage, globalSearch, activeTab);
+  } else {
+    setMeetings([]);
+    setTotalMeetings(0);
+  }
+}, [selectedSalesperson, currentPage, globalSearch, activeTab]);
 
   // ✅ Reset to page 1 on filter/tab change
   useEffect(() => {
@@ -235,7 +242,7 @@ export default function MeetingManagement() {
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Header */}
       <div className="py-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pb-2">
           <h1 className="text-3xl font-semibold">Meeting Management</h1>
           <div className="flex gap-2">
             <button
@@ -366,198 +373,248 @@ export default function MeetingManagement() {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        <div className="flex flex-col lg:flex-row gap-5 h-full">
-          {/* Left Panel (unchanged) */}
-          <div className="w-full lg:w-[16rem] flex flex-col h-full">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden p-4">
-              {isAdmin && (
-                <div className="mb-4">
-                  <h2 className="text-lg font-semibold mb-2">Managers</h2>
-                  <select
-                    value={selectedManager?.id || ""}
-                    onChange={(e) => {
-                      const managerId = e.target.value;
-                      const manager = managers.find((m) => m.id === Number(managerId)) || null;
-                      setSelectedManager(manager);
-                      setSelectedSalesperson(null);
-                      setMeetings([]);
-                      if (manager) {
-                        fetchSalespersons(manager.id);
-                      } else {
-                        setSalespersons([]);
-                      }
-                    }}
-                    className="w-full rounded-full border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      <div className="flex-1 overflow-hidden border-t border-gray-200">
+        <div className="flex flex-col lg:flex-row h-full">
+        {/* Left Panel - Styled like UserChat Sidebar */}
+<div className="w-70 bg-white flex flex-col">
+  {/* Sidebar Header */}
+  <div className="px-4 py-4 border-gray-200">
+    <h2 className="text-lg font-semibold text-gray-900 mb-4">Team Members</h2>
+
+    {/* Manager Selector (Admin only) */}
+    {isAdmin && (
+      <div className="mb-4">
+        <select
+          value={selectedManager?.id || ""}
+          onChange={(e) => {
+            const managerId = e.target.value;
+            const manager = managers.find((m) => m.id === Number(managerId)) || null;
+            setSelectedManager(manager);
+            setSelectedSalesperson(null);
+            setMeetings([]);
+            if (manager) {
+              fetchSalespersons(manager.id);
+            } else {
+              setSalespersons([]);
+            }
+          }}
+          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="" disabled>Select a manager</option>
+          {managers.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.firstName} {m.lastName}
+            </option>
+          ))}
+        </select>
+      </div>
+    )}
+
+    {/* Search Bar */}
+    <div className="relative">
+      <IoSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+      <input
+        type="text"
+        placeholder={isManager ? "Search salesperson..." : "Search salesperson..."}
+        value={globalSearch}
+        onChange={(e) => setGlobalSearch(e.target.value)}
+        className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+    </div>
+  </div>
+
+  {/* Salespersons List */}
+  <div className="flex-1 overflow-y-auto">
+    {loading ? (
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+        <p className="text-sm text-gray-500">Loading team...</p>
+      </div>
+    ) : filteredSalespersons.length === 0 ? (
+      <div className="p-4 text-center text-sm text-gray-500">
+        {isAdmin
+          ? selectedManager
+            ? "No team members found."
+            : "Select a manager"
+          : "No salespersons found."}
+      </div>
+    ) : (
+      <div className="py-2">
+        {filteredSalespersons.map((sp) => {
+          const isActive = selectedSalesperson?.id === sp.id;
+          // You can later add real online status; for now, assume "online" for demo
+          const isOnline = true; // or sp.onlineStatus === "online" if available
+
+          // Generate initials like in UserChat
+          const getInitials = (u) => {
+            const firstName = u.firstName || "";
+            const lastName = u.lastName || "";
+            if (firstName && lastName) {
+              return `${firstName[0]}${lastName[0]}`.toUpperCase();
+            }
+            return (u.email?.[0] || "?").toUpperCase();
+          };
+
+          return (
+            <div
+              key={sp.id}
+              onClick={() => {
+                setSelectedSalesperson(sp);
+                setCurrentPage(1);
+              }}
+              className={`px-4 py-3 cursor-pointer transition-colors relative ${
+                isActive
+                  ? "bg-blue-50 border-l-4 border-blue-600"
+                  : "hover:bg-gray-50 border-l-4 border-transparent"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="relative flex-shrink-0">
+                  <div
+                    className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-medium text-sm ${
+                      isActive
+                        ? "bg-gradient-to-br from-blue-500 to-blue-600"
+                        : "bg-gradient-to-br from-gray-400 to-gray-500"
+                    }`}
                   >
-                    <option value="" disabled>Select a manager</option>
-                    {managers.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.firstName} {m.lastName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <input
-                type="text"
-                placeholder={isManager ? "Search salesperson..." : "Search salesperson or meeting..."}
-                value={globalSearch}
-                onChange={(e) => setGlobalSearch(e.target.value)}
-                className="px-4 py-2 rounded-full border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm w-full text-sm mb-4"
-              />
-
-              <div className="flex-1 overflow-hidden">
-                <h3 className="text-sm font-medium text-slate-600 mb-2">
-                  {isAdmin ? "Team Members" : "My Team"}
-                </h3>
-                <div className="flex flex-col gap-2 overflow-y-auto pr-1 pt-2 h-full max-h-[60vh]">
-                  {loading ? (
-                    <div className="flex flex-col items-center justify-center py-6 text-slate-500">
-                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                      <p className="text-sm">Loading team...</p>
-                    </div>
-                  ) : filteredSalespersons.length > 0 ? (
-                    filteredSalespersons.map((sp) => (
-                      <div
-                        key={sp.id}
-                        onClick={() => {
-                          setSelectedSalesperson(sp);
-                          setCurrentPage(1); // reset page when selecting new salesperson
-                          fetchMeetings(sp.id, 1, globalSearch, activeTab);
-                        }}
-                        className={`relative rounded-3xl border p-3 cursor-pointer transition-all duration-200 hover:shadow-sm ${
-                          selectedSalesperson?.id === sp.id
-                            ? "border-blue-500 bg-blue-500 text-white"
-                            : "border-slate-200 bg-white hover:bg-slate-50 text-slate-800"
-                        }`}
-                      >
-                        <div className="font-medium capitalize">
-                          {sp.firstName} {sp.lastName}
-                        </div>
-                        <div className="text-xs line-clamp-1 opacity-90">
-                          {sp.email}
-                        </div>
-                        <div className="text-xs opacity-90">
-                          {sp.phone || "—"}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-6 text-slate-500 text-sm">
-                      {isAdmin
-                        ? (selectedManager ? "No team members found." : "Select a manager to view their team")
-                        : "No team members found."
-                      }
-                    </div>
+                    {getInitials(sp)}
+                  </div>
+                  {isOnline && (
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                   )}
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Panel */}
-          <div className="flex-1 flex flex-col h-full">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
-              {isAdmin && selectedManager ? (
-                <div className="px-4 pt-4">
-                  <h2 className="text-xl font-semibold">
-                    Manager: {selectedManager.firstName} {selectedManager.lastName}
-                  </h2>
-                </div>
-              ) : isManager ? (
-                <div className="px-4 pt-4">
-                  <h2 className="text-xl font-semibold">My Sales Team</h2>
-                </div>
-              ) : null}
-
-              {selectedSalesperson && (
-                <div className="px-4 py-4">
-                  <div className="flex gap-2 flex-wrap">
-                    {["All Time", "Today", "This Week", "This Month"].map((tab) => (
-                      <div
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
-                          activeTab === tab
-                            ? "bg-blue-500 text-white"
-                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                        }`}
-                      >
-                        {tab}
-                      </div>
-                    ))}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <h3
+                      className={`font-medium text-sm truncate ${
+                        isActive ? "text-blue-900" : "text-gray-900"
+                      }`}
+                    >
+                      {sp.firstName} {sp.lastName}
+                    </h3>
                   </div>
-                </div>
-              )}
-
-              <div className="flex-1 overflow-hidden px-4 pb-4">
-                {selectedSalesperson ? (
-                  <div>
-                    <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-lg font-medium">
-                        Meetings: {selectedSalesperson.firstName} {selectedSalesperson.lastName}
-                      </h3>
-                    </div>
-                    {/* ✅ Backend pagination: pass raw data + total */}
-                    <Table
-                      columns={[
-                        { key: "companyName", label: "Company", render: (row) => row.companyName || "—" },
-                        { key: "personName", label: "Contact", render: (row) => row.personName || "—" },
-                        { key: "mobileNumber", label: "Mobile", render: (row) => row.mobileNumber || "—" },
-                        { 
-                          key: "companyEmail", 
-                          label: "Email", 
-                          render: (row) => <span className="break-words">{row.companyEmail || "—"}</span> 
-                        },
-                        {
-                          key: "meetingTimeIn",
-                          label: "Check-in",
-                          render: (row) =>
-                            row.meetingTimeIn ? new Date(row.meetingTimeIn).toLocaleString() : "—",
-                        },
-                        {
-                          key: "meetingTimeOut",
-                          label: "Check-out",
-                          render: (row) =>
-                            row.meetingTimeOut ? new Date(row.meetingTimeOut).toLocaleString() : "—",
-                        },
-                      ]}
-                      data={meetings} // ✅ only current page from backend
-                      keyField="id"
-                      emptyMessage="No meetings found"
-                      currentPage={currentPage}
-                      pageSize={pageSize}
-                      totalCount={totalMeetings} // ✅ from backend
-                      onPageChange={setCurrentPage} // ✅ triggers new fetch
-                      loading={meetingsLoading}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full py-10 text-center text-slate-500">
-                    <svg className="w-16 h-16 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    <p className="text-lg">
-                      {isAdmin 
-                        ? "Select a salesperson to view their meetings"
-                        : "No salesperson selected"}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-start gap-2 mx-4 mb-4">
-                <div className="flex items-center justify-center gap-2 bg-[#3B82F60D] p-5 rounded-xl">
-                  <span className="text-4xl font-bold">{filteredSalespersons.length} </span> Total Members
-                </div>
-                <div className="flex items-center justify-center gap-2 bg-[#3B82F60D] p-5 rounded-xl">
-                  <span className="text-4xl font-bold">{totalMeetings} </span> Total Meetings
+                  <p className="text-xs text-gray-500 truncate">{sp.email}</p>
+                  <p className="text-xs text-gray-500">{sp.phone || "—"}</p>
                 </div>
               </div>
             </div>
+          );
+        })}
+      </div>
+    )}
+  </div>
+  </div>
+
+         {/* Right Panel — FIXED HEIGHT & VISIBLE STATS */}
+<div className="flex flex-col bg-white shadow-sm border-l border-gray-200" style={{ height: 'calc(100vh - 4rem)' }}>
+  {/* Optional Header */}
+  {(isAdmin && selectedManager) || isManager ? (
+    <div className="px-4 pt-4 pb-2">
+      {isAdmin && selectedManager && (
+        <h2 className="text-xl font-semibold">
+          Manager: {selectedManager.firstName} {selectedManager.lastName}
+        </h2>
+      )}
+      {isManager && !isAdmin && (
+        <h2 className="text-xl font-semibold">My Sales Team</h2>
+      )}
+    </div>
+  ) : null}
+
+  {/* Tabs */}
+  {selectedSalesperson && (
+    <div className="px-4 py-2">
+      <div className="flex gap-2 flex-wrap">
+        {["All Time", "Today", "This Week", "This Month"].map((tab) => (
+          <div
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+              activeTab === tab
+                ? "bg-blue-500 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            {tab}
           </div>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {/* Main Content — Constrained height so stats always show */}
+  <div className="flex-1 px-4 py-4 overflow-hidden">
+    {selectedSalesperson ? (
+      <>
+        <h3 className="text-lg font-medium mb-4">
+          Meetings: {selectedSalesperson.firstName} {selectedSalesperson.lastName}
+        </h3>
+        <div className="h-[420px]"> {/* ✅ Fixed height for table area */}
+          <Table
+            columns={[
+              { key: "companyName", label: "Company", render: (row) => row.companyName || "—" },
+              { key: "personName", label: "Contact", render: (row) => row.personName || "—" },
+              { key: "mobileNumber", label: "Mobile", render: (row) => row.mobileNumber || "—" },
+              { 
+                key: "companyEmail", 
+                label: "Email", 
+                render: (row) => <span className="break-words">{row.companyEmail || "—"}</span> 
+              },
+              {
+                key: "meetingTimeIn",
+                label: "Check-in",
+                render: (row) =>
+                  row.meetingTimeIn ? new Date(row.meetingTimeIn).toLocaleString() : "—",
+              },
+              {
+                key: "meetingTimeOut",
+                label: "Check-out",
+                render: (row) =>
+                  row.meetingTimeOut ? new Date(row.meetingTimeOut).toLocaleString() : "—",
+              },
+            ]}
+            data={meetings}
+            keyField="id"
+            emptyMessage={meetingsLoading ? "Loading..." : "No meetings found"}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalCount={totalMeetings}
+            onPageChange={setCurrentPage}
+            loading={meetingsLoading}
+          />
+          {meetingsLoading && meetings.length > 0 && (
+            <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10 rounded">
+              <Loader />
+            </div>
+          )}
+        </div>
+      </>
+    ) : (
+      <div className="flex flex-col items-center justify-center h-full py-10 text-center text-slate-500 min-h-[300px]">
+        <svg className="w-16 h-16 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+        <p className="text-lg">
+          {isAdmin 
+            ? "Select a salesperson to view their meetings"
+            : "No salesperson selected"}
+        </p>
+      </div>
+    )}
+  </div>
+
+  {/* ✅ STATS — now guaranteed visible */}
+  <div className="shrink-0 px-4 py-4 border-t border-gray-200 bg-gray-50">
+    <div className="flex items-center justify-start gap-2">
+      <div className="flex items-center justify-center gap-2 bg-[#3B82F60D] p-5 rounded-xl">
+        <span className="text-4xl font-bold">{filteredSalespersons.length} </span> Total Members
+      </div>
+      <div className="flex items-center justify-center gap-2 bg-[#3B82F60D] p-5 rounded-xl">
+        <span className="text-4xl font-bold">{totalMeetings} </span> Total Meetings
+      </div>
+    </div>
+  </div>
+</div>
         </div>
       </div>
     </div>

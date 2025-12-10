@@ -1,532 +1,758 @@
-import React, { useEffect, useState, useContext, useRef } from 'react';
+// UserChat.jsx
+import React, { useEffect, useState, useContext, useRef } from "react";
 import { AuthContext } from "../context/AuthProvider";
-import { io } from 'socket.io-client';
-import { IoSend } from "react-icons/io5";
+import { io } from "socket.io-client";
+import { IoSend, IoSearch, IoEllipsisVertical, IoCheckmarkDone, IoCheckmark, IoChevronBack, IoChevronForward } from "react-icons/io5";
+import { MdOutlineMoreVert } from "react-icons/md";
 
-// 🔧 CRITICAL: remove trailing spaces
-const SOCKET_URL = 'https://api.salesvera.com';
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 function UserChat() {
   const { user } = useContext(AuthContext);
-  const token = localStorage.getItem('accessToken');
-
+  const token = localStorage.getItem("accessToken");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeUser, setActiveUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [currentRoom, setCurrentRoom] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [typingUser, setTypingUser] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const currentRoomRef = useRef(null); // ✅ Track current room reliably
+  const currentRoomRef = useRef(null);
+  const getUserId = () => (user && (user.userId || user.id)) || null;
 
+  // autoscroll
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+  useEffect(() => scrollToBottom(), [messages]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
+  // Format message consistently for UI
   const formatMessage = (rawMsg) => {
-  let senderName = 'Unknown';
+    const uid = getUserId();
+    const senderId = rawMsg.senderId ?? rawMsg.sender?.id ?? rawMsg.senderId;
+    let senderName = "Unknown";
 
-  // 1. Prefer sender object (if backend ever sends it)
-  if (rawMsg.sender) {
-    senderName = `${rawMsg.sender.firstName || ''} ${rawMsg.sender.lastName || ''}`.trim() || rawMsg.sender.email;
-  }
-  // 2. Fallback: use senderId + local users list
-  else if (rawMsg.senderId) {
-    const senderUser = users.find(u => u.id === rawMsg.senderId);
-    if (senderUser) {
-      senderName = getFullName(senderUser);
-    } else if (rawMsg.senderId === user?.id) {
-      // Message is from the current logged-in user
-      senderName = getFullName(user);
+    if (rawMsg.sender) {
+      senderName =
+        `${rawMsg.sender.firstName || ""} ${rawMsg.sender.lastName || ""}`.trim() ||
+        rawMsg.sender.email ||
+        senderName;
+    } else if (senderId) {
+      const s = users.find((u) => u.id === senderId);
+      if (s)
+        senderName = `${s.firstName || ""} ${s.lastName || ""}`.trim() || s.email;
+      else if (senderId === uid)
+        senderName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email;
+    } else if (rawMsg.senderName) {
+      senderName = rawMsg.senderName;
     }
-  }
-  // (Optional) 3. If you ever send senderName directly, keep this
-  else if (rawMsg.senderName) {
-    senderName = rawMsg.senderName;
-  }
 
-  return {
-    id: rawMsg.id,
-    roomId: rawMsg.roomId || currentRoomRef.current,
-    senderId: rawMsg.senderId,
-    senderName,
-    text: rawMsg.message || rawMsg.text || '',
-    timestamp: rawMsg.createdAt || rawMsg.timestamp || new Date().toISOString(),
+    return {
+      id:
+        rawMsg.id ??
+        rawMsg.msg_id ??
+        `${senderId}-${rawMsg.createdAt ?? rawMsg.timestamp ?? Date.now()}`,
+      roomId: rawMsg.roomId || currentRoomRef.current || rawMsg.chatRoomId,
+      senderId,
+      senderName,
+      text: rawMsg.message ?? rawMsg.text ?? "",
+      timestamp: rawMsg.createdAt ?? rawMsg.timestamp ?? new Date().toISOString(),
+      seen: rawMsg.seen ?? false,
+    };
   };
-};
 
-  // Socket setup
   useEffect(() => {
-    if (!user || !token) {
+    if (!token || !user) {
       setLoading(false);
-      setError('User not authenticated.');
+      setError("User not authenticated.");
       return;
     }
 
     const socket = io(SOCKET_URL, {
-      transports: ['polling', 'websocket'],
+      transports: ["polling", "websocket"],
+      autoConnect: false,
+      path: "/socket.io",
+      auth: { token },
       transportOptions: {
         polling: {
-          extraHeaders: { token }
-        }
+          extraHeaders: {
+            token,
+          },
+        },
       },
-      autoConnect: false,
-      path: '/socket.io'
     });
 
     socketRef.current = socket;
 
-    socket.on('connect', () => {
-      console.log('✅ Socket connected - ID:', socket.id);
-      setConnectionStatus('connected');
+    const onConnect = () => {
+      console.log("✅ Connected:", socket.id);
+      setConnectionStatus("connected");
       setError(null);
-      socket.emit('UserList', { page: 1, limit: 100, search: "" });
-      socket.emit('online', { userId: user.id });
-    });
+      socket.emit("UserList", { page: 1, limit: 100, search: "" });
+      socket.emit("online", { userId: getUserId() });
+    };
 
-    socket.on('connect_error', (err) => {
-      console.error('❌ Socket connection error:', err.message);
-      setConnectionStatus('error');
-      setError('Chat connection failed. Please log in again.');
+    const onConnectError = (err) => {
+      console.error("connect_error", err);
+      setConnectionStatus("error");
+      setError("Chat connection failed.");
       setLoading(false);
-    });
+    };
 
-    socket.on('disconnect', (reason) => {
-      console.log('🔌 Socket disconnected:', reason);
-      setConnectionStatus('disconnected');
-      if (reason === 'io server disconnect') {
-        socket.connect();
+    socket.on("connect", onConnect);
+    socket.on("connect_error", onConnectError);
+
+    const onUserList = (response) => {
+      console.log("📥 Received UserList:", response);
+      if (response && response.success) {
+        const normalized = (response.data || []).map((u) => ({
+          ...u,
+          onlineStatus: u.onlineStatus ?? u.onlineSatus ?? "offline",
+        }));
+
+        setUsers(normalized);
+
+        setActiveUser((prev) => {
+          if (!prev || !normalized.some((x) => x.id === prev.id)) {
+            return normalized[0] || null;
+          }
+          return prev;
+        });
+
+        setLoading(false);
+      } else {
+        setError((response && response.error) || "Failed to load team members");
+        setLoading(false);
       }
-    });
+    };
+    socket.on("UserList", onUserList);
 
-    socket.on('UserList', (response) => {
-  console.log('📥 Received UserList response:', response);
-  if (response.success) {
-    // 🔄 ADJUSTED: Now each item in response.data IS the user object
-    const uniqueUsers = response.data.map(user => ({
-      ...user,
-      // 🛠️ Handle typo in backend field name: "onlineSatus" → normalize to "onlineStatus"
-      onlineStatus: user.onlineStatus || user.onlineSatus || 'offline'
-    }));
-
-    setUsers(uniqueUsers);
-
-    setActiveUser(prev => {
-      if (!prev || !uniqueUsers.some(u => u.id === prev.id)) {
-        return uniqueUsers[0] || null;
+    const onOnlineUser = (payload) => {
+      if (!payload) return;
+      if (payload.userId && payload.status) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === payload.userId ? { ...u, onlineStatus: payload.status } : u
+          )
+        );
       }
-      return prev;
-    });
+    };
+    socket.on("onlineUser", onOnlineUser);
 
-    setLoading(false);
-  } else {
-    setError(response.error || 'Failed to load team members');
-    setLoading(false);
-  }
-});
+    const onMyChats = (response) => {
+      console.log("📥 Received mychats response:", response);
 
-    socket.on('onlineUser', ({ userId, status }) => {
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, onlineStatus: status } : u));
-    });
+      if (!response) {
+        console.warn("Empty mychats response");
+        return;
+      }
 
-    socket.on('mychats', (response) => {
-  if (response.success && response.data) {
-    const roomId = currentRoomRef.current;
-    if (!roomId) return;
-    const formatted = response.data.map(msg => formatMessage({ ...msg, roomId })).reverse();
-    console.log('💬 Formatted messages:', formatted); // ← ADD THIS
-    setMessages(formatted);
-  }
-});
+      const room = response.roomId || currentRoomRef.current;
+      if (!room) {
+        console.warn("No room ID in mychats response");
+        return;
+      }
 
-    socket.on('seenMessage', (data) => {
-      setMessages(prev =>
-        prev.map(msg => msg.id === data.msg_id ? { ...msg, seen: true } : msg)
+      let messagesArray = [];
+
+      if (response.success && response.data) {
+        if (response.data.text && Array.isArray(response.data.text)) {
+          messagesArray = response.data.text;
+        } else if (Array.isArray(response.data)) {
+          messagesArray = response.data;
+        } else if (response.data.messages && Array.isArray(response.data.messages)) {
+          messagesArray = response.data.messages;
+        }
+      } else if (Array.isArray(response)) {
+        messagesArray = response;
+      } else if (response.messages && Array.isArray(response.messages)) {
+        messagesArray = response.messages;
+      } else if (response.text && Array.isArray(response.text)) {
+        messagesArray = response.text;
+      }
+
+      console.log("📨 Processing messages array:", messagesArray);
+
+      if (messagesArray.length === 0) {
+        console.log("No messages found for room:", room);
+        setMessages([]);
+        return;
+      }
+
+      const formatted = messagesArray.map((m) =>
+        formatMessage({ ...m, roomId: room })
       );
-    });
 
-    socket.on('Deleted', (data) => {
-      if (data?.id) {
-        setMessages(prev => prev.filter(msg => msg.id !== data.id));
-      }
-    });
-
-    socket.on('errorMessage', (data) => {
-      console.error('❌ Error from server:', data);
-      setError(data.error || 'An error occurred');
-    });
-
-    socket.on('error', (error) => {
-      console.error('❌ Socket error:', error);
-      setError(error.message || 'An error occurred');
-    });
-
-    console.log('🚀 Connecting socket...');
-    socket.connect();
-
-    return () => {
-      console.log('🧹 Cleaning up socket connection');
-      if (currentRoomRef.current) {
-        socket.emit('leaveRoom', { roomId: currentRoomRef.current });
-      }
-      socket.disconnect();
+      setMessages(formatted.reverse());
+      console.log("✅ Set messages:", formatted.length);
     };
-  }, [user, token]);
+    socket.on("mychats", onMyChats);
 
-  // Room management
-  useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket || !activeUser || !user) return;
+    const onReceiveMessage = (raw) => {
+      console.log("📨 Received message:", raw);
+      const msg = formatMessage(raw);
 
-    if (currentRoom) {
-      socket.emit('leaveRoom', { roomId: currentRoom });
-    }
+      if (msg.roomId !== currentRoomRef.current) {
+        console.log("Message for different room, ignoring");
+        return;
+      }
 
-    const id1 = user.id;
-    const id2 = activeUser.id;
-    const roomId = id1 < id2 ? `${id1}-${id2}` : `${id2}-${id1}`;
-
-    console.log('🚪 Joining room:', roomId);
-    setMessages([]);
-    setTypingUser(null);
-    setCurrentRoom(roomId);
-    currentRoomRef.current = roomId; // ✅ Update ref
-
-    socket.emit('joinRoom', { roomId, type: 'private' });
-
-    // ✅ Fetch messages after joining room
-    socket.emit('mychats', { roomId, page: 1, limit: 50 });
-
-    const handleRoomJoined = (data) => {
-      console.log('✅ Room joined successfully:', data);
-      // Backend does NOT send messages in roomJoined → so do nothing here
-    };
-
-    const handleMessage = (rawMsg) => {
-      const msg = formatMessage({ ...rawMsg, roomId: currentRoomRef.current });
-      if (msg.roomId === currentRoomRef.current) {
-        setMessages(prev => {
-          const isDuplicate = prev.some(m =>
+      setMessages((prev) => {
+        const duplicate = prev.some(
+          (m) =>
             m.text === msg.text &&
             m.senderId === msg.senderId &&
             Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 2000
-          );
-          if (isDuplicate) return prev;
-          return [...prev, msg];
-        });
-      }
+        );
+        if (duplicate) {
+          console.log("Duplicate message, ignoring");
+          return prev;
+        }
+        return [...prev, msg];
+      });
     };
+    socket.on("receiveMessage", onReceiveMessage);
 
-    const handleTyping = ({ userId, isTyping }) => {
-      if (userId !== user.id && isTyping) {
-        const u = users.find(u => u.id === userId);
-        if (u) {
-          setTypingUser(getFullName(u));
-          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    const onTyping = (data) => {
+      if (!data) return;
+      const { roomId, userId, isTyping } = data;
+      if (roomId && roomId === currentRoomRef.current && userId && userId !== getUserId()) {
+        if (isTyping === false) {
+          setTypingUser(null);
+        } else {
+          const u = users.find((x) => x.id === userId);
+          const name = u
+            ? `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email
+            : "Someone";
+          setTypingUser(name);
+          clearTimeout(typingTimeoutRef.current);
           typingTimeoutRef.current = setTimeout(() => setTypingUser(null), 3000);
         }
       }
     };
+    socket.on("typing", onTyping);
 
-    socket.on('roomJoined', handleRoomJoined);
-    socket.on('receiveMessage', handleMessage);
-    socket.on('typing', handleTyping);
+    const onSeenMessage = (data) => {
+      if (!data) return;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === data.msg_id ? { ...m, seen: true } : m))
+      );
+    };
+    socket.on("seenMessage", onSeenMessage);
+
+    const onDeleted = (d) => {
+      if (d?.id) setMessages((prev) => prev.filter((m) => m.id !== d.id));
+    };
+    socket.on("Deleted", onDeleted);
+
+    const onErrorMessage = (d) => {
+      if (d?.error) setError(d.error);
+    };
+    socket.on("errorMessage", onErrorMessage);
+    socket.on("error", (e) => {
+      console.error("Socket error:", e);
+      setError(e?.message || "Socket error");
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log("🔌 Disconnected:", reason);
+      setConnectionStatus("disconnected");
+    });
+
+    socket.connect();
 
     return () => {
-      socket.off('roomJoined', handleRoomJoined);
-      socket.off('receiveMessage', handleMessage);
-      socket.off('typing', handleTyping);
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      console.log("🧹 Cleaning up socket");
+      try {
+        if (currentRoomRef.current) {
+          socket.emit("leaveRoom", { roomId: currentRoomRef.current });
+        }
+      } catch (e) {
+        /* ignore */
+      }
+      socket.off("connect", onConnect);
+      socket.off("connect_error", onConnectError);
+      socket.off("UserList", onUserList);
+      socket.off("onlineUser", onOnlineUser);
+      socket.off("mychats", onMyChats);
+      socket.off("receiveMessage", onReceiveMessage);
+      socket.off("typing", onTyping);
+      socket.off("seenMessage", onSeenMessage);
+      socket.off("Deleted", onDeleted);
+      socket.off("errorMessage", onErrorMessage);
+      socket.off("error");
+      socket.disconnect();
     };
-  }, [activeUser, user]);
+  }, [user, token]);
 
-  const getFullName = (u) => {
-    if (!u) return 'Unknown';
-    return `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email;
-  };
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !activeUser || !user) return;
+
+    if (currentRoomRef.current) {
+      console.log("🚪 Leaving room:", currentRoomRef.current);
+      socket.emit("leaveRoom", { roomId: currentRoomRef.current });
+    }
+
+    const id1 = getUserId();
+    const id2 = activeUser.id;
+    const roomId = id1 < id2 ? `${id1}-${id2}` : `${id2}-${id1}`;
+
+    setMessages([]);
+    setTypingUser(null);
+    setCurrentRoom(roomId);
+    currentRoomRef.current = roomId;
+
+    console.log("🚪 Joining room:", roomId);
+
+    socket.emit("joinRoom", { roomId, type: "private", members: [] });
+
+    setTimeout(() => {
+      console.log("📥 Requesting chat history for room:", roomId);
+      socket.emit("mychats", { roomId, page: 1, limit: 50 });
+    }, 100);
+
+    return () => {};
+  }, [activeUser, user]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();
     const input = e.target[0];
     const text = input.value.trim();
-    
-    if (!text || !activeUser || !socketRef.current) return;
+    if (!text || !activeUser) return;
 
     const socket = socketRef.current;
-    if (!socket.connected) {
-      setError('Connection lost. Reconnecting...');
-      socket.connect();
+    if (!socket || socket.disconnected) {
+      setError("Connection lost. Reconnecting...");
+      socket?.connect();
       return;
     }
 
-    socket.emit('sendMessage', {
+    console.log("📤 Sending message to room:", currentRoomRef.current);
+    socket.emit("sendMessage", {
       roomId: currentRoomRef.current,
-      message: text
+      message: text,
     });
 
-    input.value = '';
+    input.value = "";
   };
 
   const handleTypingStart = () => {
-    if (currentRoomRef.current && socketRef.current?.connected) {
-      socketRef.current.emit('typing', {
+    const socket = socketRef.current;
+    if (!socket || !currentRoomRef.current || !user) return;
+
+    socket.emit("typing", {
+      roomId: currentRoomRef.current,
+      userId: getUserId(),
+      isTyping: true,
+    });
+
+    clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("typing", {
         roomId: currentRoomRef.current,
-        userId: user.id,
-        isTyping: true
+        userId: getUserId(),
+        isTyping: false,
       });
-    }
+    }, 1500);
   };
 
-  if (!user) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading user...</p>
-        </div>
-      </div>
-    );
-  }
+  const getFullName = (u) =>
+    `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email;
+
+  const getInitials = (u) => {
+    const firstName = u.firstName || "";
+    const lastName = u.lastName || "";
+    if (firstName && lastName) {
+      return `${firstName[0]}${lastName[0]}`.toUpperCase();
+    }
+    return (u.email?.[0] || "?").toUpperCase();
+  };
+
+  const filteredUsers = users.filter((u) =>
+    getFullName(u).toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (!user) return <div className="flex items-center justify-center h-screen"><div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
-      {/* Header */}
-      <div className="py-4 px-6 bg-white border-b border-slate-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold text-slate-800">Team Chat</h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Connected as {getFullName(user)} ({user.role})
-            </p>
+    <div className="flex h-[80vh] bg-gray-50">
+      {/* Sidebar - Users List */}
+      <div className={`${isSidebarCollapsed ? 'w-20' : 'w-70'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300`}>
+        {/* Sidebar Header */}
+        <div className="px-4 py-4 border-gray-200 bg-white">
+          <div className="flex items-center justify-between mb-4">
+            {!isSidebarCollapsed && (
+              <>
+                <h2 className="text-lg font-semibold text-gray-900">Messages</h2>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      connectionStatus === "connected"
+                        ? "bg-green-500"
+                        : connectionStatus === "error"
+                        ? "bg-red-500"
+                        : "bg-yellow-500"
+                    }`}
+                  />
+                  <span className="text-xs text-gray-500">
+                    {connectionStatus === "connected"
+                      ? "Online"
+                      : connectionStatus === "error"
+                      ? "Offline"
+                      : "Connecting"}
+                  </span>
+                </div>
+              </>
+            )}
+            {isSidebarCollapsed && (
+              <div className="flex justify-center w-full">
+                <div
+                  className={`w-2 h-2 rounded-full ${
+                    connectionStatus === "connected"
+                      ? "bg-green-500"
+                      : connectionStatus === "error"
+                      ? "bg-red-500"
+                      : "bg-yellow-500"
+                  }`}
+                />
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-              connectionStatus === 'connected' 
-                ? 'bg-green-100 text-green-700' 
-                : connectionStatus === 'error'
-                ? 'bg-red-100 text-red-700'
-                : 'bg-yellow-100 text-yellow-700'
-            }`}>
-              {connectionStatus === 'connected' ? '🟢 Connected' : 
-               connectionStatus === 'error' ? '🔴 Error' : 
-               '🟡 Connecting...'}
+
+          {/* Search Bar - Hidden when collapsed */}
+          {!isSidebarCollapsed && (
+            <div className="relative">
+              <IoSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              />
             </div>
-          </div>
+          )}
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden px-4 py-4">
-        <div className="flex h-full gap-4">
-          {/* Left Panel - Users List */}
-          <div className="w-full lg:w-80 flex flex-col h-full">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
-              <div className="p-4 border-b border-slate-100">
-                <h2 className="text-lg font-medium text-slate-700">
-                  {user.role === 'admin' ? 'Managers' : 'My Team'}
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  {users.length} member{users.length !== 1 ? 's' : ''}
-                </p>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-4 pt-2">
-                {loading ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-slate-500">
-                    <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                    <p className="text-sm">Connecting to chat...</p>
-                  </div>
-                ) : error ? (
-                  <div className="text-center py-6">
-                    <div className="text-sm text-red-600 mb-3">{error}</div>
-                    <button 
-                      onClick={() => window.location.reload()}
-                      className="text-xs text-blue-600 hover:text-blue-700 underline"
-                    >
-                      Retry Connection
-                    </button>
-                  </div>
-                ) : users.length === 0 ? (
-                  <div className="text-center py-6 text-sm text-slate-500">
-                    No team members available.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {users.map(u => (
-                      <div
-                        key={u.id}
-                        onClick={() => setActiveUser(u)}
-                        className={`relative rounded-2xl border p-3 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                          activeUser?.id === u.id
-                            ? 'border-blue-500 bg-blue-50 text-blue-800 shadow-sm'
-                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="relative">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
-                              activeUser?.id === u.id ? 'bg-blue-600' : 'bg-slate-400'
-                            }`}>
-                              {(u.firstName?.[0] || u.email?.[0] || '?').toUpperCase()}
-                            </div>
-                            {u.onlineStatus === 'online' && (
-                              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium capitalize truncate">
-                              {getFullName(u)}
-                            </div>
-                            <div className="text-xs opacity-80 truncate">
-                              {u.email}
-                            </div>
-                            <div className="text-xs opacity-70 mt-1">
-                              {user.role === 'admin' ? 'Manager' : 'Salesperson'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+        {/* Toggle Button */}
+      
+
+        {/* Users List */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+              {!isSidebarCollapsed && <p className="text-sm text-gray-500">Loading conversations...</p>}
             </div>
-          </div>
-
-          {/* Right Panel - Chat */}
-          <div className="flex-1 flex flex-col h-full min-w-0">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
-              {activeUser ? (
-                <>
-                  {/* Chat Header */}
-                  <div className="p-4 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-white">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold text-lg">
-                          {(activeUser.firstName?.[0] || activeUser.email?.[0] || '?').toUpperCase()}
+          ) : error ? (
+            <div className="p-4 text-center">
+              <div className="text-sm text-red-600 mb-2">{!isSidebarCollapsed && error}</div>
+              {!isSidebarCollapsed && (
+                <button
+                  onClick={() => window.location.reload()}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="p-4 text-center text-sm text-gray-500">
+              {!isSidebarCollapsed && (searchQuery ? "No conversations found" : "No team members available")}
+            </div>
+          ) : (
+            <div className="py-2">
+              {filteredUsers.map((u) => {
+                const isActive = activeUser?.id === u.id;
+                const isOnline = u.onlineStatus === "online";
+                
+                return (
+                  <div
+                    key={u.id}
+                    onClick={() => setActiveUser(u)}
+                    title={isSidebarCollapsed ? getFullName(u) : ""}
+                    className={`px-4 py-3 cursor-pointer transition-colors relative ${
+                      isActive
+                        ? "bg-blue-50 border-l-4 border-blue-600"
+                        : "hover:bg-gray-50 border-l-4 border-transparent"
+                    }`}
+                  >
+                    <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
+                      <div className="relative flex-shrink-0">
+                        <div
+                          className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-medium text-sm ${
+                            isActive
+                              ? "bg-gradient-to-br from-blue-500 to-blue-600"
+                              : "bg-gradient-to-br from-gray-400 to-gray-500"
+                          }`}
+                        >
+                          {getInitials(u)}
                         </div>
-                        {activeUser.onlineStatus === 'online' && (
+                        {isOnline && (
                           <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                         )}
                       </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-medium capitalize">
-                          {getFullName(activeUser)}
-                        </h3>
-                        <p className="text-sm text-slate-500">{activeUser.email}</p>
-                      </div>
-                      {currentRoom && (
-                        <div className="text-xs text-slate-400 font-mono">
-                          Room: {currentRoom.slice(0, 8)}...
+                      {!isSidebarCollapsed && (
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <h3
+                              className={`font-medium text-sm truncate ${
+                                isActive ? "text-blue-900" : "text-gray-900"
+                              }`}
+                            >
+                              {getFullName(u)}
+                            </h3>
+                          </div>
+                          <p className="text-xs text-gray-500 truncate">{u.email}</p>
                         </div>
                       )}
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-                  {/* Messages */}
-                  <div className="flex-1 p-4 overflow-y-auto bg-slate-50">
-                    {messages.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-full text-center text-slate-500">
-                        <svg className="w-16 h-16 text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                        </svg>
-                        <p className="text-lg font-medium">No messages yet</p>
-                        <p className="text-sm mt-1">Start the conversation!</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {messages.map((msg) => {
-                          const msgKey = msg.id || `${msg.senderId}-${msg.timestamp}`;
-                          const isOwnMessage = msg.senderId === user.id;
-                          return (
-                            <div
-                              key={msgKey}
-                              className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                            >
-                              <div
-                                className={`max-w-xs lg:max-w-md p-3 rounded-2xl shadow-sm ${
-                                  isOwnMessage
-                                    ? 'bg-blue-600 text-white rounded-br-sm'
-                                    : 'bg-white text-slate-800 rounded-bl-sm border border-slate-200'
-                                }`}
-                              >
-                                {!isOwnMessage && msg.senderName && (
-                                  <p className="text-xs font-medium mb-1 opacity-70">
-                                    {msg.senderName}
-                                  </p>
-                                )}
-                                <p className="break-words">{msg.text}</p>
-                                {msg.timestamp && (
-                                  <p className={`text-xs mt-1 ${
-                                    isOwnMessage ? 'text-blue-100' : 'text-slate-400'
-                                  }`}>
-                                    {new Date(msg.timestamp).toLocaleTimeString([], { 
-                                      hour: '2-digit', 
-                                      minute: '2-digit' 
-                                    })}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        <div ref={messagesEndRef} />
-                        {typingUser && (
-                          <div className="flex justify-start">
-                            <div className="bg-slate-200 text-slate-600 text-xs italic px-3 py-1 rounded-full">
-                              {typingUser} is typing...
-                            </div>
+        {/* Sidebar Footer - Current User Info */}
+        {/* <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+          <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-medium text-xs">
+              {getInitials(user)}
+            </div>
+            {!isSidebarCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{getFullName(user)}</p>
+                <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+              </div>
+            )}
+          </div>
+        </div> */}
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col bg-white">
+        {activeUser ? (
+          <>
+            {/* Chat Header */}
+            <div className="px-6 py-4 border-b border-gray-200 bg-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-medium text-sm">
+                      {getInitials(activeUser)}
+                    </div>
+                    {activeUser.onlineStatus === "online" && (
+                      <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900">
+                      {getFullName(activeUser)}
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      {activeUser.onlineStatus === "online" ? "Active now" : "Offline"}
+                    </p>
+                  </div>
+                </div>
+               <button
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          className="-right-3 bg-white border border-gray-200 rounded-full p-1.5 shadow-md hover:bg-gray-50 transition-colors z-10"
+          title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isSidebarCollapsed ? (
+            <IoChevronForward className="text-white" size={16} />
+          ) : (
+            <IoChevronBack className="text-white" size={16} />
+          )}
+        </button>
+              </div>
+            </div>
+
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto bg-gray-50 px-6 py-4">
+              {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <svg
+                      className="w-10 h-10 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="1.5"
+                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-1">
+                    No messages yet
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Send a message to start the conversation
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map((msg, index) => {
+                    const msgKey = msg.id || `${msg.senderId}-${msg.timestamp}`;
+                    const isOwnMessage = msg.senderId === getUserId();
+                    const showTimestamp =
+                      index === 0 ||
+                      new Date(msg.timestamp).getTime() -
+                        new Date(messages[index - 1].timestamp).getTime() >
+                        300000; // 5 minutes
+
+                    return (
+                      <div key={msgKey}>
+                        {showTimestamp && (
+                          <div className="flex justify-center mb-4">
+                            <span className="text-xs text-gray-500 bg-white px-3 py-1 rounded-full shadow-sm">
+                              {new Date(msg.timestamp).toLocaleDateString([], {
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
                           </div>
                         )}
+                        <div
+                          className={`flex ${
+                            isOwnMessage ? "justify-end" : "justify-start"
+                          }`}
+                        >
+                          <div
+                            className={`max-w-md px-4 py-2.5 rounded-2xl ${
+                              isOwnMessage
+                                ? "bg-blue-600 text-white rounded-br-md"
+                                : "bg-white text-gray-900 border border-gray-200 rounded-bl-md shadow-sm"
+                            }`}
+                          >
+                            {!isOwnMessage && (
+                              <p className="text-xs font-medium mb-1 opacity-70">
+                                {msg.senderName}
+                              </p>
+                            )}
+                            <p className="text-sm leading-relaxed break-words">
+                              {msg.text}
+                            </p>
+                            <div className="flex items-center justify-end gap-1 mt-1">
+                              <span
+                                className={`text-xs ${
+                                  isOwnMessage
+                                    ? "text-blue-100"
+                                    : "text-gray-400"
+                                }`}
+                              >
+                                {new Date(msg.timestamp).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                              {isOwnMessage && (
+                                <span className="text-blue-100">
+                                  {msg.seen ? (
+                                    <IoCheckmarkDone size={14} />
+                                  ) : (
+                                    <IoCheckmark size={14} />
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-
-                  {/* Input */}
-                  <div className="p-4 border-t border-slate-100 bg-white">
-                    <form onSubmit={handleSendMessage} className="relative">
-                      <input
-                        type="text"
-                        placeholder="Type a message..."
-                        className="w-full px-4 py-3 pr-12 rounded-full border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
-                        disabled={connectionStatus !== 'connected'}
-                        onKeyDown={handleTypingStart}
-                      />
-                      <button
-                        type="submit"
-                        disabled={connectionStatus !== 'connected'}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <IoSend />
-                      </button>
-                    </form>
-                    {connectionStatus !== 'connected' && (
-                      <p className="text-xs text-red-500 mt-2 text-center">
-                        {connectionStatus === 'error' ? 'Connection failed' : 'Reconnecting...'}
-                      </p>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full py-12 text-center text-slate-500 px-6">
-                  <svg className="w-20 h-20 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  <p className="text-lg font-medium">Select a team member</p>
-                  <p className="text-sm mt-1">Choose someone from the list to start chatting.</p>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                  {typingUser && (
+                    <div className="flex justify-start">
+                      <div className="bg-white border border-gray-200 px-4 py-2 rounded-2xl rounded-bl-md shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="flex gap-1">
+                            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {typingUser} is typing
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+
+            {/* Message Input */}
+            <div className="px-6 py-4 border-t border-gray-200 bg-white">
+              <form onSubmit={handleSendMessage}>
+                <div className="flex items-end gap-3">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      placeholder="Type your message..."
+                      className="w-full px-4 py-3 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition resize-none"
+                      disabled={connectionStatus !== "connected"}
+                      onKeyDown={handleTypingStart}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={connectionStatus !== "connected"}
+                    className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    <IoSend size={20} />
+                  </button>
+                </div>
+                {connectionStatus !== "connected" && (
+                  <p className="text-xs text-red-500 mt-2">
+                    {connectionStatus === "error"
+                      ? "Connection failed. Please check your internet."
+                      : "Reconnecting to chat server..."}
+                  </p>
+                )}
+              </form>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-cengter h-full">
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+              <svg
+                className="w-12 h-12 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.5"
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Select a conversation
+            </h3>
+            <p className="text-sm text-gray-500 text-center max-w-sm">
+              Choose a team member from the list to start messaging
+            </p>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

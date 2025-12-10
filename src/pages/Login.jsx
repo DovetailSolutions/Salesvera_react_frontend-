@@ -45,8 +45,13 @@ export default function Login() {
           className="w-full max-w-md bg-white p-8 rounded-xl py-14"
         >
           <div className="text-center mb-8">
-            
-            <p className="mt-2 text-gray-500 text-sm">
+
+            <div className="text-3xl">
+              <p className="text-(--primary-blue)">Sharper control.</p>
+              <p className="text-(--primary-green)">Smarter sales.</p>
+            </div>
+             
+            <p className="mt-2 text-gray-500 text-3xl font-semibold">
               Sign in to your account
             </p>
           </div>
@@ -100,7 +105,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={isSubmitting} // ✅ disable while submitting
-            className={`w-full py-2.5 px-4 font-medium rounded-lg transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+            className={`!w-full py-2.5 px-4 font-medium rounded-lg transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${
               isSubmitting
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-[var(--primary-blue)] hover:bg-blue-600 text-white focus:ring-blue-500"
@@ -121,8 +126,18 @@ export default function Login() {
       </div>
       <div
         style={{ backgroundImage: `url(${loginbg})` }}
-        className="w-full h-full flex justify-center items-center bg-cover bg-no-repeat bg-center"
-      ></div>
+        className="w-full h-full flex flex-col justify-between items-center bg-cover bg-no-repeat bg-center py-20"
+      >
+        <div className="text-7xl font-extrabold tracking-tight">
+              <span className="text-[var(--primary-blue)]">Sales</span>
+              <span className="text-[var(--primary-green)]">vera</span>
+            </div>
+
+            <div className="text-white flex flex-col justify-center items-center">
+              <p className="text-xl">Insights. Analytics.</p>
+              <p className="text-3xl">Overwiew.</p>
+            </div>
+      </div>
     </div>
   );
 }
