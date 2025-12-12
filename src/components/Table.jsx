@@ -167,7 +167,7 @@ export default function Table({
                           {action.label}
                         </button>
                         {openMenuId === menuId && (
-                          <div className="fixed right-9 mt-1 bg-white rounded w-40 z-50 border">
+                          <div className="absolute right-9 mt-1 bg-white rounded w-40 z-50 border">
                             {action.menuItems.map((item, mi) => {
                               if (item.condition && !item.condition(row)) return null;
                               return (
@@ -257,7 +257,7 @@ export default function Table({
                   className={` !rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
                     currentPage === item
                       ? "!bg-[#10B981] text-white !px-5 !py-1" 
-                      : "!bg-white !text-black border border-black hover:bg-gray-100 !px-5 !py-1" 
+                      : "!text-white !bg-(--primary-blue) !px-5 !py-1" 
                   }`}
                 >
                   {item}
@@ -282,7 +282,7 @@ export default function Table({
     <motion.div
   initial={{ opacity: 0 }}
   animate={{ opacity: 1 }}
-  className={`w-full paneltheme rounded mt-4 p-2 overflow-x-auto lg:overflow-x-hidden`}
+  className={`w-full paneltheme rounded mt-4 p-2`}
 >
   <table className="w-full text-sm border-collapse table-fixed">
         {renderHeader()}

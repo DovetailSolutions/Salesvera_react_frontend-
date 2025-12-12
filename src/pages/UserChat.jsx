@@ -25,6 +25,18 @@ function UserChat() {
   const typingTimeoutRef = useRef(null);
   const currentRoomRef = useRef(null);
   const getUserId = () => (user && (user.userId || user.id)) || null;
+  
+  const usersRef = useRef([]);
+const activeUserRef = useRef(null);
+
+
+useEffect(() => {
+  usersRef.current = users;
+}, [users]);
+
+useEffect(() => {
+  activeUserRef.current = activeUser;
+}, [activeUser]);
 
   // autoscroll
   const scrollToBottom = () => {
@@ -34,38 +46,73 @@ function UserChat() {
 
   // Format message consistently for UI
   const formatMessage = (rawMsg) => {
-    const uid = getUserId();
-    const senderId = rawMsg.senderId ?? rawMsg.sender?.id ?? rawMsg.senderId;
-    let senderName = "Unknown";
+  const uid = getUserId();
+  const senderId = rawMsg.senderId ?? rawMsg.sender?.id ?? rawMsg.senderId;
+  let senderName = "Unknown";
 
-    if (rawMsg.sender) {
-      senderName =
-        `${rawMsg.sender.firstName || ""} ${rawMsg.sender.lastName || ""}`.trim() ||
-        rawMsg.sender.email ||
-        senderName;
-    } else if (senderId) {
-      const s = users.find((u) => u.id === senderId);
-      if (s)
-        senderName = `${s.firstName || ""} ${s.lastName || ""}`.trim() || s.email;
-      else if (senderId === uid)
-        senderName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email;
-    } else if (rawMsg.senderName) {
-      senderName = rawMsg.senderName;
-    }
+  if (rawMsg.sender) {
+    senderName =
+      `${rawMsg.sender.firstName || ""} ${rawMsg.sender.lastName || ""}`.trim() ||
+      rawMsg.sender.email ||
+      senderName;
+  } else if (senderId) {
+    const s = usersRef.current.find((u) => u.id === senderId);
+    if (s)
+      senderName = `${s.firstName || ""} ${s.lastName || ""}`.trim() || s.email;
+    else if (senderId === uid)
+      senderName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email;
+  } else if (rawMsg.senderName) {
+    senderName = rawMsg.senderName;
+  }
 
-    return {
-      id:
-        rawMsg.id ??
-        rawMsg.msg_id ??
-        `${senderId}-${rawMsg.createdAt ?? rawMsg.timestamp ?? Date.now()}`,
-      roomId: rawMsg.roomId || currentRoomRef.current || rawMsg.chatRoomId,
-      senderId,
-      senderName,
-      text: rawMsg.message ?? rawMsg.text ?? "",
-      timestamp: rawMsg.createdAt ?? rawMsg.timestamp ?? new Date().toISOString(),
-      seen: rawMsg.seen ?? false,
-    };
+  const msgId = rawMsg.id ?? rawMsg.msg_id;
+
+  // ✅ CRITICAL: Use status from backend
+  const isOwnMessage = senderId === uid;
+  let seen = false;
+
+  if (isOwnMessage) {
+    // For your own messages: 'seen' means the OTHER person saw it
+    // Backend sets status = 'seen' or 'unseen' on YOUR message
+    seen = rawMsg.status === "seen";
+  } else {
+    // Messages from others: you've seen them (since you're loading the chat)
+    seen = true;
+  }
+
+  return {
+    id: msgId ?? `${senderId}-${rawMsg.createdAt ?? rawMsg.timestamp ?? Date.now()}`,
+    roomId: rawMsg.roomId || currentRoomRef.current || rawMsg.chatRoomId,
+    senderId,
+    senderName,
+    text: rawMsg.message ?? rawMsg.text ?? "",
+    timestamp: rawMsg.createdAt ?? rawMsg.timestamp ?? new Date().toISOString(),
+    seen, // ✅ Now included
   };
+};
+
+// Add this inside the main useEffect (where socket is created)
+const markMessagesAsSeen = (messagesArray, roomId) => {
+  const myId = getUserId();
+  const otherUserId = activeUserRef.current?.id;
+
+  if (!otherUserId) return;
+
+  // Find messages SENT BY the other user that are still "unseen"
+  const unreadMessagesFromOther = messagesArray.filter(
+    (msg) => msg.senderId === otherUserId && msg.status !== "seen"
+  );
+
+  if (unreadMessagesFromOther.length > 0) {
+    console.log("📤 Marking messages as seen:", unreadMessagesFromOther.map(m => m.id));
+    unreadMessagesFromOther.forEach((msg) => {
+      socketRef.current?.emit("seenMessage", {
+        msg_id: msg.id,
+        roomId,
+      });
+    });
+  }
+};
 
   useEffect(() => {
     if (!token || !user) {
@@ -118,12 +165,13 @@ function UserChat() {
 
         setUsers(normalized);
 
-        setActiveUser((prev) => {
-          if (!prev || !normalized.some((x) => x.id === prev.id)) {
-            return normalized[0] || null;
-          }
-          return prev;
-        });
+        // Only set activeUser if it's already selected and still exists
+setActiveUser((prev) => {
+  if (prev && normalized.some((x) => x.id === prev.id)) {
+    return prev; // keep existing selection
+  }
+  return null; // 👈 never auto-select
+});
 
         setLoading(false);
       } else {
@@ -145,58 +193,63 @@ function UserChat() {
     };
     socket.on("onlineUser", onOnlineUser);
 
+    console.log("list of users", users)
+
     const onMyChats = (response) => {
-      console.log("📥 Received mychats response:", response);
+  console.log("📥 Received mychats response:", response);
 
-      if (!response) {
-        console.warn("Empty mychats response");
-        return;
-      }
+  if (!response) {
+    console.warn("Empty mychats response");
+    return;
+  }
 
-      const room = response.roomId || currentRoomRef.current;
-      if (!room) {
-        console.warn("No room ID in mychats response");
-        return;
-      }
+  const room = response.roomId || currentRoomRef.current;
+  if (!room) {
+    console.warn("No room ID in mychats response");
+    return;
+  }
 
-      let messagesArray = [];
+  let messagesArray = [];
 
-      if (response.success && response.data) {
-        if (response.data.text && Array.isArray(response.data.text)) {
-          messagesArray = response.data.text;
-        } else if (Array.isArray(response.data)) {
-          messagesArray = response.data;
-        } else if (response.data.messages && Array.isArray(response.data.messages)) {
-          messagesArray = response.data.messages;
-        }
-      } else if (Array.isArray(response)) {
-        messagesArray = response;
-      } else if (response.messages && Array.isArray(response.messages)) {
-        messagesArray = response.messages;
-      } else if (response.text && Array.isArray(response.text)) {
-        messagesArray = response.text;
-      }
+  if (response.success && response.data) {
+    if (response.data.text && Array.isArray(response.data.text)) {
+      messagesArray = response.data.text;
+    } else if (Array.isArray(response.data)) {
+      messagesArray = response.data;
+    } else if (response.data.messages && Array.isArray(response.data.messages)) {
+      messagesArray = response.data.messages;
+    }
+  } else if (Array.isArray(response)) {
+    messagesArray = response;
+  } else if (response.messages && Array.isArray(response.messages)) {
+    messagesArray = response.messages;
+  } else if (response.text && Array.isArray(response.text)) {
+    messagesArray = response.text;
+  }
 
-      console.log("📨 Processing messages array:", messagesArray);
+  console.log("📨 Processing messages array:", messagesArray);
 
-      if (messagesArray.length === 0) {
-        console.log("No messages found for room:", room);
-        setMessages([]);
-        return;
-      }
+  if (messagesArray.length === 0) {
+    console.log("No messages found for room:", room);
+    setMessages([]);
+    return;
+  }
 
-      const formatted = messagesArray.map((m) =>
-        formatMessage({ ...m, roomId: room })
-      );
+  const formatted = messagesArray.map((m) =>
+    formatMessage({ ...m, roomId: room })
+  );
 
-      setMessages(formatted.reverse());
-      console.log("✅ Set messages:", formatted.length);
-    };
+  setMessages(formatted.reverse());
+  console.log("✅ Set messages:", formatted.length);
+
+  // ✅ Mark messages as seen AFTER loading
+  markMessagesAsSeen(messagesArray, room);
+};
     socket.on("mychats", onMyChats);
 
     const onReceiveMessage = (raw) => {
       console.log("📨 Received message:", raw);
-      const msg = formatMessage(raw);
+      const msg = formatMessage(raw); // ✅ CORRECT
 
       if (msg.roomId !== currentRoomRef.current) {
         console.log("Message for different room, ignoring");
@@ -239,11 +292,12 @@ function UserChat() {
     socket.on("typing", onTyping);
 
     const onSeenMessage = (data) => {
-      if (!data) return;
-      setMessages((prev) =>
-        prev.map((m) => (m.id === data.msg_id ? { ...m, seen: true } : m))
-      );
-    };
+  if (data?.msg_id) {
+    setMessages(prev =>
+      prev.map(m => m.id === data.msg_id ? { ...m, seen: true } : m)
+    );
+  }
+};
     socket.on("seenMessage", onSeenMessage);
 
     const onDeleted = (d) => {
@@ -293,7 +347,12 @@ function UserChat() {
 
   useEffect(() => {
     const socket = socketRef.current;
-    if (!socket || !activeUser || !user) return;
+    if (!socket || !activeUser || !user) {
+    setMessages([]);
+    setCurrentRoom(null);
+    currentRoomRef.current = null;
+    return;
+  }
 
     if (currentRoomRef.current) {
       console.log("🚪 Leaving room:", currentRoomRef.current);
@@ -392,7 +451,7 @@ function UserChat() {
             {!isSidebarCollapsed && (
               <>
                 <h2 className="text-lg font-semibold text-gray-900">Messages</h2>
-                <div className="flex items-center gap-2">
+                {/* <div className="flex items-center gap-2">
                   <div
                     className={`w-2 h-2 rounded-full ${
                       connectionStatus === "connected"
@@ -409,10 +468,10 @@ function UserChat() {
                       ? "Offline"
                       : "Connecting"}
                   </span>
-                </div>
+                </div> */}
               </>
             )}
-            {isSidebarCollapsed && (
+            {/* {isSidebarCollapsed && (
               <div className="flex justify-center w-full">
                 <div
                   className={`w-2 h-2 rounded-full ${
@@ -424,7 +483,19 @@ function UserChat() {
                   }`}
                 />
               </div>
-            )}
+            )} */}
+
+            <div
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          className="-right-3 bg-white border border-gray-100 rounded-full p-2 cursor-pointer shadow-2xl shadow-gray-100 hover:bg-gray-50 z-10 transition-all duration-300 ease-out"
+          title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isSidebarCollapsed ? (
+            <IoChevronForward className="text-" size={16} />
+          ) : (
+            <IoChevronBack className="text-" size={16} />
+          )}
+        </div>
           </div>
 
           {/* Search Bar - Hidden when collapsed */}
@@ -494,7 +565,7 @@ function UserChat() {
                               : "bg-gradient-to-br from-gray-400 to-gray-500"
                           }`}
                         >
-                          {getInitials(u)}
+                          {getInitials(u)} 
                         </div>
                         {isOnline && (
                           <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
@@ -563,17 +634,7 @@ function UserChat() {
                     </p>
                   </div>
                 </div>
-               <button
-          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="-right-3 bg-white border border-gray-200 rounded-full p-1.5 shadow-md hover:bg-gray-50 transition-colors z-10"
-          title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isSidebarCollapsed ? (
-            <IoChevronForward className="text-white" size={16} />
-          ) : (
-            <IoChevronBack className="text-white" size={16} />
-          )}
-        </button>
+               
               </div>
             </div>
 
@@ -662,14 +723,10 @@ function UserChat() {
                                 })}
                               </span>
                               {isOwnMessage && (
-                                <span className="text-blue-100">
-                                  {msg.seen ? (
-                                    <IoCheckmarkDone size={14} />
-                                  ) : (
-                                    <IoCheckmark size={14} />
-                                  )}
-                                </span>
-                              )}
+  <span className="text-blue-100">
+    {msg.seen ? <IoCheckmarkDone size={14} /> : <IoCheckmark size={14} />}
+  </span>
+)}
                             </div>
                           </div>
                         </div>
@@ -729,29 +786,31 @@ function UserChat() {
             </div>
           </>
         ) : (
-          <div className="flex flex-col items-center justify-cengter h-full">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-              <svg
-                className="w-12 h-12 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.5"
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Select a conversation
-            </h3>
-            <p className="text-sm text-gray-500 text-center max-w-sm">
-              Choose a team member from the list to start messaging
-            </p>
-          </div>
+          <div className="flex flex-col items-center justify-center h-full">
+  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+    <svg
+      className="w-12 h-12 text-gray-400"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+      />
+    </svg>
+  </div>
+  
+  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+    Select a conversation
+  </h3>
+  
+  <p className="text-sm text-gray-500 text-center max-w-sm">
+    Choose a team member from the list to start messaging
+  </p>
+</div>
         )}
       </div>
     </div>

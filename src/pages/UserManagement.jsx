@@ -57,7 +57,7 @@ export default function UserManagement() {
           let totalFetched = 0;
           let totalExpected = 0;
 
-          const firstRes = await adminApi.getMySalespersons({ managerId: user.id, page: 1 });
+          const firstRes = await adminApi.getMySalespersons({ managerId: user.id, page: 1, search });
           const firstData = firstRes.data?.data || firstRes.data;
           totalExpected = firstData.total || 0;
           const rows = Array.isArray(firstData.rows) ? firstData.rows : [];
@@ -79,7 +79,7 @@ export default function UserManagement() {
           fullList = allSalespersons;
         }
 
-        // Client-side filter + paginate
+      
         const filtered = searchTrimmed
           ? fullList.filter(u =>
               (u.firstName?.toLowerCase().includes(searchTrimmed)) ||
@@ -88,6 +88,8 @@ export default function UserManagement() {
               (u.phone?.toLowerCase().includes(searchTrimmed))
             )
           : fullList;
+
+          filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         const limit = 10;
         const paginated = filtered.slice((page - 1) * limit, page * limit);
@@ -143,6 +145,8 @@ export default function UserManagement() {
             return true;
           });
         }
+
+        filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         const limit = 10;
         const paginated = filtered.slice((page - 1) * limit, page * limit);
@@ -309,7 +313,7 @@ const handleRoleChange = (e) => {
 
         {loading && (
           <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10 rounded">
-            <Loader />
+            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
           </div>
         )}
       </div>

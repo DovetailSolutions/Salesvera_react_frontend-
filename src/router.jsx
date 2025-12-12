@@ -39,7 +39,7 @@ export const allRoutes = [
         path: "/",
         label: "Dashboard",
         icon: <LuLayoutDashboard />,
-        roles: [ ROLES.ADMIN, ROLES.BASE_ADMIN],
+        roles: [ ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
     ],
   },

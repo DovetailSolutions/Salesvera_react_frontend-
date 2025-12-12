@@ -21,7 +21,7 @@ export default function MeetingManagement() {
   const [totalMeetings, setTotalMeetings] = useState(0);
   const [meetingsLoading, setMeetingsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 9; // fixed limit
+  const pageSize = 8; // fixed limit
 
   // Schedule Meeting Modal State (unchanged)
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -36,14 +36,18 @@ export default function MeetingManagement() {
   // ❌ REMOVED: filteredMeetings, paginatedMeetings, meetingPagination
 
   const filteredSalespersons = salespersons.filter(sp => {
-    if (!globalSearch.trim()) return true;
-    const term = globalSearch.toLowerCase();
-    return (
-      `${sp.firstName} ${sp.lastName}`.toLowerCase().includes(term) ||
-      sp.email.toLowerCase().includes(term) ||
-      (sp.phone && sp.phone.includes(term))
-    );
-  });
+  // If a salesperson is selected, show all (prevent hiding selected one)
+  if (selectedSalesperson) return true;
+
+  // Otherwise, filter by search
+  if (!globalSearch.trim()) return true;
+  const term = globalSearch.toLowerCase();
+  return (
+    `${sp.firstName} ${sp.lastName}`.toLowerCase().includes(term) ||
+    sp.email.toLowerCase().includes(term) ||
+    (sp.phone && sp.phone.includes(term))
+  );
+});
 
   useEffect(()=>{
     window.scrollTo(0,0);
@@ -376,7 +380,7 @@ export default function MeetingManagement() {
       <div className="flex-1 overflow-hidden border-t border-gray-200">
         <div className="flex flex-col lg:flex-row h-full">
         {/* Left Panel - Styled like UserChat Sidebar */}
-<div className="w-70 bg-white flex flex-col">
+<div className="w-70 bg-white flex flex-col shrink-0">
   {/* Sidebar Header */}
   <div className="px-4 py-4 border-gray-200">
     <h2 className="text-lg font-semibold text-gray-900 mb-4">Team Members</h2>
@@ -506,7 +510,7 @@ export default function MeetingManagement() {
   </div>
 
          {/* Right Panel — FIXED HEIGHT & VISIBLE STATS */}
-<div className="flex flex-col bg-white shadow-sm border-l border-gray-200" style={{ height: 'calc(100vh - 4rem)' }}>
+<div className="flex flex-col bg-white shadow-sm border-l border-gray-200 w-full" style={{ height: 'calc(100vh - 4rem)' }}>
   {/* Optional Header */}
   {(isAdmin && selectedManager) || isManager ? (
     <div className="px-4 pt-4 pb-2">
@@ -543,7 +547,7 @@ export default function MeetingManagement() {
   )}
 
   {/* Main Content — Constrained height so stats always show */}
-  <div className="flex-1 px-4 py-4 overflow-hidden">
+  <div className="flex-1 px-4 py-4 overflow-hidden w-full">
     {selectedSalesperson ? (
       <>
         <h3 className="text-lg font-medium mb-4">
@@ -575,7 +579,7 @@ export default function MeetingManagement() {
             ]}
             data={meetings}
             keyField="id"
-            emptyMessage={meetingsLoading ? "Loading..." : "No meetings found"}
+            emptyMessage={meetingsLoading ? <div className="flex justify-center items-center"><div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div></div>: "No meetings found"}
             currentPage={currentPage}
             pageSize={pageSize}
             totalCount={totalMeetings}
@@ -590,7 +594,7 @@ export default function MeetingManagement() {
         </div>
       </>
     ) : (
-      <div className="flex flex-col items-center justify-center h-full py-10 text-center text-slate-500 min-h-[300px]">
+      <div className="flex flex-col items-center justify-center h-full py-10 text-center text-slate-500 min-h-[300px] w-full">
         <svg className="w-16 h-16 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
         </svg>

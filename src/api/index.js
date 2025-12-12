@@ -32,10 +32,10 @@ export const adminApi = {
       params: { page, limit, search, role },
     }),
 
-  getMySalespersons: ({ managerId, page = 1 }) =>
-    axios.get("/admin/mysaleperson", { params: { managerId, page } }),
+  getMySalespersons: ({ managerId, page = 1, search = "" }) =>
+    axios.get("/admin/mysaleperson", { params: { managerId, page, search } }),
 
-   getAdminManagers: () => axios.get("/admin/admin-manager"), 
+   getAdminManagers: (params = {}) => axios.get("/admin/admin-manager", { params }),
 
   getLeaveList: (params = {}) =>
   axios.get("/admin/get-leave-list", { params }),
@@ -46,7 +46,10 @@ export const adminApi = {
   approveLeave: (data) =>
     axios.patch("/admin/approved-leave", data),
 
-  getExpenses: () => axios.get("/admin/get-expense"),
+// In api.js
+getExpenses: (params) => {
+  return axios.get("/admin/get-expense", { params });
+},
 
   getUserExpense: (params) => axios.get("/admin/user-expense", { params }),
 
@@ -65,6 +68,9 @@ export const meetingApi = {
     
     if (empty) {
       params.empty = true; 
+      params.page = page;      
+      params.limit = limit;    
+      if (search) params.search = search;
     } else if (userId) {
       params.userId = userId;
       params.page = page;      
@@ -89,8 +95,8 @@ export const meetingApi = {
 };
 
 export const attendanceApi = {
-  getAllUsersForAttendance: ({ page = 1, limit = 10 } = {}) =>
-    axios.get("/admin/get-attendance", { params: { page, limit } }),
+  getAllUsersForAttendance: ({ page = 1, limit = 10, search = "" } = {}) =>
+    axios.get("/admin/get-attendance", { params: { page, limit, search } }),
 
   getUserAttendance: ({ userId, page = 1, limit = 10 }) =>
     axios.get("/admin/user-attendance", { params: { userId, page, limit } }),

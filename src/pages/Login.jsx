@@ -6,7 +6,7 @@ import { useAuth } from "../hooks/useAuth.js";
 import { useNavigate } from "react-router-dom";
 import Toast from "../components/Toast.jsx";
 import { Eye, EyeOff } from "lucide-react";
-import loginbg from "../assets/loginui.jpg";
+import loginbg from "../assets/loginui.png";
 
 const schema = yup.object({
   email: yup.string().email("Invalid email").required("Email is required"),

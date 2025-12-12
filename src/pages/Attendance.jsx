@@ -68,68 +68,65 @@ export default function Attendance() {
     window.scrollTo(0,0);
   },[])
 
-  const fetchAttendanceAndUsers = async (search = "") => {
-    try {
-      setLoading(true);
-      const res = await attendanceApi.getAllUsersForAttendance({ limit: 1000 });
-      let userList = res.data?.data || res.data || [];
+  const fetchAttendanceAndUsers = async (search = "", page = pagination.currentPage) => {
+  try {
+    setLoading(true);
 
-      if (!Array.isArray(userList)) {
-        throw new Error("Invalid user data");
-      }
+    // ✅ Only include 'search' if non-empty
+    const params = {
+      page,
+      limit: pagination.limit,
+      ...(search.trim() && { search: search.trim() })
+    };
 
-      const term = search.toLowerCase().trim();
-      if (term) {
-        userList = userList.filter(
-          (u) =>
-            (u.firstName || "").toLowerCase().includes(term) ||
-            (u.lastName || "").toLowerCase().includes(term) ||
-            (u.email || "").toLowerCase().includes(term) ||
-            (u.phone || "").toLowerCase().includes(term)
-        );
-      }
+    const res = await attendanceApi.getAllUsersForAttendance(params);
 
-      setUsers(userList);
-      setPagination({ currentPage: 1, totalItems: userList.length, totalPages: 1, limit: 10 });
+    const data = res.data?.data || [];
+    const apiPagination = res.data?.pagination || {};
 
-      const todayStr = toLocalDateString(new Date());
-      const attendanceMap = {};
+    setUsers(data);
 
-      userList.forEach((user) => {
-        let isPresent = false;
-        for (const att of user.Attendances || []) {
-          if (att.punch_in) {
-            const punchInDate = new Date(att.punch_in);
-            const punchInLocalStr = toLocalDateString(punchInDate);
-            if (punchInLocalStr === todayStr) {
-              isPresent = true;
-              break;
-            }
-          }
+    setPagination({
+      currentPage: apiPagination.currentPage || 1,
+      totalPages: apiPagination.totalPages || 1,
+      totalItems: apiPagination.totalRecords || data.length,
+      limit: pagination.limit,
+    });
+
+    const todayStr = toLocalDateString(new Date());
+    const attendanceMap = {};
+    data.forEach((user) => {
+      const isPresent = user.Attendances?.some((att) => {
+        if (att.punch_in) {
+          const punchDate = toLocalDateString(new Date(att.punch_in));
+          return punchDate === todayStr;
         }
-        attendanceMap[user.id] = isPresent ? "present" : "absent";
+        return false;
       });
-
-      setTodayAttendanceMap(attendanceMap);
-    } catch (err) {
-      console.error("Failed to fetch users:", err);
-      toast.error("Failed to load users");
-      setUsers([]);
-      setTodayAttendanceMap({});
-    } finally {
-      setLoading(false);
-    }
-  };
+      attendanceMap[user.id] = isPresent ? "present" : "absent";
+    });
+    setTodayAttendanceMap(attendanceMap);
+  } catch (err) {
+    console.error("Failed to fetch users:", err);
+    toast.error("Failed to load users");
+    setUsers([]);
+    setTodayAttendanceMap({});
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
-    fetchAttendanceAndUsers();
-  }, [user.id]);
+  fetchAttendanceAndUsers("", 1); // reset to page 1 on mount
+}, [user.id, searchTerm]);
 
-  const handleSearch = (e) => {
-    const term = e.target.value;
-    setSearchTerm(term);
-    fetchAttendanceAndUsers(term);
-  };
+const handleSearch = (e) => {
+  const term = e.target.value;
+  setSearchTerm(term);
+  // Always reset to page 1 on new search
+  setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  fetchAttendanceAndUsers(term, 1);
+};
 
   const handleRowClick = async (user) => {
     setSelectedUser(user);
@@ -380,14 +377,28 @@ export default function Attendance() {
       )}
 
       {viewMode === "attendance" ? (
-        <Table
-          columns={columns}
-          data={users}
-          actions={actions}
-          keyField="id"
-          emptyMessage="No users found"
-          loading={loading}
-        />
+         loading ? (
+    <div className="flex items-center justify-center py-8">
+      <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  ) : (
+    <Table
+      columns={columns}
+      data={users}
+      actions={actions}
+      keyField="id"
+      emptyMessage="No users found"
+      currentPage={pagination.currentPage}
+      pageSize={pagination.limit}
+      totalCount={pagination.totalItems}
+      onPageChange={(newPage) => {
+        // 👇 Reset users FIRST to avoid stale data
+        setUsers([]); // ✅ Clear old data immediately
+        setPagination((prev) => ({ ...prev, currentPage: newPage }));
+        fetchAttendanceAndUsers(searchTerm, newPage);
+      }}
+    />
+  )
       ) : (
         <Table
           columns={leaveColumns}
@@ -398,13 +409,13 @@ export default function Attendance() {
         />
       )}
 
-      {loading && viewMode === "attendance" && (
-        <Loader />
-      )}
+      {/* {loading && viewMode === "attendance" && (
+        <div className="flex items-center justify-center"><div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div></div>
+      )} */}
 
       {loadingLeaves && viewMode === "leaves" && (
-        <div className="text-center mt-4 text-gray-500 text-sm">
-          <Loader />
+        <div className="text-center mt-4 text-gray-500 text-sm flex justify-center items-center">
+          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
         </div>
       )}
 
@@ -427,7 +438,7 @@ export default function Attendance() {
             </h3>
 
             {loadingAttendance ? (
-              <div className="text-center py-4 text-gray-500">Loading attendance...</div>
+              <div className="text-center py-4 text-gray-500 flex flex-col items-center just"><div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>Loading attendance...</div>
             ) : (
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-3">

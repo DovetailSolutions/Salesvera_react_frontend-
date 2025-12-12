@@ -1,7 +1,6 @@
 import React, {
   useState,
   useEffect,
-  useMemo,
   useContext,
   useCallback,
 } from "react";
@@ -24,6 +23,9 @@ const ExpenseManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const pageSize = 10;
 
+  // ✅ NEW: Add totalRecords state
+  const [totalRecords, setTotalRecords] = useState(0);
+
   const currentUserRole = user?.role;
 
   const statusOptions = [
@@ -33,33 +35,72 @@ const ExpenseManagement = () => {
     { value: "rejected", label: "Rejected" },
   ];
 
-  useEffect(()=>{
-    window.scrollTo(0,0);
-  },[])
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const fetchExpenses = async () => {
-    try {
-      setLoading(true);
-      const response = await adminApi.getExpenses();
-      if (response.data.success) {
-        setExpenses(response.data.data || []);
-      } else {
-        setExpenses([]);
+  if (!user) return;
+  try {
+    setLoading(true);
+    
+    // Build params object
+    const params = {
+      page: currentPage,
+      limit: pageSize,
+      ...(searchTerm && { search: searchTerm }),
+    };
+
+    // ✅ ROLE-SPECIFIC STATUS FILTERING
+    if (statusFilter !== "all") {
+      if (currentUserRole === "manager") {
+        // Manager's view
+        if (statusFilter === "approved") {
+          params.approvedByAdmin = "accepted";
+        } else if (statusFilter === "rejected") {
+          params.approvedByAdmin = "rejected";
+        } else if (statusFilter === "pending") {
+          params.approvedByAdmin = "pending";
+        }
+      } else if (currentUserRole === "admin") {
+        // Admin's view
+        if (statusFilter === "approved") {
+          params.approvedByAdmin = "accepted";
+          params.approvedBySuperAdmin = "accepted";
+        } else if (statusFilter === "rejected") {
+          // Show if either rejected
+          params.rejected = "true"; // or handle via OR logic in backend
+        } else if (statusFilter === "pending") {
+          // Approved by manager but pending by admin
+          params.approvedByAdmin = "accepted";
+          params.approvedBySuperAdmin = "pending";
+        }
       }
-    } catch (error) {
-      console.error("Failed to fetch expenses:", error);
+    }
+
+    const response = await adminApi.getExpenses(params);
+    if (response.data.success) {
+      setExpenses(response.data.data || []);
+      setTotalRecords(response.data.pagination?.totalRecords || 0);
+    } else {
       setExpenses([]);
-    } finally {
-      setLoading(false);
+      setTotalRecords(0);
     }
-  };
+  } catch (error) {
+    console.error("Failed to fetch expenses:", error);
+    setExpenses([]);
+    setTotalRecords(0);
+  } finally {
+    setLoading(false);
+  }
+};
 
+  // ✅ UPDATED: Fetch when dependencies change
   useEffect(() => {
-    if (user) {
-      fetchExpenses();
-    }
-  }, [user]);
+    fetchExpenses();
+  }, [user, currentPage, searchTerm, statusFilter]);
 
+  // ✅ Keep: Reset to page 1 on filter/search change
   useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter, searchTerm]);
@@ -83,49 +124,8 @@ const ExpenseManagement = () => {
     return "Pending";
   };
 
-  const filteredExpenses = useMemo(() => {
-    if (!currentUserRole) return [];
-
-    let visibleExpenses = expenses.filter((expense) => {
-      if (currentUserRole === "manager") return true;
-      if (currentUserRole === "admin")
-        return expense.approvedByAdmin === "accepted";
-      return false;
-    });
-
-    if (statusFilter !== "all") {
-      visibleExpenses = visibleExpenses.filter((expense) => {
-        const currentStatus = getStatus(expense);
-        if (statusFilter === "approved") {
-          return (
-            currentStatus === "Approved" || currentStatus === "Pending by Admin"
-          );
-        } else {
-          return currentStatus.toLowerCase() === statusFilter;
-        }
-      });
-    }
-
-    const term = searchTerm.toLowerCase().trim();
-    if (term) {
-      visibleExpenses = visibleExpenses.filter((expense) => {
-        const user = expense.user || {};
-        return (
-          (user.firstName && user.firstName.toLowerCase().includes(term)) ||
-          (user.lastName && user.lastName.toLowerCase().includes(term)) ||
-          (expense.title && expense.title.toLowerCase().includes(term)) ||
-          expense.total_amount?.toString().includes(term)
-        );
-      });
-    }
-
-    return visibleExpenses;
-  }, [expenses, currentUserRole, statusFilter, searchTerm]);
-
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredExpenses.slice(start, start + pageSize);
-  }, [filteredExpenses, currentPage, pageSize]);
+  // ❌ REMOVED: filteredExpenses (client-side filtering)
+  // ❌ REMOVED: paginatedData (client-side pagination)
 
   const formatDate = (isoString) => {
     if (!isoString) return "—";
@@ -157,20 +157,8 @@ const ExpenseManagement = () => {
     setSelectedExpense(null);
   };
 
-  // ✅ Add handleApprove and handleReject with useCallback
   const handleApprove = useCallback(
     async (expense) => {
-      const updatedExpense = {
-        ...expense,
-        ...(currentUserRole === "manager"
-          ? { approvedByAdmin: "accepted" }
-          : { approvedBySuperAdmin: "accepted" }),
-      };
-
-      setExpenses((prev) =>
-        prev.map((exp) => (exp.id === expense.id ? updatedExpense : exp))
-      );
-
       const payload = {
         expenseId: expense.id,
         userId: expense.userId,
@@ -183,13 +171,10 @@ const ExpenseManagement = () => {
       try {
         await adminApi.approveExpense(payload);
         toast.success("Expense approved");
-        fetchExpenses(); // Refresh
+        fetchExpenses(); // Refresh from backend
       } catch (error) {
         console.error("Approve error:", error);
         toast.error("Failed to approve expense");
-        setExpenses((prev) =>
-          prev.map((exp) => (exp.id === expense.id ? expense : exp))
-        );
       }
     },
     [currentUserRole, fetchExpenses]
@@ -197,17 +182,6 @@ const ExpenseManagement = () => {
 
   const handleReject = useCallback(
     async (expense) => {
-      const updatedExpense = {
-        ...expense,
-        ...(currentUserRole === "manager"
-          ? { approvedByAdmin: "rejected" }
-          : { approvedBySuperAdmin: "rejected" }),
-      };
-
-      setExpenses((prev) =>
-        prev.map((exp) => (exp.id === expense.id ? updatedExpense : exp))
-      );
-
       const payload = {
         expenseId: expense.id,
         userId: expense.userId,
@@ -224,9 +198,6 @@ const ExpenseManagement = () => {
       } catch (error) {
         console.error("Reject error:", error);
         toast.error("Failed to reject expense");
-        setExpenses((prev) =>
-          prev.map((exp) => (exp.id === expense.id ? expense : exp))
-        );
       }
     },
     [currentUserRole, fetchExpenses]
@@ -269,57 +240,48 @@ const ExpenseManagement = () => {
     },
   ];
 
-  const actions = useMemo(
-    () => [
-      {
-        type: "menu",
-        label: "Actions",
-        className:
-          "px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition",
-        menuItems: [
-          {
-            label: "Accept",
-            onClick: (row) => handleApprove(row),
-            icon: <FaCheck className="text-green-500" />,
-            condition: (row) => {
-              const status = getStatus(row);
-              if (currentUserRole === "manager") return status === "Pending";
-              if (currentUserRole === "admin")
-                return status === "Pending by Admin";
-              return false;
-            },
-            className: "text-green-600 hover:bg-green-50",
+  const actions = [
+    {
+      type: "menu",
+      label: "Actions",
+      className:
+        "px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition",
+      menuItems: [
+        {
+          label: "Accept",
+          onClick: (row) => handleApprove(row),
+          icon: <FaCheck className="text-green-500" />,
+          condition: (row) => {
+            const status = getStatus(row);
+            if (currentUserRole === "manager") return status === "Pending";
+            if (currentUserRole === "admin")
+              return status === "Pending by Admin";
+            return false;
           },
-          {
-            label: "Reject",
-            onClick: (row) => handleReject(row),
-            icon: <IoMdClose className="text-red-500" />,
-            condition: (row) => {
-              const status = getStatus(row);
-              if (currentUserRole === "manager") return status === "Pending";
-              if (currentUserRole === "admin")
-                return status === "Pending by Admin";
-              return false;
-            },
-            className: "text-red-600 hover:bg-red-50",
+          className: "text-green-600 hover:bg-green-50",
+        },
+        {
+          label: "Reject",
+          onClick: (row) => handleReject(row),
+          icon: <IoMdClose className="text-red-500" />,
+          condition: (row) => {
+            const status = getStatus(row);
+            if (currentUserRole === "manager") return status === "Pending";
+            if (currentUserRole === "admin")
+              return status === "Pending by Admin";
+            return false;
           },
-          {
-            label: "View",
-            onClick: (row) => openUserExpenseModal(row),
-            icon: <FaEye className="text-blue-500" />,
-            className: "text-blue-600 hover:bg-blue-50",
-          },
-        ],
-      },
-    ],
-    [
-      currentUserRole,
-      handleApprove,
-      handleReject,
-      openUserExpenseModal,
-      getStatus,
-    ]
-  );
+          className: "text-red-600 hover:bg-red-50",
+        },
+        {
+          label: "View",
+          onClick: (row) => openUserExpenseModal(row),
+          icon: <FaEye className="text-blue-500" />,
+          className: "text-blue-600 hover:bg-blue-50",
+        },
+      ],
+    },
+  ];
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -363,20 +325,19 @@ const ExpenseManagement = () => {
       </div>
 
       {loading ? (
-        <Loader />
+        <div className="text-center py-4 text-gray-500 flex flex-col items-center just"><div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>Loading attendance...</div>              
       ) : (
         <Table
           columns={columns}
-          data={paginatedData}
+          data={expenses} // ✅ Use expenses directly (no client-side pagination)
           actions={actions}
           keyField="id"
           emptyMessage="No expenses found."
           currentPage={currentPage}
           pageSize={pageSize}
-          totalCount={filteredExpenses.length}
+          totalCount={totalRecords} // ✅ Use backend total
           onPageChange={handlePageChange}
           shadow="shadow-sm"
-          // Removed onRowClick — use "View" in menu instead
         />
       )}
 
@@ -459,7 +420,7 @@ const ExpenseManagement = () => {
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               e.target.src =
-                                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24'%3E%3Cpath fill='%2394a3b8' d='M6 2q-.825 0-1.412-.587T4 2V2h16v20H4V2h0Zm0 2v16h16V4H6Zm2 2h1v10H8V6Zm3 0h1v10h-1V6Zm3 0h1v10h-1V6Zm-6 2v6h1V8Zm3 0v6h1V8Zm3 0v6h1V8Z'/%3E";
+                                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24'%3E%3Cpath fill='%2394a3b8' d='M6 2q-.825 0-1.412-.587T4 2V2h16v20H4V2h0Zm0 2v16h16V4H6Zm2 2h1v10H8V6Zm3 0h1v10h-1V6Zm3  0h1v10h-1V6Zm-6 2v6h1V8Zm3 0v6h1V8Zm3 0v6h1V8Z'/%3E";
                               e.target.className =
                                 "w-full h-full object-contain bg-gray-100";
                             }}

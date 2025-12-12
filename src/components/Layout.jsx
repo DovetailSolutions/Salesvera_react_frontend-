@@ -15,9 +15,9 @@ export default function Layout({ routes }) {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex px-2">
       <SidePanel routes={routes} />
-      <main className="flex-1 ml-56 pr-2">
+      <main className="flex-1 ml-56 px-2">
         <Topbar />
         <Outlet />
         <Footer />
