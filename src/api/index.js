@@ -57,13 +57,20 @@ export const adminApi = {
 };
 
 export const meetingApi = {
-  getUserMeetings: ({ userId, date, search = "", empty = false }) => {
+  getUserMeetings: ({ userId, date,page = 1,        
+    limit = 10,     
+    search = "", 
+    timeFilter, empty = false }) => {
     const params = {};
     
     if (empty) {
       params.empty = true; 
     } else if (userId) {
-      params.userId = userId; 
+      params.userId = userId;
+      params.page = page;      
+      params.limit = limit;    
+      if (search) params.search = search;
+      if (timeFilter) params.timeFilter = timeFilter; 
     }
 
     if (date) params.date = date;
