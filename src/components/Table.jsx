@@ -282,7 +282,7 @@ export default function Table({
     <motion.div
   initial={{ opacity: 0 }}
   animate={{ opacity: 1 }}
-  className={`w-full paneltheme rounded mt-4 p-2 overflow-x-auto lg:overflow-x-hidden`}
+  className={`w-full paneltheme rounded p-2 overflow-x-auto lg:overflow-x-hidden`}
 >
   <table className="w-full text-sm border-collapse table-fixed">
         {renderHeader()}

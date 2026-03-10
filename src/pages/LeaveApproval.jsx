@@ -5,6 +5,8 @@ import toast, { Toaster } from "react-hot-toast";
 import { FaCheck } from "react-icons/fa6";
 import { IoMdClose } from "react-icons/io";
 import { AuthContext } from "../context/AuthProvider";
+import { Search, CalendarDays } from "lucide-react";
+import Loader from "../components/Loader";
 
 export default function LeaveApproval() {
   const { user } = useContext(AuthContext);
@@ -17,6 +19,10 @@ export default function LeaveApproval() {
   const [myLeaves, setMyLeaves] = useState([]);
   const [loadingMyLeaves, setLoadingMyLeaves] = useState(false);
   const [showMyLeaves, setShowMyLeaves] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const fetchLeaves = async () => {
     try {
@@ -47,7 +53,7 @@ export default function LeaveApproval() {
       setLeaves(flattenedLeaves);
     } catch (err) {
       console.error("Error fetching leaves:", err);
-      toast.error("Failed to load leave requests");
+      toast.info("No pending leave requests found");
       setLeaves([]);
     } finally {
       setLoading(false);
@@ -55,27 +61,26 @@ export default function LeaveApproval() {
   };
 
   const fetchMyLeaves = async () => {
-  setLoadingMyLeaves(true);
-  try {
-    const response = await adminApi.getOwnLeave();
-    
-    const leaves = response.data?.data?.leave || [];
-    
-    setMyLeaves(Array.isArray(leaves) ? leaves : []);
-    setShowMyLeaves(true);
-  } catch (err) {
-    console.error("Error fetching your leaves:", err);
-    if (err.response?.status === 404) {
-      setMyLeaves([]);
+    setLoadingMyLeaves(true);
+    try {
+      const response = await adminApi.getOwnLeave();
+      const leaves = response.data?.data?.leave || [];
+      
+      setMyLeaves(Array.isArray(leaves) ? leaves : []);
       setShowMyLeaves(true);
-    } else {
-      toast.error("Failed to load your leave records");
-      setMyLeaves([]);
+    } catch (err) {
+      console.error("Error fetching your leaves:", err);
+      if (err.response?.status === 404) {
+        setMyLeaves([]);
+        setShowMyLeaves(true);
+      } else {
+        toast("No leave records found for you");
+        setMyLeaves([]);
+      }
+    } finally {
+      setLoadingMyLeaves(false);
     }
-  } finally {
-    setLoadingMyLeaves(false);
-  }
-};
+  };
 
   useEffect(() => {
     fetchLeaves();
@@ -123,6 +128,31 @@ export default function LeaveApproval() {
     );
   });
 
+  // Shared status renderer for consistency
+  const renderStatusBadge = (statusValue) => {
+    const status = (statusValue || "pending").toLowerCase();
+    let color = "bg-slate-100 text-slate-700";
+    let dot = "bg-slate-500";
+    
+    if (status === "approved") { 
+      color = "bg-emerald-100 text-emerald-700"; 
+      dot = "bg-emerald-500"; 
+    } else if (status === "rejected") { 
+      color = "bg-red-100 text-red-700"; 
+      dot = "bg-red-500"; 
+    } else if (status === "pending") { 
+      color = "bg-amber-100 text-amber-700"; 
+      dot = "bg-amber-500"; 
+    }
+
+    return (
+      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${color}`}>
+        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${dot}`}></span>
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </span>
+    );
+  };
+
   const mainColumns = [
     {
       key: "employee",
@@ -130,54 +160,41 @@ export default function LeaveApproval() {
       render: (row) => {
         const user = row.user || {};
         const fullName = (user.firstName || "") + " " + (user.lastName || "");
-        return <div className="capitalize">{fullName.trim() || "—"}</div>;
+        return <div className="capitalize font-medium text-slate-800">{fullName.trim() || "—"}</div>;
       },
     },
-    { key: "email", label: "Email", render: (row) => <div className="break-words max-w-xs">{row.user?.email || "—"}</div> },
-    { key: "from_date", label: "From Date", render: (row) => <div>{row.from_date || "—"}</div> },
-    { key: "to_date", label: "To Date", render: (row) => <div>{row.to_date || "—"}</div> },
-    { key: "reason", label: "Reason", render: (row) => <div>{row.reason || "—"}</div> },
+    { key: "email", label: "Email", render: (row) => <div className="break-words max-w-xs text-slate-500">{row.user?.email || "—"}</div> },
+    { key: "from_date", label: "From Date", render: (row) => <div className="font-medium text-slate-700">{row.from_date || "—"}</div> },
+    { key: "to_date", label: "To Date", render: (row) => <div className="font-medium text-slate-700">{row.to_date || "—"}</div> },
+    { key: "reason", label: "Reason", render: (row) => <div className="text-slate-600">{row.reason || "—"}</div> },
     {
       key: "status",
       label: "Status",
-      render: (row) => {
-        const status = (row.status || "pending").toLowerCase();
-        let bgColor = "bg-gray-200";
-        let textColor = "text-gray-800";
-        if (status === "approved") { bgColor = "bg-green-100"; textColor = "text-green-800"; }
-        else if (status === "rejected") { bgColor = "bg-red-100"; textColor = "text-red-800"; }
-        else if (status === "pending") { bgColor = "bg-yellow-100"; textColor = "text-yellow-800"; }
-
-        return (
-          <span
-            className={`px-2 py-1 rounded-full text-xs font-medium ${bgColor} ${textColor}`}
-          >
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </span>
-        );
-      },
+      render: (row) => renderStatusBadge(row.status),
     },
     {
       key: "actions",
       label: "Actions",
       render: (row) => {
         if (row.status?.toLowerCase() !== "pending") {
-          return <span className="text-gray-500 italic">—</span>;
+          return <span className="text-slate-400 italic text-sm">—</span>;
         }
         return (
-          <div className="flex gap-2">
-            <div
+          <div className="flex items-center gap-2">
+            <button
               onClick={() => handleApprove(row)}
-              className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 cursor-pointer"
+              className="p-1.5 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-500 hover:text-white transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              title="Approve Leave"
             >
-              <FaCheck />
-            </div>
-            <div
+              <FaCheck className="w-3.5 h-3.5" />
+            </button>
+            <button
               onClick={() => handleReject(row)}
-              className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 cursor-pointer"
+              className="p-1.5 bg-red-50 border border-red-100 text-red-600 rounded-lg hover:bg-red-500 hover:text-white transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+              title="Reject Leave"
             >
-              <IoMdClose />
-            </div>
+              <IoMdClose className="w-4 h-4" />
+            </button>
           </div>
         );
       },
@@ -185,26 +202,13 @@ export default function LeaveApproval() {
   ];
 
   const myLeavesColumns = [
-    { key: "from_date", label: "From Date", render: (row) => <div>{row.from_date || "—"}</div> },
-    { key: "to_date", label: "To Date", render: (row) => <div>{row.to_date || "—"}</div> },
-    { key: "reason", label: "Reason", render: (row) => <div>{row.reason || "—"}</div> },
+    { key: "from_date", label: "From Date", render: (row) => <div className="font-medium text-slate-700">{row.from_date || "—"}</div> },
+    { key: "to_date", label: "To Date", render: (row) => <div className="font-medium text-slate-700">{row.to_date || "—"}</div> },
+    { key: "reason", label: "Reason", render: (row) => <div className="text-slate-600">{row.reason || "—"}</div> },
     {
       key: "status",
       label: "Status",
-      render: (row) => {
-        const status = (row.status || "pending").toLowerCase();
-        let bgColor = "bg-gray-200";
-        let textColor = "text-gray-800";
-        if (status === "approved") { bgColor = "bg-green-100"; textColor = "text-green-800"; }
-        else if (status === "rejected") { bgColor = "bg-red-100"; textColor = "text-red-800"; }
-        else if (status === "pending") { bgColor = "bg-yellow-100"; textColor = "text-yellow-800"; }
-
-        return (
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${bgColor} ${textColor}`}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </span>
-        );
-      },
+      render: (row) => renderStatusBadge(row.status),
     },
   ];
 
@@ -217,20 +221,27 @@ export default function LeaveApproval() {
   };
 
   return (
-    <div className="py-2 h-screen">
+    <div className="py-4 h-[calc(100vh-6rem)] flex flex-col relative">
       <Toaster position="top-right" />
 
-      <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
-        <h1 className="text-3xl font-semibold">
-          {showMyLeaves ? "Your Leave Records" : "Leave Requests"}
-        </h1>
+      {/* Header Section (STRICTLY ONE LINE) */}
+      <div className="flex flex-row items-center justify-between mb-6 w-full">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
+            {showMyLeaves ? "Your Leave Records" : "Leave Requests"}
+          </h2>
+          <p className="text-sm text-slate-500 mt-1 font-medium hidden sm:block">
+            {showMyLeaves ? "Review your historical leave requests and their statuses." : "Manage and respond to employee leave applications."}
+          </p>
+        </div>
 
         {isNonAdmin && (
           <button
             onClick={toggleView}
             disabled={loadingMyLeaves}
-            className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700 font-medium transition disabled:opacity-70"
+            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all px-5 py-2.5 rounded-xl text-sm whitespace-nowrap disabled:opacity-70 disabled:hover:translate-y-0 disabled:cursor-not-allowed"
           >
+            <CalendarDays className="w-4 h-4" />
             {loadingMyLeaves
               ? "Loading..."
               : showMyLeaves
@@ -240,36 +251,60 @@ export default function LeaveApproval() {
         )}
       </div>
 
+      {/* Search Bar Container */}
       {!showMyLeaves && (
-        <div className="mb-6 max-w-2xl">
-          <input
-            type="text"
-            placeholder="Search by name, email, or reason..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-sm"
-          />
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6">
+          <div className="relative w-full md:max-w-md">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by name, email, or reason..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all"
+            />
+          </div>
         </div>
       )}
 
-      {/* Render only one table at a time */}
-      {showMyLeaves ? (
-        <Table
-          columns={myLeavesColumns}
-          data={myLeaves}
-          keyField="id"
-          emptyMessage={myLeaves.length === 0 ? "You have no leave records." : ""}
-          loading={loadingMyLeaves}
-        />
-      ) : (
-        <Table
-          columns={mainColumns}
-          data={filteredLeaves}
-          keyField="id"
-          emptyMessage="No pending leave requests"
-          loading={loading}
-        />
-      )}
+      {/* Main Table Area */}
+      <div className="relative flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col animate-in fade-in duration-300">
+        <div className="flex-1 overflow-auto custom-scrollbar p-0">
+          {showMyLeaves ? (
+            <Table
+              columns={myLeavesColumns}
+              data={myLeaves}
+              keyField="id"
+              emptyMessage={myLeaves.length === 0 ? "You have no leave records." : ""}
+            />
+          ) : (
+            <Table
+              columns={mainColumns}
+              data={filteredLeaves}
+              keyField="id"
+              emptyMessage="No pending leave requests"
+            />
+          )}
+        </div>
+
+        {/* Loading Overlays */}
+        {(loading && !showMyLeaves) && (
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-10 transition-all duration-300">
+            <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-100 flex items-center gap-3">
+              <Loader /> <span className="text-sm font-semibold text-slate-600">Loading requests...</span>
+            </div>
+          </div>
+        )}
+        
+        {(loadingMyLeaves && showMyLeaves) && (
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-10 transition-all duration-300">
+            <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-100 flex items-center gap-3">
+              <Loader /> <span className="text-sm font-semibold text-slate-600">Loading your records...</span>
+            </div>
+          </div>
+        )}
+      </div>
+      
     </div>
   );
 }

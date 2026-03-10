@@ -4,6 +4,20 @@ import Toast from "../components/Toast";
 import { AuthContext } from "../context/AuthProvider";
 import { adminApi, meetingApi } from "../api";
 import Loader from "../components/Loader";
+import { 
+  CalendarPlus, 
+  Download, 
+  Search, 
+  Users, 
+  X, 
+  CalendarClock, 
+  Building2, 
+  User, 
+  Phone, 
+  Mail,
+  ChevronRight
+} from "lucide-react";
+import { Toaster } from "react-hot-toast";
 
 export default function MeetingManagement() {
   const { user } = useContext(AuthContext);
@@ -32,8 +46,6 @@ export default function MeetingManagement() {
   const [availableMeetings, setAvailableMeetings] = useState([]);
   const [meetingsForDropdownLoading, setMeetingsForDropdownLoading] = useState(false);
 
-  // ❌ REMOVED: filteredMeetings, paginatedMeetings, meetingPagination
-
   const filteredSalespersons = salespersons.filter(sp => {
     if (!globalSearch.trim()) return true;
     const term = globalSearch.toLowerCase();
@@ -43,6 +55,10 @@ export default function MeetingManagement() {
       (sp.phone && sp.phone.includes(term))
     );
   });
+
+  useEffect(()=>{
+    window.scrollTo(0,0);
+  },[])
 
   // Fetch managers (admin only) - unchanged
   const fetchManagers = async () => {
@@ -80,12 +96,11 @@ export default function MeetingManagement() {
     }
   };
 
-  // ✅ NEW: Fetch meetings with backend pagination + filters
+  // ✅ Fetch meetings with backend pagination + filters
   const fetchMeetings = async (userId, page = 1, search = "", tab = "All Time") => {
     if (!userId) return;
     setMeetingsLoading(true);
     try {
-      // Map tab to backend filter value
       let timeFilter = "";
       if (tab === "Today") timeFilter = "today";
       else if (tab === "This Week") timeFilter = "week";
@@ -117,7 +132,7 @@ export default function MeetingManagement() {
     }
   };
 
-  // Export meetings to CSV - disabled for backend pagination
+  // Export meetings to CSV
   const handleExportMeetings = () => {
     Toast.error("Export requires loading all meetings. Not supported with pagination.");
   };
@@ -172,7 +187,7 @@ export default function MeetingManagement() {
     }
   };
 
-  // Initialize user data - unchanged
+  // Initialize user data
   useEffect(() => {
     if (!user) return;
     if (user.role === "admin") {
@@ -182,7 +197,7 @@ export default function MeetingManagement() {
     }
   }, [user]);
 
-  // ✅ Fetch meetings when dependencies change
+  // Fetch meetings when dependencies change
   useEffect(() => {
     if (selectedSalesperson) {
       fetchMeetings(selectedSalesperson.id, currentPage, globalSearch, activeTab);
@@ -192,12 +207,12 @@ export default function MeetingManagement() {
     }
   }, [selectedSalesperson, currentPage, globalSearch, activeTab]);
 
-  // ✅ Reset to page 1 on filter/tab change
+  // Reset to page 1 on filter/tab change
   useEffect(() => {
     setCurrentPage(1);
   }, [globalSearch, activeTab]);
 
-  // Fetch available meetings for modal - unchanged
+  // Fetch available meetings for modal
   useEffect(() => {
     if (isScheduleModalOpen && selectedSalesperson) {
       setMeetingsForDropdownLoading(true);
@@ -227,337 +242,433 @@ export default function MeetingManagement() {
   const isManager = user?.role === "manager";
   const isAdmin = user?.role === "admin";
 
-  if (loading) return <Loader variant="dots"/>
-
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
-      {/* Header */}
-      <div className="py-2">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-semibold">Meeting Management</h1>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                if (!selectedSalesperson) {
-                  Toast.error("Please select a salesperson first.");
-                  return;
-                }
-                setIsScheduleModalOpen(true);
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded"
+    <div className="py-4 h-[calc(100vh-6rem)] flex flex-col relative">
+      <Toaster position="top-right" />
+
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
+            Meeting Management
+          </h1>
+          <p className="text-sm text-slate-500 mt-1 font-medium">
+            Schedule and track meetings for your sales team.
+          </p>
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-3">
+          {selectedSalesperson && totalMeetings > 0 && (
+            <div
+              onClick={handleExportMeetings}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
             >
-              + Schedule Meeting
-            </button>
-            {selectedSalesperson && totalMeetings > 0 && (
-              <button
-                onClick={handleExportMeetings}
-                className="bg-green-600 hover:bg-green-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded"
-              >
-                Export Meetings (CSV)
-              </button>
-            )}
+              <Download className="w-4 h-4" />
+              Export CSV
+            </div>
+          )}
+          <div
+            onClick={() => {
+              if (!selectedSalesperson) {
+                Toast.error("Please select a salesperson first.");
+                return;
+              }
+              setIsScheduleModalOpen(true);
+            }}
+            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all px-5 py-2.5 rounded-xl text-sm"
+          >
+            <CalendarPlus className="w-4 h-4" />
+            Schedule Meeting
           </div>
         </div>
       </div>
 
-      {/* Schedule Meeting Modal (unchanged) */}
+      {/* Main Split View */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 overflow-hidden min-h-0">
+        
+        {/* Left Panel: Team List */}
+        <div className="w-full lg:w-[300px] flex flex-col h-[40vh] lg:h-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden shrink-0">
+          
+          <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">
+              {isAdmin ? "Select Team Member" : "My Team"}
+            </h2>
+
+            {isAdmin && (
+              <div className="mb-4">
+                <select
+                  value={selectedManager?.id || ""}
+                  onChange={(e) => {
+                    const managerId = e.target.value;
+                    const manager = managers.find((m) => m.id === Number(managerId)) || null;
+                    setSelectedManager(manager);
+                    setSelectedSalesperson(null);
+                    setMeetings([]);
+                    if (manager) {
+                      fetchSalespersons(manager.id);
+                    } else {
+                      setSalespersons([]);
+                    }
+                  }}
+                  className="w-full pl-3 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 appearance-none focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all cursor-pointer"
+                >
+                  <option value="" disabled>Select a Manager</option>
+                  {managers.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.firstName} {m.lastName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search team..."
+                value={globalSearch}
+                onChange={(e) => setGlobalSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-10 text-slate-500">
+                <Loader />
+              </div>
+            ) : filteredSalespersons.length > 0 ? (
+              <div className="flex flex-col gap-1">
+                {filteredSalespersons.map((sp) => {
+                  const isSelected = selectedSalesperson?.id === sp.id;
+                  return (
+                    <div
+                      key={sp.id}
+                      onClick={() => {
+                        setSelectedSalesperson(sp);
+                        setCurrentPage(1);
+                        fetchMeetings(sp.id, 1, globalSearch, activeTab);
+                      }}
+                      className={`group relative flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                        isSelected
+                          ? "bg-blue-50/80 border border-blue-200"
+                          : "bg-white border border-transparent hover:bg-slate-50 hover:border-slate-200"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                          isSelected ? "bg-blue-600 text-white shadow-md shadow-blue-500/30" : "bg-slate-100 text-slate-600"
+                        }`}>
+                          {sp.firstName?.charAt(0)}{sp.lastName?.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className={`text-sm font-semibold truncate capitalize ${isSelected ? "text-blue-900" : "text-slate-800"}`}>
+                            {sp.firstName} {sp.lastName}
+                          </p>
+                          <p className={`text-xs truncate mt-0.5 ${isSelected ? "text-blue-600" : "text-slate-500"}`}>
+                            {sp.email}
+                          </p>
+                        </div>
+                      </div>
+                      {isSelected && <ChevronRight className="w-4 h-4 text-blue-500 shrink-0" />}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full py-10 text-center px-4">
+                <Users className="w-12 h-12 text-slate-200 mb-3" />
+                <p className="text-sm font-medium text-slate-500">
+                  {isAdmin 
+                    ? (selectedManager ? "No team members found." : "Select a manager first.")
+                    : "No team members found."
+                  }
+                </p>
+              </div>
+            )}
+          </div>
+          
+          {/* Quick Stats Footer */}
+          <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-slate-400 uppercase">Team Size</span>
+              <span className="text-lg font-black text-slate-800">{filteredSalespersons.length}</span>
+            </div>
+            <div className="flex flex-col text-right">
+              <span className="text-xs font-bold text-slate-400 uppercase">Total Meetings</span>
+              <span className="text-lg font-black text-blue-600">{totalMeetings}</span>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Right Panel: Meetings Table */}
+        <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
+          
+          {selectedSalesperson ? (
+            <>
+              {/* Right Panel Header */}
+              <div className="p-5 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-slate-50/30">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-blue-100 text-blue-600 rounded-xl">
+                    <CalendarClock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800">
+                      <span className="capitalize">{selectedSalesperson.firstName} {selectedSalesperson.lastName}</span>'s Meetings
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex bg-slate-100 p-1 rounded-xl">
+                  {["All Time", "Today", "This Week", "This Month"].map((tab) => (
+                    <div
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                        activeTab === tab
+                          ? "bg-white text-blue-600 shadow-sm"
+                          : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                      }`}
+                    >
+                      {tab}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Table Container */}
+              <div className="flex-1 overflow-auto custom-scrollbar p-0 relative">
+                <Table
+                  columns={[
+                    { 
+                      key: "companyName", 
+                      label: "Company", 
+                      render: (row) => (
+                        <div className="font-medium text-slate-800 flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-slate-400" />
+                          {row.companyName || "—"}
+                        </div>
+                      ) 
+                    },
+                    { 
+                      key: "personName", 
+                      label: "Contact", 
+                      render: (row) => (
+                        <div className="capitalize flex items-center gap-2 text-slate-700">
+                          <User className="w-4 h-4 text-slate-400" />
+                          {row.personName || "—"}
+                        </div>
+                      ) 
+                    },
+                    { 
+                      key: "mobileNumber", 
+                      label: "Mobile", 
+                      render: (row) => (
+                        <div className="flex items-center gap-2 text-slate-600">
+                          <Phone className="w-3.5 h-3.5 text-slate-400" />
+                          {row.mobileNumber || "—"}
+                        </div>
+                      ) 
+                    },
+                    { 
+                      key: "companyEmail", 
+                      label: "Email", 
+                      render: (row) => (
+                        <div className="break-words flex items-center gap-2 text-slate-600">
+                          <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="truncate max-w-[150px]" title={row.companyEmail}>{row.companyEmail || "—"}</span>
+                        </div>
+                      ) 
+                    },
+                    {
+                      key: "meetingTimeIn",
+                      label: "Check-in",
+                      render: (row) =>
+                        row.meetingTimeIn ? (
+                          <span className="inline-flex px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-700">
+                            {new Date(row.meetingTimeIn).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                          </span>
+                        ) : "—",
+                    },
+                    {
+                      key: "meetingTimeOut",
+                      label: "Check-out",
+                      render: (row) =>
+                        row.meetingTimeOut ? (
+                          <span className="inline-flex px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-700">
+                            {new Date(row.meetingTimeOut).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                          </span>
+                        ) : "—",
+                    },
+                  ]}
+                  data={meetings}
+                  keyField="id"
+                  emptyMessage="No meetings found for this filter."
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  totalCount={totalMeetings}
+                  onPageChange={setCurrentPage}
+                />
+
+                {/* Loading Overlay */}
+                {meetingsLoading && (
+                  <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-10 transition-all duration-300">
+                    <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-100 flex items-center gap-3">
+                      <Loader /> <span className="text-sm font-semibold text-slate-600">Fetching meetings...</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full py-10 text-center px-4 bg-slate-50/50">
+              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100 mb-4">
+                <Users className="w-10 h-10 text-blue-400" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">No Team Member Selected</h3>
+              <p className="text-sm font-medium text-slate-500 max-w-sm">
+                {isAdmin 
+                  ? "Select a manager, then select a salesperson from the left panel to view and manage their meetings."
+                  : "Select a salesperson from the left panel to view their assigned meetings and schedule."}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Schedule Meeting Modal */}
       {isScheduleModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-gray-200">
-            <div className="flex justify-between items-center p-4">
-              <h2 className="text-xl font-bold">Schedule Meeting</h2>
-              <button
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md border border-slate-100 relative overflow-hidden animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <CalendarPlus className="w-5 h-5 text-blue-500" />
+                Schedule Meeting
+              </h2>
+              <div
                 onClick={() => {
                   setIsScheduleModalOpen(false);
                   resetScheduleForm();
                 }}
-                className="text-gray-500 hover:text-gray-700"
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors focus:outline-none"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+                <X size={20} />
+              </div>
             </div>
 
-            <div className="p-4 space-y-4">
+            <div className="p-6 space-y-5">
+              
+              {/* Selected Assignee Badge */}
               {selectedSalesperson && (
-                <div className="bg-blue-50 p-3 rounded">
-                  <p className="text-sm text-gray-600">
-                    Assigning to: <span className="font-medium">
+                <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
+                    {selectedSalesperson.firstName?.charAt(0)}{selectedSalesperson.lastName?.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-0.5">Assigning To</p>
+                    <p className="text-sm font-bold text-blue-900 capitalize">
                       {selectedSalesperson.firstName} {selectedSalesperson.lastName}
-                    </span>
-                  </p>
+                    </p>
+                  </div>
                 </div>
               )}
 
+              {/* Select Meeting */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Select Meeting *
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Select Client / Meeting <span className="text-red-500">*</span>
                 </label>
                 {meetingsForDropdownLoading ? (
-                  <div className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-500">
-                    Loading meetings...
+                  <div className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm font-medium flex items-center gap-2">
+                    <Loader /> Loading clients...
                   </div>
                 ) : availableMeetings.length === 0 ? (
-                  <div className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-50 text-gray-500">
-                    No available meetings
+                  <div className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm font-medium">
+                    No available clients found.
                   </div>
                 ) : (
-                  <select
-                    name="meetingId"
-                    value={scheduleForm.meetingId}
-                    onChange={handleScheduleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">-- Select a meeting --</option>
-                    {availableMeetings.map((meeting) => (
-                      <option key={meeting.id} value={meeting.id}>
-                        {meeting.companyName || "Unnamed Company"}
-                        {meeting.personName ? ` - ${meeting.personName}` : ""}
-                        {meeting.mobileNumber ? ` (${meeting.mobileNumber})` : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <select
+                      name="meetingId"
+                      value={scheduleForm.meetingId}
+                      onChange={handleScheduleInputChange}
+                      className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 appearance-none focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all cursor-pointer"
+                    >
+                      <option value="" disabled>Select a client meeting</option>
+                      {availableMeetings.map((meeting) => (
+                        <option key={meeting.id} value={meeting.id}>
+                          {meeting.companyName || "Unnamed Company"}
+                          {meeting.personName ? ` - ${meeting.personName}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    {/* Custom Select Arrow */}
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </div>
+                  </div>
                 )}
               </div>
 
+              {/* Select Time */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Scheduled Time *
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Scheduled Time <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="datetime-local"
-                  name="scheduledTime"
-                  value={scheduleForm.scheduledTime}
-                  onChange={handleScheduleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="relative">
+                  <CalendarClock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="datetime-local"
+                    name="scheduledTime"
+                    value={scheduleForm.scheduledTime}
+                    onChange={handleScheduleInputChange}
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 p-4">
-              <button
-                type="button"
+            {/* Modal Actions */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <div
+                type="div"
                 onClick={() => {
                   setIsScheduleModalOpen(false);
                   resetScheduleForm();
                 }}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
+                className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200"
               >
                 Cancel
-              </button>
-              <button
-                type="button"
+              </div>
+              <div
+                type="div"
                 onClick={handleScheduleMeeting}
-                disabled={scheduleLoading}
-                className={`px-4 py-2 rounded ${
-                  scheduleLoading
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-green-600 hover:bg-green-700 text-white"
-                }`}
+                disabled={scheduleLoading || !scheduleForm.meetingId || !scheduleForm.scheduledTime}
+                className="px-5 py-2.5 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2"
               >
-                {scheduleLoading ? "Scheduling..." : "Schedule"}
-              </button>
+                {scheduleLoading ? (
+                  <>
+                    <Loader />
+                    Scheduling...
+                  </>
+                ) : (
+                  "Schedule Meeting"
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        <div className="flex flex-col lg:flex-row gap-5 h-full">
-          {/* Left Panel (unchanged) */}
-          <div className="w-full lg:w-[16rem] flex flex-col h-full">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden p-4">
-              {isAdmin && (
-                <div className="mb-4">
-                  <h2 className="text-lg font-semibold mb-2">Managers</h2>
-                  <select
-                    value={selectedManager?.id || ""}
-                    onChange={(e) => {
-                      const managerId = e.target.value;
-                      const manager = managers.find((m) => m.id === Number(managerId)) || null;
-                      setSelectedManager(manager);
-                      setSelectedSalesperson(null);
-                      setMeetings([]);
-                      if (manager) {
-                        fetchSalespersons(manager.id);
-                      } else {
-                        setSalespersons([]);
-                      }
-                    }}
-                    className="w-full rounded-full border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="" disabled>Select a manager</option>
-                    {managers.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.firstName} {m.lastName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <input
-                type="text"
-                placeholder={isManager ? "Search salesperson..." : "Search salesperson or meeting..."}
-                value={globalSearch}
-                onChange={(e) => setGlobalSearch(e.target.value)}
-                className="px-4 py-2 rounded-full border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm w-full text-sm mb-4"
-              />
-
-              <div className="flex-1 overflow-hidden">
-                <h3 className="text-sm font-medium text-slate-600 mb-2">
-                  {isAdmin ? "Team Members" : "My Team"}
-                </h3>
-                <div className="flex flex-col gap-2 overflow-y-auto pr-1 pt-2 h-full max-h-[60vh]">
-                  {loading ? (
-                    <div className="flex flex-col items-center justify-center py-6 text-slate-500">
-                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                      <p className="text-sm">Loading team...</p>
-                    </div>
-                  ) : filteredSalespersons.length > 0 ? (
-                    filteredSalespersons.map((sp) => (
-                      <div
-                        key={sp.id}
-                        onClick={() => {
-                          setSelectedSalesperson(sp);
-                          setCurrentPage(1); // reset page when selecting new salesperson
-                          fetchMeetings(sp.id, 1, globalSearch, activeTab);
-                        }}
-                        className={`relative rounded-3xl border p-3 cursor-pointer transition-all duration-200 hover:shadow-sm ${
-                          selectedSalesperson?.id === sp.id
-                            ? "border-blue-500 bg-blue-500 text-white"
-                            : "border-slate-200 bg-white hover:bg-slate-50 text-slate-800"
-                        }`}
-                      >
-                        <div className="font-medium capitalize">
-                          {sp.firstName} {sp.lastName}
-                        </div>
-                        <div className="text-xs line-clamp-1 opacity-90">
-                          {sp.email}
-                        </div>
-                        <div className="text-xs opacity-90">
-                          {sp.phone || "—"}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-6 text-slate-500 text-sm">
-                      {isAdmin
-                        ? (selectedManager ? "No team members found." : "Select a manager to view their team")
-                        : "No team members found."
-                      }
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Panel */}
-          <div className="flex-1 flex flex-col h-full">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
-              {isAdmin && selectedManager ? (
-                <div className="px-4 pt-4">
-                  <h2 className="text-xl font-semibold">
-                    Manager: {selectedManager.firstName} {selectedManager.lastName}
-                  </h2>
-                </div>
-              ) : isManager ? (
-                <div className="px-4 pt-4">
-                  <h2 className="text-xl font-semibold">My Sales Team</h2>
-                </div>
-              ) : null}
-
-              {selectedSalesperson && (
-                <div className="px-4 py-4">
-                  <div className="flex gap-2 flex-wrap">
-                    {["All Time", "Today", "This Week", "This Month"].map((tab) => (
-                      <div
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
-                          activeTab === tab
-                            ? "bg-blue-500 text-white"
-                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                        }`}
-                      >
-                        {tab}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex-1 overflow-hidden px-4 pb-4">
-                {selectedSalesperson ? (
-                  <div>
-                    <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-lg font-medium">
-                        Meetings: {selectedSalesperson.firstName} {selectedSalesperson.lastName}
-                      </h3>
-                    </div>
-                    {/* ✅ Backend pagination: pass raw data + total */}
-                    <Table
-                      columns={[
-                        { key: "companyName", label: "Company", render: (row) => row.companyName || "—" },
-                        { key: "personName", label: "Contact", render: (row) => row.personName || "—" },
-                        { key: "mobileNumber", label: "Mobile", render: (row) => row.mobileNumber || "—" },
-                        { 
-                          key: "companyEmail", 
-                          label: "Email", 
-                          render: (row) => <span className="break-words">{row.companyEmail || "—"}</span> 
-                        },
-                        {
-                          key: "meetingTimeIn",
-                          label: "Check-in",
-                          render: (row) =>
-                            row.meetingTimeIn ? new Date(row.meetingTimeIn).toLocaleString() : "—",
-                        },
-                        {
-                          key: "meetingTimeOut",
-                          label: "Check-out",
-                          render: (row) =>
-                            row.meetingTimeOut ? new Date(row.meetingTimeOut).toLocaleString() : "—",
-                        },
-                      ]}
-                      data={meetings} // ✅ only current page from backend
-                      keyField="id"
-                      emptyMessage="No meetings found"
-                      currentPage={currentPage}
-                      pageSize={pageSize}
-                      totalCount={totalMeetings} // ✅ from backend
-                      onPageChange={setCurrentPage} // ✅ triggers new fetch
-                      loading={meetingsLoading}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full py-10 text-center text-slate-500">
-                    <svg className="w-16 h-16 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    <p className="text-lg">
-                      {isAdmin 
-                        ? "Select a salesperson to view their meetings"
-                        : "No salesperson selected"}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-start gap-2 mx-4 mb-4">
-                <div className="flex items-center justify-center gap-2 bg-[#3B82F60D] p-5 rounded-xl">
-                  <span className="text-4xl font-bold">{filteredSalespersons.length} </span> Total Members
-                </div>
-                <div className="flex items-center justify-center gap-2 bg-[#3B82F60D] p-5 rounded-xl">
-                  <span className="text-4xl font-bold">{totalMeetings} </span> Total Meetings
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

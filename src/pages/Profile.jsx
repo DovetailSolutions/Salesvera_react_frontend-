@@ -56,16 +56,12 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-4 px-2">
       <Toaster position="top-right" />
       
-      <div className="max-w-4xl mx-auto">
+      <div className="mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-slate-800">Profile</h1>
-          <p className="text-slate-600 mt-1">Manage your personal information</p>
-        </div>
-
+    
         {/* Profile Card */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
           {/* Header Section with Profile Picture */}

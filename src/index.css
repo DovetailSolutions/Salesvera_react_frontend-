@@ -19,7 +19,6 @@
   transition: all ease 0.4s;
 }
 
-
 .accentbg {
   @apply bg-[#282b53]
 }
@@ -54,7 +53,7 @@ input[type="date"]::-webkit-clear-button {
 
 button,
 .button {
-  @apply bg-(--primary-blue) w-fit dark:bg-[#282b53] text-white dark:text-white px-6 py-2 rounded-lg font-thin text-sm transition-all duration-200 ease-in-out active:scale-95 hover:scale-105 hover:shadow-lg cursor-pointer;
+  @apply bg-(--primary-blue) w-fit dark:bg-[#282b53] text-white dark:text-white px-6 py-2 rounded-lg text-sm transition-all duration-200 ease-in-out active:scale-95 hover:scale-105 hover:shadow-lg cursor-pointer;
 }
 
 /* Optional custom animation for subtle “press” feedback */

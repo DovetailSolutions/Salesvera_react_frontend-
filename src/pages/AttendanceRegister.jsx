@@ -243,7 +243,7 @@ users.forEach(user => {
 
   return (
     <div className="fixed inset-0 z-50 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4">
-      <div className="w-full h-screen max-h-screen bg-white rounded shadow-xl flex flex-col overflow-hidden">
+      <div className="w-full h-screen max-h-[94vh] bg-white rounded shadow-xl flex flex-col overflow-hidden">
         {/* Header */}
 <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0 relative">
   <div className="flex items-center justify-between">
@@ -340,9 +340,11 @@ users.forEach(user => {
 </div>
 
         {loading && (
-          <div className="flex justify-center py-4 text-gray-600">
-            Loading attendance data...
-          </div>
+          <div className="flex flex-col items-center justify-center py-6 text-slate-500">
+                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                      <p className="text-sm">Loading attendance data...</p>
+                    </div>
+          
         )}
 
         {/* ✅ UPDATED STATS BAR: Shows TODAY'S counts only */}

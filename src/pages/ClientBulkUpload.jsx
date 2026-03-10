@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useContext } from "react";
-import { FaDownload, FaFileUpload, FaSearch, FaTimes } from "react-icons/fa";
+import { Download, UploadCloud, Search, X, Plus, Users } from "lucide-react";
 import { clientApi, meetingApi } from "../api";
 import Table from "../components/Table";
 import Toast from "../components/Toast";
 import { AuthContext } from "../context/AuthProvider";
 import Loader from "../components/Loader";
+import FormModal from "../components/FormModal";
 
 const MEETING_COLUMNS = [
   { key: "id", label: "Meeting ID", sortable: true },
@@ -12,6 +13,34 @@ const MEETING_COLUMNS = [
   { key: "personName", label: "Contact Person", sortable: true },
   { key: "mobileNumber", label: "Mobile", sortable: true },
   { key: "companyEmail", label: "Email", sortable: true },
+];
+
+const clientFields = [
+  {
+    name: "companyName",
+    label: "Company Name",
+    required: true,
+    placeholder: "e.g., Arena",
+  },
+  {
+    name: "personName",
+    label: "Contact Person",
+    required: true,
+    placeholder: "e.g., Ankit",
+  },
+  {
+    name: "mobileNumber",
+    label: "Mobile Number",
+    required: true,
+    placeholder: "e.g., 7875345632",
+  },
+  {
+    name: "companyEmail",
+    label: "Company Email",
+    type: "email",
+    required: true,
+    placeholder: "e.g., arena@gmail.com",
+  },
 ];
 
 const transformMeetingForDisplay = (meeting) => {
@@ -65,6 +94,10 @@ arena,ankit,7875345632,arena@gmail.com`;
     URL.revokeObjectURL(url);
   };
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -110,6 +143,8 @@ arena,ankit,7875345632,arena@gmail.com`;
           const detailMessage = `${totalCSV} record(s) processed. ${inserted} added, ${duplicatesSkipped} duplicates skipped.`;
           Toast.info(detailMessage);
         }
+
+        setBulkUpload(false);
       } else {
         const errorMsg = resData?.message || "Upload failed.";
         Toast.error(errorMsg);
@@ -117,7 +152,7 @@ arena,ankit,7875345632,arena@gmail.com`;
 
       setSelectedFile(null);
       setUploadStatus(null);
-      fetchMeetings(searchTerm);
+      fetchMeetings(searchTerm, false);
     } catch (error) {
       const errorMsg =
         error.response?.data?.errorMessage ||
@@ -137,13 +172,11 @@ arena,ankit,7875345632,arena@gmail.com`;
       return;
     }
 
-    // Basic mobile validation (10-15 digits)
     if (!/^\d{10,15}$/.test(mobileNumber)) {
       Toast.error("Please enter a valid mobile number (10–15 digits).");
       return;
     }
 
-    // Basic email validation
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(companyEmail)) {
       Toast.error("Please enter a valid email address.");
       return;
@@ -155,7 +188,7 @@ arena,ankit,7875345632,arena@gmail.com`;
         Toast.success("Client added successfully!");
         setIsAddClientModalOpen(false);
         resetClientForm();
-        fetchMeetings(searchTerm); // refresh list
+        fetchMeetings(searchTerm, false);
       } else {
         Toast.error(response.data?.message || "Failed to add client.");
       }
@@ -182,8 +215,9 @@ arena,ankit,7875345632,arena@gmail.com`;
     setNewClient((prev) => ({ ...prev, [name]: value }));
   };
 
-  const fetchMeetings = async (search = "") => {
-    setLoadingMeetings(true);
+  const fetchMeetings = async (search = "", showLoader = true) => {
+    if (showLoader) setLoadingMeetings(true);
+
     try {
       const response = await meetingApi.getUserMeetings({
         empty: true,
@@ -192,9 +226,7 @@ arena,ankit,7875345632,arena@gmail.com`;
 
       const result = response.data;
       if (result?.success && Array.isArray(result.data?.rows)) {
-        const displayMeetings = result.data.rows.map(
-          transformMeetingForDisplay
-        );
+        const displayMeetings = result.data.rows.map(transformMeetingForDisplay);
         setMeetings(displayMeetings);
         setTotalCount(result.data.total);
       } else {
@@ -206,7 +238,7 @@ arena,ankit,7875345632,arena@gmail.com`;
       setMeetings([]);
       setTotalCount(0);
     } finally {
-      setLoadingMeetings(false);
+      if (showLoader) setLoadingMeetings(false);
     }
   };
 
@@ -227,232 +259,200 @@ arena,ankit,7875345632,arena@gmail.com`;
     fetchMeetings(searchTerm);
   };
 
-  return (
-    <div className="w-full py-2 h-screen">
-      <h1 className="text-3xl font-semibold mb-6">Client Management</h1>
+  // Upgraded Table Columns
+  const columns = MEETING_COLUMNS.map((col) => ({
+    ...col,
+    render: (row) => (
+      <div className={`text-sm ${col.key === 'companyName' || col.key === 'personName' ? 'font-medium text-slate-800 capitalize' : 'text-slate-600'}`}>
+        {row[col.key] || "—"}
+      </div>
+    ),
+  }));
 
-      {!isManager && (
-        <div className="flex justify-between items-center w-full mb-6">
-          <div className="flex items-center gap-2">
+  return (
+    <div className="py-4 h-[calc(100vh-6rem)] flex flex-col relative">
+      
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 w-full">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
+            Client Management
+          </h1>
+          <p className="text-sm text-slate-500 mt-1 font-medium">
+            Manage your client database, meetings, and records.
+          </p>
+        </div>
+
+        {!isManager && (
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={downloadSampleCSV}
-              className="flex items-center gap-2 px-4 py-2.5 text-white font-medium rounded-md text-sm bg-blue-600 hover:bg-blue-700 transition"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
             >
-              <FaDownload /> Download Sample CSV
+              <Download className="w-4 h-4" />
+              Sample CSV
             </button>
 
-            {!isManager && (
-              <>
-                <button
-                  onClick={() => setBulkUpload(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 text-white font-medium rounded-md text-sm bg-blue-600 hover:bg-blue-700 transition"
-                >
-                  <FaFileUpload /> Bulk Upload
-                </button>
-              </>
-            )}
-          </div>
+            <button
+              onClick={() => setBulkUpload(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
+            >
+              <UploadCloud className="w-4 h-4" />
+              Bulk Upload
+            </button>
 
-          <button
-            onClick={() => setIsAddClientModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow hover:shadow-lg transform hover:-translate-y-0.5 transition px-4 py-2 rounded flex items-center gap-1"
-          >
-            + Add Client
-          </button>
+            <button
+              onClick={() => setIsAddClientModalOpen(true)}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all px-5 py-2.5 rounded-xl text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Add Client
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Search Bar Container */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6">
+        <form onSubmit={handleSearchSubmit} className="relative w-full md:max-w-md">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search meetings by company, person, email..."
+            value={searchTerm}
+            onChange={handleSearch}
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all"
+          />
+          {/* Invisible submit button to allow Enter key to work */}
+          <button type="submit" className="hidden"></button>
+        </form>
+      </div>
+
+      {/* Main Table Area */}
+      <div className="relative flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col animate-in fade-in duration-300">
+        <div className="flex-1 overflow-auto custom-scrollbar p-0">
+          <Table
+            columns={columns}
+            data={meetings}
+            keyField="id"
+            emptyMessage={loadingMeetings ? "Loading..." : "No meetings found."}
+          />
         </div>
-      )}
+
+        {/* Loading Overlay */}
+        {loadingMeetings && (
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-10 transition-all duration-300">
+            <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-100 flex items-center gap-3">
+              <Loader /> <span className="text-sm font-semibold text-slate-600">Loading clients...</span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Bulk Upload Modal */}
       {!isManager && bulkUpload && (
         <div
-          className="fixed inset-0 flex items-center justify-center z-50"
-          onClick={() => setBulkUpload(false)} // Close on overlay click
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => setBulkUpload(false)}
         >
           <div
-            className="bg-white rounded-lg shadow-lg w-full max-w-md border border-gray-200 relative"
-            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
           >
-            {/* Header with Close Button */}
-            <div className="flex justify-between items-center px-6 py-4">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <FaFileUpload /> Upload Clients CSV/Excel
-              </h3>
-              <div
-                onClick={() => setBulkUpload(false)}
-                className="text-gray-500 hover:text-gray-700 cursor-pointer"
-              >
-                <FaTimes />
+            {/* Modal Header */}
+            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <UploadCloud className="w-5 h-5 text-blue-500" />
+                  Bulk Upload Clients
+                </h3>
               </div>
+              <button
+                onClick={() => setBulkUpload(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors focus:outline-none"
+              >
+                <X size={20} />
+              </button>
             </div>
 
             {/* Modal Body */}
-            <div className="p-6">
-              <div className="mb-4">
-                <input
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  onChange={handleFileChange}
-                  className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer"
-                />
+            <div className="p-6 space-y-6">
+              
+              {/* File Input Area */}
+              <div className="w-full">
+                <label 
+                  htmlFor="file-upload" 
+                  className={`flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${
+                    selectedFile ? "border-blue-400 bg-blue-50/50" : "border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-400"
+                  }`}
+                >
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <UploadCloud className={`w-8 h-8 mb-2 ${selectedFile ? "text-blue-500" : "text-slate-400"}`} />
+                    {selectedFile ? (
+                      <>
+                        <p className="text-sm font-semibold text-slate-700">{selectedFile.name}</p>
+                        <p className="text-xs text-slate-500 mt-1">{(selectedFile.size / 1024).toFixed(2)} KB</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="mb-1 text-sm text-slate-600 font-medium"><span className="font-semibold text-blue-600">Click to upload</span> or drag and drop</p>
+                        <p className="text-xs text-slate-500">CSV, XLS, XLSX</p>
+                      </>
+                    )}
+                  </div>
+                  <input
+                    id="file-upload"
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </label>
               </div>
 
-              {selectedFile && (
-                <p className="text-sm text-gray-600 mb-3">
-                  Selected:{" "}
-                  <span className="font-medium">{selectedFile.name}</span>
+              {uploadMessage && uploadStatus === "error" && (
+                <p className="text-sm font-medium text-red-500 bg-red-50 p-3 rounded-xl border border-red-100">
+                  {uploadMessage}
                 </p>
               )}
 
               <button
                 onClick={handleUpload}
                 disabled={!selectedFile || uploadStatus === "loading"}
-                className={`w-full py-2.5 px-4 rounded-md text-white font-medium text-sm flex items-center justify-center gap-2 ${
-                  uploadStatus === "loading"
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : selectedFile
-                    ? "bg-green-600 hover:bg-green-700"
-                    : "bg-gray-400 cursor-not-allowed"
+                className={`w-full py-3 px-4 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 ${
+                  uploadStatus === "loading" || !selectedFile
+                    ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                    : "bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 focus:ring-4 focus:ring-blue-500/30"
                 }`}
               >
-                {uploadStatus === "loading" ? "Uploading..." : "Upload File"}
+                {uploadStatus === "loading" ? (
+                  <>
+                    <Loader />
+                    Processing File...
+                  </>
+                ) : (
+                  "Upload Clients"
+                )}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="mt-8">
-        <form onSubmit={handleSearchSubmit} className="relative max-w-md">
-          <div className="relative">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={handleSearch}
-              placeholder="Search meetings..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <FaSearch className="absolute left-3 top-2.5 text-gray-400" />
-          </div>
-        </form>
-      </div>
-
-      <div className="mt-6">
-        {loadingMeetings ? (
-          <Loader />
-        ) : meetings.length > 0 ? (
-          <Table
-            columns={MEETING_COLUMNS.map((col) => ({
-              ...col,
-              render: undefined,
-            }))}
-            data={meetings}
-            keyField="id"
-            emptyMessage="No meetings found."
-            shadow="shadow-md"
-          />
-        ) : (
-          <div className="text-center py-6 text-gray-500">
-            No meetings found.
-          </div>
-        )}
-      </div>
-
-      {isAddClientModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md border border-gray-200">
-            <div className="flex justify-between items-center p-4">
-              <h2 className="text-xl font-bold">Add New Client</h2>
-              <div
-                onClick={() => {
-                  setIsAddClientModalOpen(false);
-                  resetClientForm();
-                }}
-                className="text-gray-500 hover:text-gray-700 cursor-pointer"
-              >
-                <FaTimes />
-              </div>
-            </div>
-
-            <div className="p-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Company Name *
-                </label>
-                <input
-                  type="text"
-                  name="companyName"
-                  value={newClient.companyName}
-                  onChange={handleClientInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring focus:ring-blue-200"
-                  placeholder="e.g., Arena"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Contact Person *
-                </label>
-                <input
-                  type="text"
-                  name="personName"
-                  value={newClient.personName}
-                  onChange={handleClientInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring focus:ring-blue-200"
-                  placeholder="e.g., Ankit"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Mobile Number *
-                </label>
-                <input
-                  type="text"
-                  name="mobileNumber"
-                  value={newClient.mobileNumber}
-                  onChange={handleClientInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring focus:ring-blue-200"
-                  placeholder="e.g., 7875345632"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Company Email *
-                </label>
-                <input
-                  type="email"
-                  name="companyEmail"
-                  value={newClient.companyEmail}
-                  onChange={handleClientInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring focus:ring-blue-200"
-                  placeholder="e.g., arena@gmail.com"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 p-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAddClientModalOpen(false);
-                  resetClientForm();
-                }}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleAddClient}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                Add Client
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Add Client Modal */}
+      <FormModal
+        isOpen={isAddClientModalOpen}
+        onClose={() => {
+          setIsAddClientModalOpen(false);
+          resetClientForm();
+        }}
+        title="Add New Client"
+        fields={clientFields}
+        values={newClient}
+        onChange={handleClientInputChange}
+        onSubmit={handleAddClient}
+        submitLabel="Create Client"
+      />
     </div>
   );
 }

@@ -8,27 +8,28 @@ import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import { ROLES } from "./utils/roles";
-import { LuLayoutDashboard } from "react-icons/lu";
-import { FaRegObjectUngroup } from "react-icons/fa6";
-import { TiUserAddOutline } from "react-icons/ti";
+
+// New, consistent, and relatable icons from Lucide
+import { 
+  LayoutDashboard, 
+  Users, 
+  MessageSquareText, 
+  UserCheck, 
+  CalendarOff, 
+  ReceiptText, 
+  Building2, 
+  Layers, 
+  CalendarClock 
+} from "lucide-react";
+
 import Category from "./pages/Category";
-import { BiCategory } from "react-icons/bi";
-import { MdMeetingRoom } from "react-icons/md";
-import { RiGroup3Line } from "react-icons/ri";
 import Meeting from "./pages/Meeting";
 import Profile from "./pages/Profile";
-import { FaUsers } from "react-icons/fa";
 import UserManagement from "./pages/UserManagement";
 import ClientBulkUpload from "./pages/ClientBulkUpload";
-import { FaUser } from "react-icons/fa";
 import Attendance from "./pages/Attendance";
-import { FaCalendar } from "react-icons/fa";
-import { CiCalendar } from "react-icons/ci";
-import { CiUser } from "react-icons/ci";
-import { PiUsersThreeLight } from "react-icons/pi";
 import LeaveApproval from "./pages/LeaveApproval";
 import ExpenseManagement from "./pages/ExpenseManagement";
-import { TbMoneybag } from "react-icons/tb";
 import UserChat from "./pages/UserChat";
 
 export const allRoutes = [
@@ -38,8 +39,8 @@ export const allRoutes = [
       {
         path: "/",
         label: "Dashboard",
-        icon: <LuLayoutDashboard />,
-        roles: [ ROLES.ADMIN, ROLES.BASE_ADMIN],
+        icon: <LayoutDashboard className="w-5 h-5" />,
+        roles: [ ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
     ],
   },
@@ -49,55 +50,55 @@ export const allRoutes = [
       {
         path: "/user-management",
         label: "User Management",
-        icon: <CiUser />,
+        icon: <Users className="w-5 h-5" />,
         roles: [ ROLES.ADMIN, ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
         path: "/user-chat",
         label: "Team Chat",
-        icon: <CiUser />,
+        icon: <MessageSquareText className="w-5 h-5" />,
         roles: [ ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
         path: "/attendance-management",
         label: "Team Attendance",
-        icon: <CiCalendar />,
+        icon: <UserCheck className="w-5 h-5" />,
         roles: [ ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
         path: "/leave-requests",
         label: "Leave Management",
-        icon: <CiCalendar />,
+        icon: <CalendarOff className="w-5 h-5" />,
         roles: [ ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
         path: "/expense-management",
         label: "Team Expenses",
-        icon: <TbMoneybag />,
+        icon: <ReceiptText className="w-5 h-5" />,
         roles: [ ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       // {
       //   path: "/registration",
       //   label: "Register User",
-      //   icon: <TiUserAddOutline />,
+      //   icon: <UserPlus className="w-5 h-5" />,
       //   roles: [ROLES.ADMIN],
       // },
       {
         path: "/client-management",
         label: "Client Management",
-        icon: <PiUsersThreeLight />,
+        icon: <Building2 className="w-5 h-5" />,
         roles: [ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
         path: "/category",
         label: "Categories",
-        icon: <BiCategory />,
+        icon: <Layers className="w-5 h-5" />,
         roles: [ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
       {
         path: "/meeting-management",
         label: "User Meetings",
-        icon: <RiGroup3Line />,
+        icon: <CalendarClock className="w-5 h-5" />,
         roles: [ROLES.BASE_ADMIN, ROLES.MANAGER],
       },
     ],
