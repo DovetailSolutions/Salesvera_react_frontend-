@@ -105,11 +105,7 @@ const customTooltipStyle = {
 };
 
 const StatCard = ({ title, value, change, icon: Icon, subtext }) => (
-<<<<<<< HEAD
   <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-300">
-=======
-  <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
->>>>>>> e6b9a062c96a4374ec0e06143c66a98bdb2c19b2
     <div className="flex items-start justify-between">
       <div>
         <p className="text-slate-500 font-medium text-sm mb-2">{title}</p>
@@ -135,18 +131,11 @@ const StatCard = ({ title, value, change, icon: Icon, subtext }) => (
 
 const Dashboard = () => {
   return (
-<<<<<<< HEAD
     <div className="py-2 animate-in fade-in duration-500">
       
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
-=======
-    <div className="min-h-screen py-2">
-      <div className="mx-auto">
-        {/* Header */}
-        <h1 className="text-3xl font-semibold text-gray-900 mb-4">
->>>>>>> e6b9a062c96a4374ec0e06143c66a98bdb2c19b2
           Visual KPI Overview
         </h1>
         <p className="text-sm text-slate-500 mt-1 font-medium">
@@ -184,7 +173,6 @@ const Dashboard = () => {
         Visual Analytics
       </h2>
 
-<<<<<<< HEAD
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Monthly Sales Revenue */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
@@ -209,27 +197,11 @@ const Dashboard = () => {
                 />
                 <Tooltip contentStyle={customTooltipStyle} cursor={{ fill: '#f8fafc' }} />
                 <Bar dataKey="revenue" fill="#3B82F6" radius={[6, 6, 0, 0]} barSize={28} />
-=======
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Monthly Sales Revenue */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Monthly Sales Revenue
-            </h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={salesData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="revenue" fill="#3B82F6" radius={[8, 8, 0, 0]} />
->>>>>>> e6b9a062c96a4374ec0e06143c66a98bdb2c19b2
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-<<<<<<< HEAD
         {/* Meeting Trends */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
           <h3 className="text-base font-bold text-slate-800 mb-6">
@@ -245,25 +217,6 @@ const Dashboard = () => {
                   tickLine={false} 
                   tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }} 
                   dy={10} 
-=======
-          {/* Meeting Trends */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Meeting Trends
-            </h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={meetingTrendsData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="series1"
-                  stroke="#3B82F6"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
->>>>>>> e6b9a062c96a4374ec0e06143c66a98bdb2c19b2
                 />
                 <YAxis 
                   axisLine={false} 
@@ -280,7 +233,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-<<<<<<< HEAD
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         
         {/* Revenue Distribution */}
@@ -289,14 +241,6 @@ const Dashboard = () => {
             Revenue Distribution
           </h3>
           <div className="flex-1 flex flex-col justify-center">
-=======
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Revenue Distribution */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Revenue Distribution
-            </h3>
->>>>>>> e6b9a062c96a4374ec0e06143c66a98bdb2c19b2
             <div className="flex items-center justify-center">
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
@@ -336,7 +280,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-<<<<<<< HEAD
         {/* Upcoming Meetings & Events */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
           <h3 className="text-base font-bold text-slate-800 mb-6">
@@ -349,20 +292,6 @@ const Dashboard = () => {
               <div className="grid grid-cols-7 gap-1.5 mb-2">
                 {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day, i) => (
                   <div key={i} className="text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider py-1">
-=======
-          {/* Upcoming Meetings & Events */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Upcoming Meetings & Events
-            </h3>
-            <div className="mb-4">
-              <div className="grid grid-cols-7 gap-2 mb-2">
-                {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
-                  <div
-                    key={i}
-                    className="text-center text-xs font-semibold text-blue-600 bg-blue-50 py-1 rounded"
-                  >
->>>>>>> e6b9a062c96a4374ec0e06143c66a98bdb2c19b2
                     {day}
                   </div>
                 ))}
@@ -391,7 +320,6 @@ const Dashboard = () => {
               </div>
             </div>
 
-<<<<<<< HEAD
             {/* Event List */}
             <div className="flex-1 flex flex-col justify-center space-y-4">
               <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-colors cursor-pointer">
@@ -416,83 +344,6 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-=======
-        {/* System Reports / Audit Logs */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            System Reports / Audit Logs
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                    Sr. No
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                    Report Type
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                    Generated By
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                    Date
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                    Status
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                    Action
-                  </th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                    Download
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {auditLogs.map((log) => (
-                  <tr
-                    key={log.id}
-                    className="border-b border-gray-100 hover:bg-gray-50"
-                  >
-                    <td className="py-3 px-4 text-sm text-gray-900">
-                      {log.id}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-900">
-                      {log.type}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-900">
-                      {log.generatedBy}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-900">
-                      {log.date}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">
-                        {log.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-900">
-                      {log.action}
-                    </td>
-                    <td className="py-3 px-4">
-                      <button className="text-blue-500 hover:text-blue-700">
-                        <Download className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="flex gap-4 mt-4">
-            <button className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-              Filter by Type
-            </button>
-            <button className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-              Download All CSV
-            </button>
->>>>>>> e6b9a062c96a4374ec0e06143c66a98bdb2c19b2
           </div>
         </div>
       </div>

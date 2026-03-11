@@ -233,7 +233,6 @@ export default function UserManagement() {
 }, [isManager, isAdmin, user.id, searchTerm, roleFilter, pagination.currentPage]);
 
   const handleSearch = (e) => {
-<<<<<<< HEAD
     const value = e.target.value;
     setSearchTerm(value);
     // Reset to page 1 on new search
@@ -245,18 +244,6 @@ export default function UserManagement() {
     setRoleFilter(value);
     setPagination((p) => ({ ...p, currentPage: 1 }));
   };
-=======
-  const value = e.target.value;
-  setSearchTerm(value);
-  setPagination(p => ({ ...p, currentPage: 1 })); // ✅ crucial
-};
-
-const handleRoleChange = (e) => {
-  const value = e.target.value;
-  setRoleFilter(value);
-  setPagination(p => ({ ...p, currentPage: 1 })); // ✅ crucial
-};
->>>>>>> e6b9a062c96a4374ec0e06143c66a98bdb2c19b2
 
   const showRoleFilter = !isManager;
 
