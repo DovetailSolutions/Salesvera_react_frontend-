@@ -13,7 +13,7 @@ import {
 import { HiUserGroup } from "react-icons/hi";
 
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-const API_URL    = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 const MAX_FILE_MB = 25;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -45,11 +45,13 @@ const formatBytes = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const buildRoomId = (a, b) => (a < b ? `${a}-${b}` : `${b}-${a}`);
+
 const getMediaCategory = (mediaType, mediaUrl) => {
   const t = (mediaType || "").toLowerCase();
-  if (t === "image"    || /\.(jpe?g|png|gif|webp)$/i.test(mediaUrl || "")) return "image";
-  if (t === "video"    || /\.(mp4|webm|ogv)$/i.test(mediaUrl || ""))       return "video";
-  if (t === "audio"    || /\.(mp3|ogg|wav|m4a)$/i.test(mediaUrl || ""))    return "audio";
+  if (t === "image" || /\.(jpe?g|png|gif|webp)$/i.test(mediaUrl || "")) return "image";
+  if (t === "video" || /\.(mp4|webm|ogv)$/i.test(mediaUrl || "")) return "video";
+  if (t === "audio" || /\.(mp3|ogg|wav|m4a)$/i.test(mediaUrl || "")) return "audio";
   return "document";
 };
 
@@ -57,7 +59,7 @@ const getMediaCategory = (mediaType, mediaUrl) => {
 
 function Avatar({ entity, size = 11, ring = false }) {
   const isGroup = entity?.type === "group";
-  const online  = entity?.onlineStatus === "online";
+  const online = entity?.onlineStatus === "online";
   const sz = `w-${size} h-${size}`;
   return (
     <div className="relative flex-shrink-0">
@@ -114,10 +116,35 @@ function MenuItem({ icon, label, onClick, variant = "default" }) {
   );
 }
 
+function NotificationToast({ notification, onDismiss }) {
+  useEffect(() => {
+    const timer = setTimeout(() => onDismiss(notification.id), 4000);
+    return () => clearTimeout(timer);
+  }, [notification.id, onDismiss]);
+
+  return (
+    <div className="flex items-center gap-3 bg-white rounded-2xl shadow-2xl border border-gray-100 px-4 py-3 min-w-[280px] max-w-sm cursor-pointer hover:bg-gray-50 transition-colors"
+      style={{ animation: 'slideInRight 0.3s ease-out' }}
+      onClick={() => onDismiss(notification.id)}>
+      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+        {(notification.senderName?.[0] || "?").toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-gray-800 truncate">{notification.senderName}</p>
+        <p className="text-xs text-gray-500 truncate">{notification.text || "\ud83d\udcce Sent a file"}</p>
+      </div>
+      <div onClick={(e) => { e.stopPropagation(); onDismiss(notification.id); }}
+        className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0">
+        <IoClose size={14} />
+      </div>
+    </div>
+  );
+}
+
 function MediaBubble({ msg, own }) {
-  const category  = getMediaCategory(msg.mediaType, msg.mediaUrl);
-  const bgAccent  = own ? "bg-blue-500/40 border-blue-400/30" : "bg-gray-100 border-gray-200";
-  const fileName  = msg.originalName || msg.mediaUrl?.split("/").pop() || "File";
+  const category = getMediaCategory(msg.mediaType, msg.mediaUrl);
+  const bgAccent = own ? "bg-blue-500/40 border-blue-400/30" : "bg-gray-100 border-gray-200";
+  const fileName = msg.originalName || msg.mediaUrl?.split("/").pop() || "File";
 
   if (category === "image") {
     return (
@@ -172,9 +199,9 @@ function FilePreview({ file, onRemove }) {
       <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
         {category === "image" && previewUrl
           ? <img src={previewUrl} alt="preview" className="w-full h-full object-cover rounded-lg" />
-          : category === "video"  ? <IoVideocam   size={20} className="text-blue-500" />
-          : category === "audio"  ? <IoMusicalNote size={20} className="text-blue-500" />
-          : <IoDocument size={20} className="text-blue-500" />}
+          : category === "video" ? <IoVideocam size={20} className="text-blue-500" />
+            : category === "audio" ? <IoMusicalNote size={20} className="text-blue-500" />
+              : <IoDocument size={20} className="text-blue-500" />}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold text-gray-800 truncate">{file.name}</p>
@@ -193,64 +220,131 @@ export default function UserChat() {
   const { user } = useContext(AuthContext);
   const token = localStorage.getItem("accessToken");
 
-  const [users,            setUsers]            = useState([]);
-  const [groups,           setGroups]           = useState([]);
-  const [messages,         setMessages]         = useState([]);
-  const [activeChat,       setActiveChat]       = useState(null);
-  const [currentRoom,      setCurrentRoom]      = useState(null);
-  const [loading,          setLoading]          = useState(true);
-  const [error,            setError]            = useState(null);
+  const [users, setUsers] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [activeChat, setActiveChat] = useState(null);
+  const [currentRoom, setCurrentRoom] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("disconnected");
-  const [typingUser,       setTypingUser]       = useState(null);
-  const [searchQuery,      setSearchQuery]      = useState("");
+  const [typingUser, setTypingUser] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  const [messageText,   setMessageText]   = useState("");
-  const [replyTo,       setReplyTo]       = useState(null);
-  const [forwardMsg,    setForwardMsg]    = useState(null);
+  const [messageText, setMessageText] = useState("");
+  const [replyTo, setReplyTo] = useState(null);
+  const [forwardMsg, setForwardMsg] = useState(null);
   const [forwardSearch, setForwardSearch] = useState("");
 
   // File upload state
-  const [pendingFile,    setPendingFile]    = useState(null);
+  const [pendingFile, setPendingFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading,    setIsUploading]    = useState(false);
-  const [uploadError,    setUploadError]    = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
 
-  const [showCreateGroup,   setShowCreateGroup]   = useState(false);
-  const [newGroupName,      setNewGroupName]      = useState("");
-  const [selectedMembers,   setSelectedMembers]   = useState([]);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [selectedMembers, setSelectedMembers] = useState([]);
   const [createModalSearch, setCreateModalSearch] = useState("");
 
-  const [showGroupMenu,      setShowGroupMenu]      = useState(false);
-  const [editNameMode,       setEditNameMode]       = useState(false);
-  const [editNameValue,      setEditNameValue]      = useState("");
-  const [showMembersPanel,   setShowMembersPanel]   = useState(false);
-  const [groupMembers,       setGroupMembers]       = useState([]);
-  const [showAddMembers,     setShowAddMembers]     = useState(false);
-  const [addMemberSearch,    setAddMemberSearch]    = useState("");
+  const [showGroupMenu, setShowGroupMenu] = useState(false);
+  const [editNameMode, setEditNameMode] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
+  const [showMembersPanel, setShowMembersPanel] = useState(false);
+  const [groupMembers, setGroupMembers] = useState([]);
+  const [showAddMembers, setShowAddMembers] = useState(false);
+  const [addMemberSearch, setAddMemberSearch] = useState("");
   const [selectedNewMembers, setSelectedNewMembers] = useState([]);
-  const [contextMenu,        setContextMenu]        = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
 
-  const socketRef      = useRef(null);
+  // Notification & pagination state
+  const [unreadCounts, setUnreadCounts] = useState({});
+  const [notifications, setNotifications] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimerRef = useRef(null);
   const currentRoomRef = useRef(null);
-  const activeChatRef  = useRef(null);
-  const textareaRef    = useRef(null);
-  const menuRef        = useRef(null);
-  const attachMenuRef  = useRef(null);
-  const fileInputRef   = useRef(null);
-  const imageInputRef  = useRef(null);
+  const activeChatRef = useRef(null);
+  const textareaRef = useRef(null);
+  const menuRef = useRef(null);
+  const attachMenuRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const prevScrollHeightRef = useRef(0);
+  const isLoadingMoreRef = useRef(false);
+  const notifIdRef = useRef(0);
+  const currentPageRef = useRef(1);
+  const totalPagesRef = useRef(1);
 
   const getUserId = useCallback(() => (user && (user.userId || user.id)) || null, [user]);
 
   useEffect(() => { activeChatRef.current = activeChat; }, [activeChat]);
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  // Auto-scroll for new messages; preserve position when loading older
+  useEffect(() => {
+    if (isLoadingMoreRef.current && chatContainerRef.current) {
+      const newScrollHeight = chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop = newScrollHeight - prevScrollHeightRef.current;
+      isLoadingMoreRef.current = false;
+      setIsLoadingMore(false);
+      return;
+    }
+    // Use requestAnimationFrame to ensure DOM is fully rendered before scrolling
+    requestAnimationFrame(() => {
+      const el = chatContainerRef.current;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+  }, [messages]);
+
+  // ── Notification helpers ─────────────────────────────────────────────────
+  const addNotification = useCallback((notif) => {
+    const id = ++notifIdRef.current;
+    setNotifications(prev => [...prev.slice(-4), { ...notif, id }]);
+  }, []);
+
+  const dismissNotification = useCallback((id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
+
+  const clearUnreadCount = useCallback((roomId) => {
+    setUnreadCounts(prev => {
+      if (!prev[roomId]) return prev;
+      const next = { ...prev };
+      delete next[roomId];
+      return next;
+    });
+  }, []);
+
+  // ── Load older messages on scroll up ─────────────────────────────────────
+  const handleScrollUp = useCallback(() => {
+    const el = chatContainerRef.current;
+    if (!el || isLoadingMoreRef.current || !currentRoomRef.current) return;
+    if (el.scrollTop < 80 && currentPageRef.current < totalPagesRef.current) {
+      isLoadingMoreRef.current = true;
+      setIsLoadingMore(true);
+      prevScrollHeightRef.current = el.scrollHeight;
+      const nextPage = currentPageRef.current + 1;
+      currentPageRef.current = nextPage;
+      setCurrentPage(nextPage);
+      socketRef.current?.emit("mychats", {
+        roomId: currentRoomRef.current,
+        page: nextPage,
+      });
+    }
+  }, []);
 
   useEffect(() => {
     const handler = (e) => {
-      if (menuRef.current       && !menuRef.current.contains(e.target))       setShowGroupMenu(false);
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowGroupMenu(false);
       if (attachMenuRef.current && !attachMenuRef.current.contains(e.target)) setShowAttachMenu(false);
       if (contextMenu) setContextMenu(null);
     };
@@ -260,33 +354,33 @@ export default function UserChat() {
 
   // ── Format a raw message from the server ─────────────────────────────────
   const formatMessage = useCallback((raw) => {
-    const uid      = getUserId();
+    const uid = getUserId();
     const senderId = raw.senderId ?? raw.sender?.id;
     let senderName = "Unknown";
 
-    if (raw.Sender)      senderName = `${raw.Sender.firstName || ""} ${raw.Sender.lastName || ""}`.trim() || raw.Sender.email;
+    if (raw.Sender) senderName = `${raw.Sender.firstName || ""} ${raw.Sender.lastName || ""}`.trim() || raw.Sender.email;
     else if (raw.sender) senderName = `${raw.sender.firstName || ""} ${raw.sender.lastName || ""}`.trim() || raw.sender.email;
     else {
       const found = users.find(u => u.id === senderId);
-      if (found)                senderName = getFullName(found);
+      if (found) senderName = getFullName(found);
       else if (senderId === uid) senderName = getFullName(user);
     }
 
     return {
-      id:             raw.id ?? `${senderId}-${raw.createdAt ?? Date.now()}`,
-      chatRoomId:     raw.chatRoomId,
-      roomId:         raw.roomId || currentRoomRef.current,
+      id: raw.id ?? `${senderId}-${raw.createdAt ?? Date.now()}`,
+      chatRoomId: raw.chatRoomId,
+      roomId: raw.roomId || currentRoomRef.current,
       senderId,
       senderName,
-      text:           raw.message   ?? raw.text      ?? "",
-      mediaUrl:       raw.mediaUrl  ?? null,
-      mediaType:      raw.mediaType ?? null,
-      originalName:   raw.originalName ?? null,
-      fileSize:       raw.fileSize  ?? null,
-      replyTo:        raw.replyTo        ?? null,
+      text: raw.message ?? raw.text ?? "",
+      mediaUrl: raw.mediaUrl ?? null,
+      mediaType: raw.mediaType ?? null,
+      originalName: raw.originalName ?? null,
+      fileSize: raw.fileSize ?? null,
+      replyTo: raw.replyTo ?? null,
       replyToMessage: raw.ReplyToMessage ?? raw.replyToMessage ?? null,
-      timestamp:      raw.createdAt ?? raw.timestamp ?? new Date().toISOString(),
-      seen:           raw.status === "seen" || raw.seen === true,
+      timestamp: raw.createdAt ?? raw.timestamp ?? new Date().toISOString(),
+      seen: raw.status === "seen" || raw.seen === true,
     };
   }, [users, user, getUserId]);
 
@@ -308,12 +402,12 @@ export default function UserChat() {
       setConnectionStatus("connected");
       setError(null);
       // ✅ Correct: backend listens to "UserList" and "getMyGroups"
-      socket.emit("UserList",    { page: 1, limit: 100, search: "" });
+      socket.emit("UserList", { page: 1, limit: 100, search: "" });
       socket.emit("getMyGroups", { page: 1, limit: 100, search: "" });
       socket.emit("online", { userId: getUserId() });
     });
     socket.on("connect_error", () => { setConnectionStatus("error"); setLoading(false); });
-    socket.on("disconnect",    () => setConnectionStatus("disconnected"));
+    socket.on("disconnect", () => setConnectionStatus("disconnected"));
 
     // ── User list
     // ✅ Backend emits "UserList" with { success, total, totalPages, currentPage, data }
@@ -322,14 +416,14 @@ export default function UserChat() {
       setUsers((res.data || []).map(u => ({
         ...u,
         onlineStatus: u.onlineStatus ?? u.onlineSatus ?? "offline",
-        unseenCount:  u.Messages?.length ?? 0,
+        unseenCount: u.unreadCount ?? u.Messages?.length ?? 0,
       })));
       setLoading(false);
     });
 
     // ── Group list
     // ✅ Backend listener is "getMyGroups"; backend emits back "getMyGroups"
-    // ✅ Backend returns { success, total, totalPages, currentPage, data } where data are ChatRoom objects with groupName field
+    // ✅ Backend returns { success, total, totalPages, currentPage, data } where data are ChatRoom objects with groupName field and unreadCount
     socket.on("getMyGroups", (res) => {
       if (res?.success) setGroups(res.data || []);
       else if (res?.error) console.error("getMyGroups error:", res.error);
@@ -338,9 +432,16 @@ export default function UserChat() {
     // ── Create Group
     // ✅ Backend emits "createGroup" back with { roomId, type, groupName, members } OR { error }
     socket.on("createGroup", (data) => {
+      setIsCreatingGroup(false);
       if (data?.error) { setError(data.error); return; }
-      // Refresh group list after creation
-      socket.emit("getMyGroups", { page: 1, limit: 100, search: "" });
+      // Add the new group directly to state (no re-fetch to avoid duplicates)
+      if (data?.roomId) {
+        setGroups(prev => {
+          // Prevent duplicate if already exists
+          if (prev.some(g => g.roomId === data.roomId)) return prev;
+          return [{ roomId: data.roomId, type: "group", groupName: data.groupName }, ...prev];
+        });
+      }
       setShowCreateGroup(false);
       setNewGroupName("");
       setSelectedMembers([]);
@@ -399,6 +500,23 @@ export default function UserChat() {
       }
     });
 
+    // ── Group Deleted
+    // ✅ Backend emits "groupDeleted" with { roomId, message, deletedBy } to all members
+    socket.on("groupDeleted", (data) => {
+      if (data?.error) { setError(data.error); return; }
+      if (data?.roomId) {
+        setGroups(p => p.filter(g => g.roomId !== data.roomId));
+        setActiveChat(p => p?.roomId === data.roomId ? null : p);
+        if (data.message) {
+          addNotification({
+            senderName: "System",
+            text: data.message,
+            roomId: data.roomId,
+          });
+        }
+      }
+    });
+
     // ── Member Left (someone left voluntarily — broadcast to others)
     // ✅ Backend emits "memberLeft" with { roomId, leftMember } when a user leaves
     socket.on("memberLeft", ({ leftMember }) => {
@@ -408,10 +526,25 @@ export default function UserChat() {
     // ── Messages
     // ✅ Backend emits "mychats" with { success, total, totalPages, currentPage, data }
     socket.on("mychats", (res) => {
+      if (!res?.success) return;
       const rows = Array.isArray(res?.data) ? res.data : [];
-      const uid  = getUserId();
-      const fmt  = rows.map(formatMessage).reverse(); // backend orders DESC → reverse for display
-      setMessages(fmt);
+      const uid = getUserId();
+      const fmt = rows.map(formatMessage).reverse();
+
+      // Update pagination tracking
+      currentPageRef.current = res.currentPage;
+      totalPagesRef.current = res.totalPages;
+      setCurrentPage(res.currentPage);
+      setTotalPages(res.totalPages);
+      setHasMore(res.currentPage < res.totalPages);
+
+      if (res.currentPage === 1) {
+        setMessages(fmt);
+      } else {
+        // Prepend older messages
+        setMessages(prev => [...fmt, ...prev]);
+      }
+
       fmt.forEach(m => {
         if (!m.seen && m.senderId !== uid) {
           socket.emit("seenMessage", { msg_id: m.id, roomId: currentRoomRef.current });
@@ -425,7 +558,19 @@ export default function UserChat() {
       const uid = getUserId();
 
       if (msg.roomId && msg.roomId !== currentRoomRef.current) {
+        // Message for a different chat — show notification + increment unread
+        setUnreadCounts(prev => ({
+          ...prev,
+          [msg.roomId]: (prev[msg.roomId] || 0) + 1,
+        }));
+        addNotification({
+          senderName: msg.senderName,
+          text: msg.text || (msg.mediaUrl ? "📎 Sent a file" : ""),
+          roomId: msg.roomId,
+        });
         socket.emit("UserList", { page: 1, limit: 100, search: "" });
+        // Also refresh groups in case user was added to a new group
+        socket.emit("getMyGroups", { page: 1, limit: 100, search: "" });
         return;
       }
       if (msg.senderId !== uid) {
@@ -435,18 +580,23 @@ export default function UserChat() {
         const dup = prev.some(m =>
           m.id === msg.id ||
           (m.text === msg.text && m.senderId === msg.senderId &&
-           Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 2000)
+            Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 2000)
         );
         return dup ? prev : [...prev, msg];
       });
     });
 
-    // ✅ Backend emits "seenMessage" with { success, data: updatedCount }
-    // No msg_id in the response — mark all received messages as seen
+    // ✅ Backend emits "seenMessage" with { success, data: updatedCount, msg_id, seenBy }
     socket.on("seenMessage", (data) => {
       if (!data?.success) return;
-      // Mark all messages from others as seen
-      setMessages(p => p.map(m => m.senderId !== getUserId() ? { ...m, seen: true } : m));
+      if (data.msg_id) {
+        // Use String() for safe matching across Integer/UUID/String
+        setMessages(p => p.map(m => String(m.id) === String(data.msg_id) ? { ...m, seen: true } : m));
+      } else {
+        // Fallback: If no msg_id was provided, assume the other user just read all of OUR messages.
+        // Therefore, we mark OUR messages (senderId === uid) as seen.
+        setMessages(p => p.map(m => m.senderId === getUserId() ? { ...m, seen: true } : m));
+      }
     });
 
     // ✅ Backend emits "Deleted" with { id }
@@ -495,7 +645,7 @@ export default function UserChat() {
   useEffect(() => {
     const t = setTimeout(() => {
       if (socketRef.current?.connected) {
-        socketRef.current.emit("UserList",    { page: 1, limit: 100, search: searchQuery });
+        socketRef.current.emit("UserList", { page: 1, limit: 100, search: searchQuery });
         socketRef.current.emit("getMyGroups", { page: 1, limit: 100, search: searchQuery });
       }
     }, 350);
@@ -507,10 +657,10 @@ export default function UserChat() {
     const socket = socketRef.current;
     if (!socket || !activeChat || !user) return;
 
-    const grp    = activeChat.type === "group";
+    const grp = activeChat.type === "group";
     const roomId = grp
       ? activeChat.roomId
-      : (() => { const a = getUserId(), b = activeChat.id; return a < b ? `${a}-${b}` : `${b}-${a}`; })();
+      : buildRoomId(getUserId(), activeChat.id);
 
     setMessages([]);
     setTypingUser(null);
@@ -525,15 +675,27 @@ export default function UserChat() {
     setShowMembersPanel(false);
     setGroupMembers([]);
 
+    // Reset pagination
+    setCurrentPage(1);
+    currentPageRef.current = 1;
+    setTotalPages(1);
+    totalPagesRef.current = 1;
+    setHasMore(false);
+    setIsLoadingMore(false);
+    isLoadingMoreRef.current = false;
+
+    // Clear unread count for this room
+    clearUnreadCount(roomId);
+
     // ✅ Backend "joinRoom" listener expects { roomId, type, members }
     socket.emit("joinRoom", {
       roomId,
-      type:    grp ? "group" : "private",
+      type: grp ? "group" : "private",
       members: [],
     });
 
     setTimeout(() => {
-      socket.emit("mychats", { roomId, page: 1, limit: 50 });
+      socket.emit("mychats", { roomId, page: 1 });
     }, 150);
 
     // ✅ Backend "getGroupDetails" listener expects { roomId }
@@ -586,7 +748,7 @@ export default function UserChat() {
   // ✅ Backend "sendMessage" expects { roomId, message }
   const sendMessage = async (e) => {
     e?.preventDefault();
-    const text   = messageText.trim();
+    const text = messageText.trim();
     const socket = socketRef.current;
     if (!activeChat || !socket?.connected) { socket?.connect(); return; }
     if (!text && !pendingFile) return;
@@ -596,17 +758,17 @@ export default function UserChat() {
       if (pendingFile) {
         const result = await uploadFile(pendingFile);
         extra = {
-          mediaUrl:     result.mediaUrl,
-          mediaType:    result.mediaType,
+          mediaUrl: result.mediaUrl,
+          mediaType: result.mediaType,
           originalName: result.originalName,
-          fileSize:     result.size,
+          fileSize: result.size,
         };
         setPendingFile(null);
         setUploadProgress(0);
       }
 
       socket.emit("sendMessage", {
-        roomId:  currentRoomRef.current,
+        roomId: currentRoomRef.current,
         message: text || null,
         ...(replyTo?.id ? { replyTo: replyTo.id } : {}),
         ...extra,
@@ -637,9 +799,13 @@ export default function UserChat() {
 
   // ── Group actions ─────────────────────────────────────────────────────────
   // ✅ Backend "createGroup" expects { members, name }
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const createGroup = () => {
-    if (!newGroupName.trim() || !selectedMembers.length) return;
+    if (!newGroupName.trim() || !selectedMembers.length || isCreatingGroup) return;
+    setIsCreatingGroup(true);
     socketRef.current?.emit("createGroup", { name: newGroupName.trim(), members: selectedMembers });
+    // Reset after short delay as safety net
+    setTimeout(() => setIsCreatingGroup(false), 2000);
   };
 
   // ✅ Backend "updateGroupName" expects { roomId, newName } (NOT "editGroupName")
@@ -653,6 +819,13 @@ export default function UserChat() {
   const leaveGroup = () => {
     if (!window.confirm("Leave this group?")) return;
     socketRef.current?.emit("leaveGroup", { roomId: activeChat.roomId });
+  };
+
+  // ✅ Backend "deleteGroup" expects { roomId }
+  const deleteGroup = () => {
+    if (!window.confirm("Are you sure you want to completely delete this group for everyone? This action cannot be undone.")) return;
+    socketRef.current?.emit("deleteGroup", { roomId: activeChat.roomId });
+    setShowGroupMenu(false);
   };
 
   // ✅ Backend "getGroupDetails" expects { roomId } — opens members panel
@@ -675,7 +848,7 @@ export default function UserChat() {
   };
 
   // ── Derived state ─────────────────────────────────────────────────────────
-  const filteredUsers  = users.filter(u =>
+  const filteredUsers = users.filter(u =>
     getFullName(u).toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -685,18 +858,18 @@ export default function UserChat() {
     (g.groupName || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const isGroup     = activeChat?.type === "group";
+  const isGroup = activeChat?.type === "group";
   // ✅ groupMembers are raw User objects from getGroupDetails (participants array)
   const existingIds = groupMembers.map(m => m.id ?? m.userId);
   const addableUsers = users.filter(u =>
     !existingIds.includes(u.id) &&
     (getFullName(u).toLowerCase().includes(addMemberSearch.toLowerCase()) ||
-     u.email?.toLowerCase().includes(addMemberSearch.toLowerCase()))
+      u.email?.toLowerCase().includes(addMemberSearch.toLowerCase()))
   );
 
   const forwardTargets = [
     ...filteredGroups.map(g => ({ roomId: g.roomId, label: g.groupName, isGroup: true })),
-    ...filteredUsers.map(u  => {
+    ...filteredUsers.map(u => {
       const a = getUserId(), b = u.id;
       return { roomId: a < b ? `${a}-${b}` : `${b}-${a}`, label: getFullName(u), isGroup: false };
     }),
@@ -726,7 +899,7 @@ export default function UserChat() {
       {/* Hidden file inputs */}
       <input ref={imageInputRef} type="file" accept="image/*,video/*"
         className="hidden" onChange={handleFileSelect} />
-      <input ref={fileInputRef}  type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,audio/*"
+      <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,audio/*"
         className="hidden" onChange={handleFileSelect} />
 
       {/* ══ CREATE GROUP MODAL ════════════════════════════════════════════════ */}
@@ -896,8 +1069,8 @@ export default function UserChat() {
             <div className="flex items-center gap-2 ml-auto">
               <div className={`w-2 h-2 rounded-full flex-shrink-0
                 ${connectionStatus === "connected" ? "bg-emerald-400"
-                : connectionStatus === "error"     ? "bg-red-400"
-                : "bg-amber-400 animate-pulse"}`}
+                  : connectionStatus === "error" ? "bg-red-400"
+                    : "bg-amber-400 animate-pulse"}`}
                 title={connectionStatus} />
               {!sidebarCollapsed && (
                 <div onClick={() => setShowCreateGroup(true)}
@@ -932,10 +1105,17 @@ export default function UserChat() {
                         <Avatar entity={{ ...g, type: "group" }} size={10} />
                         {!sidebarCollapsed && (
                           <div className="flex-1 min-w-0 flex items-center justify-between">
-                            {/* ✅ Use groupName (backend field) */}
                             <span className={`text-sm font-semibold truncate ${active ? "text-violet-900" : "text-gray-800"}`}>
                               {g.groupName || "Unnamed Group"}
                             </span>
+                            {(() => {
+                              const count = (unreadCounts[g.roomId] || 0) + (g.unreadCount || 0);
+                              return count > 0 ? (
+                                <span className="flex-shrink-0 ml-1 bg-violet-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center animate-pulse">
+                                  {count > 99 ? "99+" : count}
+                                </span>
+                              ) : null;
+                            })()}
                           </div>
                         )}
                       </div>
@@ -964,11 +1144,15 @@ export default function UserChat() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <span className={`text-sm font-semibold truncate ${active ? "text-blue-900" : "text-gray-800"}`}>{getFullName(u)}</span>
-                              {u.unseenCount > 0 && (
-                                <span className="flex-shrink-0 ml-1 bg-blue-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                                  {u.unseenCount}
-                                </span>
-                              )}
+                              {(() => {
+                                const rid = buildRoomId(getUserId(), u.id);
+                                const count = (unreadCounts[rid] || 0) + (u.unseenCount || 0);
+                                return count > 0 ? (
+                                  <span className="flex-shrink-0 ml-1 bg-blue-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center animate-pulse">
+                                    {count > 99 ? "99+" : count}
+                                  </span>
+                                ) : null;
+                              })()}
                             </div>
                             <p className="text-xs text-gray-400 truncate">{u.email}</p>
                           </div>
@@ -1007,16 +1191,16 @@ export default function UserChat() {
         style={{ left: sidebarCollapsed ? "calc(72px - 13px)" : "calc(288px - 13px)" }}>
         {sidebarCollapsed
           ? <IoChevronForward size={14} className="text-gray-500" />
-          : <IoChevronBack    size={14} className="text-gray-500" />}
+          : <IoChevronBack size={14} className="text-gray-500" />}
       </div>
 
       {/* ══ CHAT AREA ════════════════════════════════════════════════════════ */}
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden bg-[#efeae2]">
           {activeChat ? (<>
 
             {/* Chat Header */}
-            <div className="px-6 py-3.5 border-b border-gray-100 bg-white flex items-center justify-between flex-shrink-0 shadow-sm">
+            <div className="px-6 py-2.5 border-b border-gray-200 bg-[#f0f2f5] flex items-center justify-between flex-shrink-0 z-20">
               <div className="flex items-center gap-3 min-w-0">
                 <Avatar entity={activeChat} size={11} />
                 <div className="min-w-0">
@@ -1060,10 +1244,10 @@ export default function UserChat() {
                   </div>
                   {showGroupMenu && (
                     <div className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 py-1">
-                      <MenuItem icon={<IoPeople    size={15} className="text-gray-400" />} label="View Members"  onClick={openMembers} />
+                      <MenuItem icon={<IoPeople size={15} className="text-gray-400" />} label="View Members" onClick={openMembers} />
                       <MenuItem icon={<IoPersonAdd size={15} className="text-gray-400" />} label="Add Members"
                         onClick={() => { setShowAddMembers(true); setShowGroupMenu(false); }} />
-                      <MenuItem icon={<IoPencil    size={15} className="text-gray-400" />} label="Edit Name"
+                      <MenuItem icon={<IoPencil size={15} className="text-gray-400" />} label="Edit Name"
                         onClick={() => {
                           // ✅ Seed with groupName (backend field)
                           setEditNameMode(true);
@@ -1073,6 +1257,9 @@ export default function UserChat() {
                       <div className="border-t border-gray-100 my-1" />
                       <MenuItem icon={<IoExit size={15} />} label="Leave Group" variant="warning"
                         onClick={() => { leaveGroup(); setShowGroupMenu(false); }} />
+                      <MenuItem icon={<IoTrash size={15} />} label="Delete Group" variant="danger"
+                        onClick={deleteGroup} />
+                      <div className="border-t border-gray-100 my-1" />
                     </div>
                   )}
                 </div>
@@ -1080,115 +1267,143 @@ export default function UserChat() {
             </div>
 
             {/* Messages List */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-1 bg-gray-50/40"
+            <div className="flex-1 overflow-y-auto px-[5%] py-4 flex flex-col"
+              ref={chatContainerRef}
+              onScroll={handleScrollUp}
               onClick={() => setShowGroupMenu(false)}>
+
+              {/* Loading older messages indicator */}
+              {isLoadingMore && (
+                <div className="flex justify-center py-3">
+                  <div className="flex items-center gap-2 bg-white border border-gray-100 rounded-full px-4 py-2 shadow-sm">
+                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs text-gray-500 font-medium">Loading older messages…</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Scroll up hint */}
+              {hasMore && !isLoadingMore && messages.length > 0 && (
+                <div className="flex justify-center py-2">
+                  <span className="text-[11px] text-gray-400 font-medium">↑ Scroll up for older messages</span>
+                </div>
+              )}
               {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
+                <div className="flex flex-col items-center justify-center flex-1 text-center">
                   <div className="w-20 h-20 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center mb-4">
                     {isGroup
                       ? <HiUserGroup className="w-10 h-10 text-gray-300" />
                       : <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>}
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
+                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>}
                   </div>
                   <p className="text-base font-bold text-gray-700">No messages yet</p>
                   <p className="text-sm text-gray-400 mt-1">Say hello 👋</p>
                 </div>
               ) : (<>
-                {messages.map((msg, idx) => {
-                  const own      = msg.senderId === getUserId();
-                  const showDate = idx === 0 ||
-                    new Date(msg.timestamp) - new Date(messages[idx - 1].timestamp) > 300000;
+                {/* Spacer pushes messages to bottom like WhatsApp */}
+                <div className="flex-1" />
+                <div className="space-y-1">
+                  {messages.map((msg, idx) => {
+                    const own = msg.senderId === getUserId();
+                    const showDate = idx === 0 ||
+                      new Date(msg.timestamp) - new Date(messages[idx - 1].timestamp) > 300000;
 
-                  return (
-                    <div key={msg.id || idx}>
-                      {showDate && (
-                        <div className="flex justify-center my-4">
-                          <span className="text-[11px] font-semibold text-gray-400 bg-white border border-gray-100 px-3 py-1 rounded-full shadow-sm">
-                            {dateStr(msg.timestamp)}
-                          </span>
-                        </div>
-                      )}
-                      <div className={`flex ${own ? "justify-end" : "justify-start"} group mb-1`}>
-
-                        {/* Hover action buttons */}
-                        <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity
-                          ${own ? "order-first mr-1.5" : "order-last ml-1.5"}`}>
-                          <div
-                            onClick={() => { setReplyTo(msg); textareaRef.current?.focus(); }}
-                            className="p-1.5 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 text-gray-500 cursor-pointer"
-                            title="Reply">
-                            <IoArrowUndo size={13} />
-                          </div>
-                          <div
-                            onClick={() => setForwardMsg(msg)}
-                            className="p-1.5 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 text-gray-500 cursor-pointer"
-                            title="Forward">
-                            <IoArrowForward size={13} />
-                          </div>
-                          {own && (
-                            <div
-                              onClick={() => deleteMessage(msg)}
-                              className="p-1.5 rounded-full bg-white border border-red-100 shadow-sm hover:bg-red-50 text-red-400 cursor-pointer"
-                              title="Delete">
-                              <IoTrash size={13} />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Message bubble */}
-                        <div
-                          className={`max-w-[68%] rounded-2xl px-4 py-2.5 shadow-sm
-                            ${own
-                              ? "bg-blue-600 text-white rounded-br-sm"
-                              : "bg-white text-gray-800 border border-gray-100 rounded-bl-sm"}`}
-                          onContextMenu={e => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, msg }); }}>
-
-                          {/* Sender name in group chats */}
-                          {!own && isGroup && (
-                            <p className="text-[11px] font-bold text-violet-500 mb-0.5 uppercase tracking-wide">
-                              {msg.senderName}
-                            </p>
-                          )}
-
-                          {/* Reply preview */}
-                          {msg.replyToMessage && (
-                            <div className={`text-xs rounded-lg px-3 py-1.5 mb-2 border-l-2
-                              ${own ? "bg-blue-500 border-blue-300" : "bg-gray-50 border-gray-300"}`}>
-                              <p className={`font-semibold mb-0.5 ${own ? "text-blue-200" : "text-gray-500"}`}>
-                                {msg.replyToMessage.senderId === getUserId() ? "You" : msg.replyToMessage.senderName || msg.senderName}
-                              </p>
-                              <p className={`truncate ${own ? "text-blue-200" : "text-gray-500"}`}>
-                                {msg.replyToMessage.message || msg.replyToMessage.text || "📎 File"}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Media content */}
-                          {msg.mediaUrl && <MediaBubble msg={msg} own={own} />}
-
-                          {/* Text content */}
-                          {msg.text && (
-                            <p className="text-[14.5px] leading-relaxed break-words whitespace-pre-wrap">{msg.text}</p>
-                          )}
-
-                          {/* Time + seen status */}
-                          <div className="flex items-center justify-end gap-1 mt-1.5 select-none">
-                            <span className={`text-[10px] font-medium ${own ? "text-blue-200" : "text-gray-400"}`}>
-                              {timeStr(msg.timestamp)}
+                    return (
+                      <div key={msg.id || idx}>
+                        {showDate && (
+                          <div className="flex justify-center my-4">
+                            <span className="text-[11.5px] font-medium text-gray-600 bg-[#E1F2FB] px-3 py-1 rounded-md shadow-sm">
+                              {dateStr(msg.timestamp)}
                             </span>
+                          </div>
+                        )}
+                        <div className={`flex ${own ? "justify-end" : "justify-start"} group mb-1`}>
+
+                          {/* Hover action buttons */}
+                          <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity
+                          ${own ? "order-first mr-1.5" : "order-last ml-1.5"}`}>
+                            <div
+                              onClick={() => { setReplyTo(msg); textareaRef.current?.focus(); }}
+                              className="p-1.5 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 text-gray-500 cursor-pointer"
+                              title="Reply">
+                              <IoArrowUndo size={13} />
+                            </div>
+                            <div
+                              onClick={() => setForwardMsg(msg)}
+                              className="p-1.5 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 text-gray-500 cursor-pointer"
+                              title="Forward">
+                              <IoArrowForward size={13} />
+                            </div>
                             {own && (
-                              msg.seen
-                                ? <IoCheckmarkDone size={14} className="text-emerald-300" />
-                                : <IoCheckmark     size={14} className="text-blue-300" />
+                              <div
+                                onClick={() => deleteMessage(msg)}
+                                className="p-1.5 rounded-full bg-white border border-red-100 shadow-sm hover:bg-red-50 text-red-400 cursor-pointer"
+                                title="Delete">
+                                <IoTrash size={13} />
+                              </div>
                             )}
+                          </div>
+
+                          {/* Message bubble */}
+                          <div
+                            className={`relative max-w-[75%] px-3 py-1.5 shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]
+                            ${own
+                                ? "bg-[#d9fdd3] text-[#111b21] rounded-lg rounded-tr-[0px]"
+                                : "bg-white text-[#111b21] rounded-lg rounded-tl-[0px]"}`}
+                            onContextMenu={e => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, msg }); }}>
+
+                            {/* Sender name in group chats */}
+                            {!own && isGroup && (
+                              <p className="text-[12px] font-bold text-violet-500 mb-0.5 tracking-wide cursor-pointer hover:underline">
+                                {msg.senderName}
+                              </p>
+                            )}
+
+                            {/* Reply preview */}
+                            {msg.replyToMessage && (
+                              <div className="text-xs rounded-md px-2.5 py-1.5 mb-1.5 border-l-4 bg-black/5 border-violet-500 cursor-pointer">
+                                <p className="font-bold mb-0.5 text-violet-600">
+                                  {msg.replyToMessage.senderId === getUserId() ? "You" : msg.replyToMessage.senderName || msg.senderName}
+                                </p>
+                                <p className="truncate text-gray-600">
+                                  {msg.replyToMessage.message || msg.replyToMessage.text || "📎 File"}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Media content */}
+                            {msg.mediaUrl && <MediaBubble msg={msg} own={own} />}
+
+                            {/* Text content & Time inline wrapper */}
+                            <div className="relative inline-block w-full">
+                              {msg.text && (
+                                <p className="text-[14.5px] leading-snug break-words whitespace-pre-wrap m-0">
+                                  {msg.text}
+                                  {/* Dummy spacing to prevent timestamp overlap */}
+                                  <span className="inline-block w-[70px] h-2 bg-transparent" />
+                                </p>
+                              )}
+
+                              {/* Time + seen status */}
+                              <div className={`flex items-center gap-[3px] select-none text-gray-500 ${msg.text ? "absolute bottom-[-2px] right-0" : "justify-end mt-1"}`}>
+                                <span className="text-[10px] font-medium leading-none mt-[2px]">
+                                  {timeStr(msg.timestamp)}
+                                </span>
+                                {own && (
+                                  msg.seen
+                                    ? <IoCheckmarkDone size={15} className="text-[#53bdeb]" />
+                                    : <IoCheckmark size={15} className="text-[#8696a0]" />
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
 
                 {/* Typing indicator */}
                 {typingUser && (
@@ -1227,7 +1442,7 @@ export default function UserChat() {
             )}
 
             {/* ── INPUT AREA ──────────────────────────────────────────────── */}
-            <div className="px-5 py-4 border-t border-gray-100 bg-white flex-shrink-0">
+            <div className="px-5 py-3 bg-[#f0f2f5] flex-shrink-0 z-20 w-full">
 
               {/* File preview */}
               {pendingFile && (
@@ -1305,10 +1520,10 @@ export default function UserChat() {
                     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
                   }}
                   placeholder={
-                    isUploading           ? "Uploading…"
-                    : pendingFile         ? "Add a caption… (optional)"
-                    : connectionStatus === "connected" ? "Type a message…"
-                    : "Reconnecting…"
+                    isUploading ? "Uploading…"
+                      : pendingFile ? "Add a caption… (optional)"
+                        : connectionStatus === "connected" ? "Type a message…"
+                          : "Reconnecting…"
                   }
                   disabled={connectionStatus !== "connected" || isUploading}
                   className="flex-1 bg-transparent text-sm resize-none focus:outline-none max-h-28 py-2 placeholder-gray-400" />
@@ -1367,32 +1582,49 @@ export default function UserChat() {
             <div className="flex-1 overflow-y-auto py-2">
               {groupMembers.length === 0
                 ? <div className="flex justify-center py-8">
-                    <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                  </div>
+                  <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                </div>
                 // ✅ participants from getGroupDetails are raw User objects (id, firstName, lastName, email, role)
                 : groupMembers.map(member => {
-                    const mid = member.id ?? member.userId;
-                    return (
-                      <div key={mid} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 rounded-xl mx-1.5 group">
-                        <Avatar entity={member} size={9} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-800 truncate">{getFullName(member)}</p>
-                          <p className="text-[10px] text-gray-400 truncate">{member.role}</p>
-                        </div>
-                        {mid !== getUserId() && (
-                          <div onClick={() => removeMember(mid)}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
-                            title="Remove">
-                            <IoPersonRemove size={14} />
-                          </div>
-                        )}
+                  const mid = member.id ?? member.userId;
+                  return (
+                    <div key={mid} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 rounded-xl mx-1.5 group">
+                      <Avatar entity={member} size={9} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{getFullName(member)}</p>
+                        <p className="text-[10px] text-gray-400 truncate">{member.role}</p>
                       </div>
-                    );
-                  })}
+                      {mid !== getUserId() && (
+                        <div onClick={() => removeMember(mid)}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                          title="Remove">
+                          <IoPersonRemove size={14} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           </div>
         )}
       </div>
+
+      {/* ══ NOTIFICATION TOASTS ═══════════════════════════════════════════════ */}
+      {notifications.length > 0 && (
+        <div className="fixed top-4 right-4 z-[60] flex flex-col gap-2">
+          {notifications.map(n => (
+            <NotificationToast key={n.id} notification={n} onDismiss={dismissNotification} />
+          ))}
+        </div>
+      )}
+
+      {/* Notification slide-in animation */}
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(110%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -8,38 +8,37 @@ import Loader from "../components/Loader";
 import FormModal from "../components/FormModal";
 
 const MEETING_COLUMNS = [
-  { key: "id", label: "Meeting ID", sortable: true },
-  { key: "companyName", label: "Company", sortable: true },
-  { key: "personName", label: "Contact Person", sortable: true },
-  { key: "mobileNumber", label: "Mobile", sortable: true },
-  { key: "companyEmail", label: "Email", sortable: true },
+  { key: "id", label: "Client ID", sortable: true },
+  { key: "name", label: "Client Name", sortable: true },
+  { key: "mobile", label: "Mobile", sortable: true },
+  { key: "email", label: "Email", sortable: true },
+  { 
+    key: "createdAt", 
+    label: "Created At", 
+    sortable: true,
+    render: (val) => new Date(val).toLocaleDateString()
+  },
 ];
 
 const clientFields = [
   {
-    name: "companyName",
-    label: "Company Name",
-    required: true,
-    placeholder: "e.g., Arena",
-  },
-  {
-    name: "personName",
-    label: "Contact Person",
+    name: "name",
+    label: "Client Name",
     required: true,
     placeholder: "e.g., Ankit",
   },
   {
-    name: "mobileNumber",
+    name: "mobile",
     label: "Mobile Number",
     required: true,
     placeholder: "e.g., 7875345632",
   },
   {
-    name: "companyEmail",
-    label: "Company Email",
+    name: "email",
+    label: "Email",
     type: "email",
     required: true,
-    placeholder: "e.g., arena@gmail.com",
+    placeholder: "e.g., ankit@gmail.com",
   },
 ];
 
@@ -73,16 +72,15 @@ function ClientBulkUpload() {
 
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [newClient, setNewClient] = useState({
-    companyName: "",
-    personName: "",
-    mobileNumber: "",
-    companyEmail: "",
+    name: "",
+    mobile: "",
+    email: "",
   });
 
-  const sampleCSV = `companyName,personName,mobileNumber,companyEmail
-dovetail,vishu,9988855444,dovetail@gmail.com
-bohobliss,anuj,8866234555,bohobliss@gmail.com
-arena,ankit,7875345632,arena@gmail.com`;
+  const sampleCSV = `name,mobile,email
+dovetail,9988855444,dovetail@gmail.com
+bohobliss,8866234555,bohobliss@gmail.com
+arena,7875345632,arena@gmail.com`;
 
   const downloadSampleCSV = () => {
     const blob = new Blob([sampleCSV], { type: "text/csv;charset=utf-8;" });
@@ -165,19 +163,19 @@ arena,ankit,7875345632,arena@gmail.com`;
   };
 
   const handleAddClient = async () => {
-    const { companyName, personName, mobileNumber, companyEmail } = newClient;
+    const { name, mobile, email } = newClient;
 
-    if (!companyName || !personName || !mobileNumber || !companyEmail) {
+    if (!name || !mobile || !email) {
       Toast.error("Please fill all fields.");
       return;
     }
 
-    if (!/^\d{10,15}$/.test(mobileNumber)) {
+    if (!/^\d{10,15}$/.test(mobile)) {
       Toast.error("Please enter a valid mobile number (10–15 digits).");
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(companyEmail)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       Toast.error("Please enter a valid email address.");
       return;
     }
@@ -203,10 +201,9 @@ arena,ankit,7875345632,arena@gmail.com`;
 
   const resetClientForm = () => {
     setNewClient({
-      companyName: "",
-      personName: "",
-      mobileNumber: "",
-      companyEmail: "",
+      name: "",
+      mobile: "",
+      email: "",
     });
   };
 
@@ -263,7 +260,7 @@ arena,ankit,7875345632,arena@gmail.com`;
   const columns = MEETING_COLUMNS.map((col) => ({
     ...col,
     render: (row) => (
-      <div className={`text-sm ${col.key === 'companyName' || col.key === 'personName' ? 'font-medium text-slate-800 capitalize' : 'text-slate-600'}`}>
+      <div className={`text-sm ${col.key === 'name' ? 'font-medium text-slate-800 capitalize' : 'text-slate-600'}`}>
         {row[col.key] || "—"}
       </div>
     ),
@@ -318,7 +315,7 @@ arena,ankit,7875345632,arena@gmail.com`;
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search meetings by company, person, email..."
+            placeholder="Search clients by name, email..."
             value={searchTerm}
             onChange={handleSearch}
             className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all"
