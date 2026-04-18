@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from "react";
 import Table from "../components/Table";
-import { adminApi } from "../api";
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router";
 import Loader from "../components/Loader";
-import { Search, UserPlus, Filter } from "lucide-react"; // Added for UI polish
+import { Search, UserPlus, Filter, MapPin } from "lucide-react";
+import FuelExpensesView from "../components/FuelManagement";
+import { adminApi } from "../api";
 
 const useAuth = () => {
   const userData = JSON.parse(localStorage.getItem("user"));
@@ -30,7 +31,11 @@ export default function UserManagement() {
     limit: 10,
   });
 
-  // ✅ Cache full sales list for managers
+  const allroles = localStorage.getItem("roles", JSON.stringify(user.role)); // Ensure role is stored for route access control
+
+  // Fuel Expenses Navigation State
+  const [selectedUserForExpenses, setSelectedUserForExpenses] = useState(null);
+
   const [allSalespersonsCache, setAllSalespersonsCache] = useState([]);
   const [lastManagerSearch, setLastManagerSearch] = useState("");
 
@@ -38,13 +43,10 @@ export default function UserManagement() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, []);
+  }, [selectedUserForExpenses]);
 
   const fetchUsers = async (page = pagination.currentPage, search = "") => {
-    // ✅ Only clear data if it's a new semantic query (not just page change)
-    // We keep current data visible during load → no flicker
     setLoading(true);
-
     try {
       if (isManager) {
         const searchTrimmed = search.trim().toLowerCase();
@@ -52,7 +54,6 @@ export default function UserManagement() {
         let needsRefetch = fullList.length === 0 || searchTrimmed !== lastManagerSearch;
 
         if (needsRefetch) {
-          // Fetch ALL salespersons once
           let allSalespersons = [];
           let currentPage = pagination.currentPage;
           let totalFetched = 0;
@@ -80,15 +81,14 @@ export default function UserManagement() {
           fullList = allSalespersons;
         }
 
-        // Client-side filter + paginate
         const filtered = searchTrimmed
           ? fullList.filter(
-              (u) =>
-                u.firstName?.toLowerCase().includes(searchTrimmed) ||
-                u.lastName?.toLowerCase().includes(searchTrimmed) ||
-                u.email?.toLowerCase().includes(searchTrimmed) ||
-                u.phone?.toLowerCase().includes(searchTrimmed)
-            )
+            (u) =>
+              u.firstName?.toLowerCase().includes(searchTrimmed) ||
+              u.lastName?.toLowerCase().includes(searchTrimmed) ||
+              u.email?.toLowerCase().includes(searchTrimmed) ||
+              u.phone?.toLowerCase().includes(searchTrimmed)
+          )
           : fullList;
 
         const limit = 10;
@@ -157,7 +157,6 @@ export default function UserManagement() {
           limit,
         });
       } else {
-        // Super admin: real server-side pagination
         const params = { page, limit: 10 };
         if (search) params.search = search.trim();
         if (roleFilter !== "all") params.role = roleFilter;
@@ -184,19 +183,18 @@ export default function UserManagement() {
     }
   };
 
-  // ✅ Memoize columns to prevent Table re-renders
   const columns = useMemo(() => {
     const base = [
-      { key: "firstName", label: "First Name", render: (row) => <div className="capitalize font-medium text-slate-800">{row.firstName}</div> },
-      { key: "lastName", label: "Last Name", render: (row) => <div className="capitalize font-medium text-slate-800">{row.lastName}</div> },
-      { key: "email", label: "Email", render: (row) => <div className="break-words max-w-xs text-slate-500">{row.email}</div> },
-      { key: "phone", label: "Phone", render: (row) => <div className="text-slate-600">{row.phone}</div> },
+      { key: "firstName", label: "First Name", render: (row) => <div className="capitalize font-medium text">{row.firstName}</div> },
+      { key: "lastName", label: "Last Name", render: (row) => <div className="capitalize font-medium text">{row.lastName}</div> },
+      { key: "email", label: "Email", render: (row) => <div className="break-words max-w-xs text">{row.email}</div> },
+      { key: "phone", label: "Phone", render: (row) => <div className="text">{row.phone}</div> },
       {
         key: "role",
         label: "Role",
         render: (row) => {
-          if (row.role === "sale_person") return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Salesperson</span>;
-          if (row.role === "manager") return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Manager</span>;
+          if (row.role === "sale_person" || row._type === "salesperson") return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Salesperson</span>;
+          if (row.role === "manager" || row._type === "manager") return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Manager</span>;
           if (row.role === "admin" || row.role === "super_admin") return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 capitalize">{row.role.replace("_", " ")}</span>;
           return <span className="capitalize">{row.role}</span>;
         },
@@ -219,105 +217,117 @@ export default function UserManagement() {
               name = [row.creator.firstName, row.creator.lastName].filter(Boolean).join(" ");
             }
           }
-          return name !== "—" ? <span className="font-medium text-slate-700">{name}</span> : <span className="text-slate-400">—</span>;
+          return name !== "—" ? <span className="font-medium text">{name}</span> : <span className="text">—</span>;
         },
       },
     ];
   }, [isManager, isAdmin]);
 
-  // ✅ Memoize actions (even if empty)
-  const actions = useMemo(() => [], []);
+  // Updated Actions to use the standard Table menu dropdown
+  const actions = useMemo(() => [
+    {
+      type: "menu",
+      label: "Actions",
+      className: "p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors",
+      menuItems: [
+        {
+          label: (
+            <span className="flex items-center gap-2 font-medium text-blue-600 dark:text-blue-400">
+              <MapPin className="w-4 h-4" /> Fuel Expenses
+            </span>
+          ),
+          onClick: (row) => setSelectedUserForExpenses(row),
+          condition: (row) => row.role === "sale_person" || row._type === "salesperson",
+          className: "hover:!bg-blue-50 dark:hover:!bg-blue-500/10 cursor-pointer",
+        }
+      ]
+    }
+  ], []);
 
- useEffect(() => {
-  fetchUsers(pagination.currentPage, searchTerm);
-}, [isManager, isAdmin, user.id, searchTerm, roleFilter, pagination.currentPage]);
+  useEffect(() => {
+    if (!selectedUserForExpenses) {
+      fetchUsers(pagination.currentPage, searchTerm);
+    }
+  }, [isManager, isAdmin, user.id, searchTerm, roleFilter, pagination.currentPage, selectedUserForExpenses]);
 
   const handleSearch = (e) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    // Reset to page 1 on new search
+    setSearchTerm(e.target.value);
     setPagination((p) => ({ ...p, currentPage: 1 }));
   };
 
   const handleRoleChange = (e) => {
-    const value = e.target.value;
-    setRoleFilter(value);
+    setRoleFilter(e.target.value);
     setPagination((p) => ({ ...p, currentPage: 1 }));
   };
 
   const showRoleFilter = !isManager;
 
+  // Conditionally render the Fuel Expenses View
+  if (selectedUserForExpenses) {
+    return (
+      <FuelExpensesView
+        user={selectedUserForExpenses}
+        onBack={() => setSelectedUserForExpenses(null)}
+      />
+    );
+  }
+
   return (
-    <div className="py-4 h-[calc(100vh-6rem)] flex flex-col">
+    <div className="py-4 flex flex-col w-full">
       <Toaster position="top-right" />
 
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
-            {isManager ? "My Sales Team" : isAdmin ? "My Team" : "User Management"}
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            {isManager ? "View and manage your assigned sales representatives." : "Manage system users, roles, and permissions."}
-          </p>
-        </div>
-        <div>
-          <button
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all px-5 py-2.5 rounded-xl text-sm"
-            onClick={() => navigate("/registration")}
-          >
-            <UserPlus className="w-4 h-4" />
-            Add New User
-          </button>
-        </div>
-      </div>
-
-      {/* Toolbar / Controls Card */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6">
+      <div className="translucent mb-6 z-10">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          
-          {/* Search Bar */}
           <div className="relative w-full md:max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+
             <input
               type="text"
               placeholder={isManager ? "Search team by name, email, phone..." : "Search users by name, email, phone..."}
               value={searchTerm}
               onChange={handleSearch}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all translucent-inner"
             />
           </div>
 
-          {/* Filters */}
           {showRoleFilter && (
             <div className="w-full md:w-auto flex items-center gap-3">
               <div className="relative w-full md:w-48">
-                <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+
                 <select
                   value={roleFilter}
                   onChange={handleRoleChange}
-                  className="w-full pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 appearance-none focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all cursor-pointer"
+                  className="translucent-inner w-full pl-10 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 appearance-none focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all cursor-pointer"
                 >
                   <option value="all">All Roles</option>
                   {isSuperAdmin && <option value="admin">Admin</option>}
                   <option value="manager">Manager</option>
                   <option value="sale_person">Salesperson</option>
                 </select>
-                {/* Custom Select Arrow */}
+
+
                 <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
                   <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                   </svg>
                 </div>
+
+
+              </div>
+              <div>
+                <button
+                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all px-5 py-2.5 rounded-xl text-sm"
+                  onClick={() => navigate(allroles === "super_admin" ? "/registration" : "/user-registration")}
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Add New User
+                </button>
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Table Card container */}
-      <div className="relative flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-        {/* Table Wrapper (Assuming your Table component handles its own scrolling) */}
+      <div className="relative flex-1 overflow-hidden flex flex-col translucent">
         <div className="flex-1 overflow-auto custom-scrollbar p-0">
           <Table
             columns={columns}
@@ -332,14 +342,8 @@ export default function UserManagement() {
           />
         </div>
 
-        {/* ✅ Overlay loader on top of table — NO LAYOUT SHIFT */}
         {loading && (
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-10 transition-all duration-300">
-            <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-100 flex items-center gap-3">
-              <Loader /> 
-              <span className="text-sm font-semibold text-slate-600">Syncing data...</span>
-            </div>
-          </div>
+          <Loader />
         )}
       </div>
     </div>

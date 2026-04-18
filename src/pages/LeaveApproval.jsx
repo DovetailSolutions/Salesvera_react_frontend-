@@ -65,7 +65,7 @@ export default function LeaveApproval() {
     try {
       const response = await adminApi.getOwnLeave();
       const leaves = response.data?.data?.leave || [];
-      
+
       setMyLeaves(Array.isArray(leaves) ? leaves : []);
       setShowMyLeaves(true);
     } catch (err) {
@@ -133,16 +133,16 @@ export default function LeaveApproval() {
     const status = (statusValue || "pending").toLowerCase();
     let color = "bg-slate-100 text-slate-700";
     let dot = "bg-slate-500";
-    
-    if (status === "approved") { 
-      color = "bg-emerald-100 text-emerald-700"; 
-      dot = "bg-emerald-500"; 
-    } else if (status === "rejected") { 
-      color = "bg-red-100 text-red-700"; 
-      dot = "bg-red-500"; 
-    } else if (status === "pending") { 
-      color = "bg-amber-100 text-amber-700"; 
-      dot = "bg-amber-500"; 
+
+    if (status === "approved") {
+      color = "bg-emerald-100 text-emerald-700";
+      dot = "bg-emerald-500";
+    } else if (status === "rejected") {
+      color = "bg-red-100 text-red-700";
+      dot = "bg-red-500";
+    } else if (status === "pending") {
+      color = "bg-amber-100 text-amber-700";
+      dot = "bg-amber-500";
     }
 
     return (
@@ -225,15 +225,7 @@ export default function LeaveApproval() {
       <Toaster position="top-right" />
 
       {/* Header Section (STRICTLY ONE LINE) */}
-      <div className="flex flex-row items-center justify-between mb-6 w-full">
-        <div>
-          <h2 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
-            {showMyLeaves ? "Your Leave Records" : "Leave Requests"}
-          </h2>
-          <p className="text-sm text-slate-500 mt-1 font-medium hidden sm:block">
-            {showMyLeaves ? "Review your historical leave requests and their statuses." : "Manage and respond to employee leave applications."}
-          </p>
-        </div>
+      <div className="flex flex-row items-center justify-between w-full">
 
         {isNonAdmin && (
           <button
@@ -245,30 +237,29 @@ export default function LeaveApproval() {
             {loadingMyLeaves
               ? "Loading..."
               : showMyLeaves
-              ? "View Leave Requests"
-              : "View Your Leaves"}
+                ? "View Leave Requests"
+                : "View Your Leaves"}
           </button>
         )}
       </div>
 
       {/* Search Bar Container */}
       {!showMyLeaves && (
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6">
-          <div className="relative w-full md:max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <div className="translucent p-4 rounded-2xl shadow-sm border border-slate-200 mb-6">
+          <div className="w-full md:max-w-md">
             <input
               type="text"
               placeholder="Search by name, email, or reason..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all"
+              className="w-full translucent-inner pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all"
             />
           </div>
         </div>
       )}
 
       {/* Main Table Area */}
-      <div className="relative flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col animate-in fade-in duration-300">
+      <div className="relative flex-1 translucent rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col animate-in fade-in duration-300">
         <div className="flex-1 overflow-auto custom-scrollbar p-0">
           {showMyLeaves ? (
             <Table
@@ -289,22 +280,14 @@ export default function LeaveApproval() {
 
         {/* Loading Overlays */}
         {(loading && !showMyLeaves) && (
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-10 transition-all duration-300">
-            <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-100 flex items-center gap-3">
-              <Loader /> <span className="text-sm font-semibold text-slate-600">Loading requests...</span>
-            </div>
-          </div>
+          <Loader />
         )}
-        
+
         {(loadingMyLeaves && showMyLeaves) && (
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-10 transition-all duration-300">
-            <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-100 flex items-center gap-3">
-              <Loader /> <span className="text-sm font-semibold text-slate-600">Loading your records...</span>
-            </div>
-          </div>
+          <Loader />
         )}
       </div>
-      
+
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { LiaUserClockSolid } from "react-icons/lia";
 import { IoAlertCircleOutline, IoClose } from "react-icons/io5";
 import { PiClockUserLight } from "react-icons/pi";
 import { LuCalendarClock } from "react-icons/lu";
-import { Calendar, Search, UserCheck, CalendarDays, ArrowLeft } from "lucide-react";
+import { Calendar, Search, UserCheck, CalendarDays, ArrowLeft, Mail, Phone, UserCircle, Briefcase } from "lucide-react";
 import AttendanceRegister from "./AttendanceRegister";
 import Loader from "../components/Loader";
 
@@ -37,7 +37,6 @@ export default function Attendance() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userAttendance, setUserAttendance] = useState([]);
-  const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [todayAttendanceMap, setTodayAttendanceMap] = useState({});
 
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
@@ -84,7 +83,7 @@ export default function Attendance() {
       }
 
       setUsers(userList);
-      setPagination({ currentPage: 1, totalItems: userList.length, totalPages: 1, limit: 10 });
+      setPagination({ currentPage: 1, totalItems: userList.length, totalPages: 1, limit: 1000 });
 
       const todayStr = toLocalDateString(new Date());
       const attendanceMap = {};
@@ -125,23 +124,11 @@ export default function Attendance() {
     fetchAttendanceAndUsers(term);
   };
 
-  const handleRowClick = async (user) => {
+  const handleRowClick = (user) => {
     setSelectedUser(user);
     setSelectedDate(new Date());
     setIsModalOpen(true);
-    setLoadingAttendance(true);
-
-    try {
-      const res = await attendanceApi.getUserAttendance({ userId: user.id, limit: 100 });
-      const records = res.data?.data?.attendance || [];
-      setUserAttendance(Array.isArray(records) ? records : []);
-    } catch (err) {
-      console.error("Failed to fetch user attendance:", err);
-      toast.error("Failed to load attendance data");
-      setUserAttendance([]);
-    } finally {
-      setLoadingAttendance(false);
-    }
+    setUserAttendance(Array.isArray(user.Attendances) ? user.Attendances : []);
   };
 
   const handleViewLeaves = async (user) => {
@@ -168,6 +155,7 @@ export default function Attendance() {
     setUserAttendance([]);
   };
 
+  // ─── Table Configuration ──────────────────────────────────────────────────
   const todayColumn = {
     key: "todayAttendance",
     label: "Today's Status",
@@ -177,12 +165,8 @@ export default function Attendance() {
 
       return (
         <div onClick={() => handleRowClick(row)} className="cursor-pointer">
-          <span
-            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-              isPresent ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-            }`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isPresent ? "bg-emerald-500" : "bg-red-500"}`}></span>
+          <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border flex items-center w-fit gap-1.5 ${isPresent ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20" : "bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20"}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${isPresent ? "bg-emerald-500" : "bg-red-500"}`}></span>
             {isPresent ? "Present" : "Absent"}
           </span>
         </div>
@@ -195,8 +179,9 @@ export default function Attendance() {
       key: "firstName",
       label: "First Name",
       render: (row) => (
-        <div className="cursor-pointer capitalize font-medium text-slate-800" onClick={() => handleRowClick(row)}>
-          {row.firstName}
+        <div className="flex items-center gap-2 cursor-pointer font-medium text" onClick={() => handleRowClick(row)}>
+          <UserCircle className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+          <span className="capitalize">{row.firstName}</span>
         </div>
       ),
     },
@@ -204,7 +189,7 @@ export default function Attendance() {
       key: "lastName",
       label: "Last Name",
       render: (row) => (
-        <div className="cursor-pointer capitalize font-medium text-slate-800" onClick={() => handleRowClick(row)}>
+        <div className="cursor-pointer capitalize font-medium text" onClick={() => handleRowClick(row)}>
           {row.lastName}
         </div>
       ),
@@ -213,7 +198,8 @@ export default function Attendance() {
       key: "email",
       label: "Email",
       render: (row) => (
-        <div className="break-words max-w-xs cursor-pointer text-slate-500" onClick={() => handleRowClick(row)}>
+        <div className="flex items-center gap-2 break-words max-w-xs cursor-pointer text-sm text-gray-500 dark:text-gray-400" onClick={() => handleRowClick(row)}>
+          <Mail className="w-3.5 h-3.5" />
           {row.email}
         </div>
       ),
@@ -222,7 +208,8 @@ export default function Attendance() {
       key: "phone",
       label: "Phone",
       render: (row) => (
-        <div className="cursor-pointer text-slate-600" onClick={() => handleRowClick(row)}>
+        <div className="flex items-center gap-2 cursor-pointer text-sm text-gray-500 dark:text-gray-400" onClick={() => handleRowClick(row)}>
+          <Phone className="w-3.5 h-3.5" />
           {row.phone}
         </div>
       ),
@@ -233,10 +220,9 @@ export default function Attendance() {
       render: (row) => {
         const displayRole = row.role === "sale_person" ? "Salesperson" : row.role === "manager" ? "Manager" : row.role.charAt(0).toUpperCase() + row.role.slice(1);
         return (
-          <div className="cursor-pointer" onClick={() => handleRowClick(row)}>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-              {displayRole}
-            </span>
+          <div className="flex items-center gap-1.5 cursor-pointer text" onClick={() => handleRowClick(row)}>
+            <Briefcase className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+            <span className="text-sm font-medium">{displayRole}</span>
           </div>
         );
       },
@@ -248,19 +234,25 @@ export default function Attendance() {
     {
       type: "menu",
       label: "Actions",
-      className: "px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm",
+      className: "p-1.5 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors",
       menuItems: [
         {
-          label: "View Attendance",
+          label: (
+            <span className="flex items-center gap-2 font-medium text-violet-600 dark:text-violet-400">
+              <UserCheck className="w-4 h-4" /> View Attendance
+            </span>
+          ),
           onClick: (row) => handleRowClick(row),
-          icon: <UserCheck className="w-4 h-4 text-blue-500" />,
-          className: "text-slate-700 hover:bg-blue-50 hover:text-blue-700 font-medium",
+          className: "hover:!bg-violet-50 dark:hover:!bg-violet-500/10 cursor-pointer",
         },
         {
-          label: "View Leaves",
+          label: (
+            <span className="flex items-center gap-2 font-medium text-orange-600 dark:text-orange-400">
+              <CalendarDays className="w-4 h-4" /> View Leaves
+            </span>
+          ),
           onClick: (row) => handleViewLeaves(row),
-          icon: <CalendarDays className="w-4 h-4 text-orange-500" />,
-          className: "text-slate-700 hover:bg-orange-50 hover:text-orange-700 font-medium",
+          className: "hover:!bg-orange-50 dark:hover:!bg-orange-500/10 cursor-pointer",
         },
       ],
     },
@@ -270,32 +262,32 @@ export default function Attendance() {
     {
       key: "from_date",
       label: "Start Date",
-      render: (row) => (row.from_date ? <span className="font-medium text-slate-700">{new Date(row.from_date).toLocaleDateString("en-GB")}</span> : "—"),
+      render: (row) => (row.from_date ? <span className="font-medium text flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-gray-400" />{new Date(row.from_date).toLocaleDateString("en-GB")}</span> : "—"),
     },
     {
       key: "to_date",
       label: "End Date",
-      render: (row) => (row.to_date ? <span className="font-medium text-slate-700">{new Date(row.to_date).toLocaleDateString("en-GB")}</span> : "—"),
+      render: (row) => (row.to_date ? <span className="font-medium text flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-gray-400" />{new Date(row.to_date).toLocaleDateString("en-GB")}</span> : "—"),
     },
     {
       key: "reason",
       label: "Reason",
-      render: (row) => <span className="text-slate-600">{row.reason || "—"}</span>,
+      render: (row) => <span className="text-gray-500 dark:text-gray-400 text-sm">{row.reason || "—"}</span>,
     },
     {
       key: "status",
       label: "Status",
       render: (row) => {
         const status = row.status?.toLowerCase() || "pending";
-        let color = "bg-slate-100 text-slate-700";
+        let colorClass = "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700";
         let dot = "bg-slate-500";
-        if (status === "approved") { color = "bg-emerald-100 text-emerald-700"; dot = "bg-emerald-500"; }
-        if (status === "rejected") { color = "bg-red-100 text-red-700"; dot = "bg-red-500"; }
-        if (status === "pending") { color = "bg-amber-100 text-amber-700"; dot = "bg-amber-500"; }
+        if (status === "approved") { colorClass = "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"; dot = "bg-emerald-500"; }
+        if (status === "rejected") { colorClass = "bg-red-50 text-red-600 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20"; dot = "bg-red-500"; }
+        if (status === "pending") { colorClass = "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20"; dot = "bg-amber-500"; }
 
         return (
-          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${color}`}>
-             <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${dot}`}></span>
+          <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border flex items-center w-fit gap-1.5 ${colorClass}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${dot}`}></span>
             {status.charAt(0).toUpperCase() + status.slice(1)}
           </span>
         );
@@ -305,70 +297,59 @@ export default function Attendance() {
 
   return (
     <div className="py-4 h-[calc(100vh-6rem)] flex flex-col relative">
-      <Toaster position="top-right" />
+      <Toaster position="top-right" toastOptions={{ style: { borderRadius: "12px", fontWeight: 500, fontSize: "13px" } }} />
 
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         {viewMode === "leaves" ? (
           <>
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+            <div className="mb-6">
+              <h2 className="text-2xl md:text-3xl font-bold text tracking-tight flex items-center gap-2">
                 Leave History
               </h2>
-              <p className="text-sm text-slate-500 mt-1 font-medium">
-                Viewing records for <span className="capitalize text-slate-700 font-bold">{leaveUser?.firstName} {leaveUser?.lastName}</span>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-medium">
+                Viewing records for <span className="capitalize text font-bold">{leaveUser?.firstName} {leaveUser?.lastName}</span>
               </p>
             </div>
             <button
               onClick={() => setViewMode("attendance")}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
+              className="button flex items-center gap-2"
             >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Attendance
+              <ArrowLeft className="w-4 h-4" /> Back to Attendance
             </button>
           </>
         ) : (
           <>
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
-                Team Attendance
-              </h2>
-              <p className="text-sm text-slate-500 mt-1 font-medium">
-                Monitor daily attendance and view historical records.
-              </p>
-            </div>
-            <button
-              onClick={openAttendanceRegister}
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all px-5 py-2.5 rounded-xl text-sm"
-            >
-              <Calendar className="w-4 h-4" />
-              Attendance Register
-            </button>
+
           </>
         )}
       </div>
 
-      {/* Search & Controls */}
       {viewMode === "attendance" && (
         <>
-          <AttendanceRegister isOpen={isRegisterOpen} onClose={closeRegister} />
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6">
+          {isRegisterOpen && (
+            <AttendanceRegister isOpen={isRegisterOpen} onClose={closeRegister} />
+          )}
+
+          <div className="translucent mb-6 flex items-center justify-between gap-4">
             <div className="relative w-full md:max-w-md">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 placeholder={isManager ? "Search sales team..." : "Search users by name, email..."}
                 value={searchTerm}
                 onChange={handleSearch}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all"
+                className="w-full pl-10 pr-4 translucent-inner py-2.5 border-none text-sm focus:outline-none focus:ring-4 focus:ring-brandviolet/20 transition-all"
               />
             </div>
+            <button onClick={openAttendanceRegister} className="button flex items-center gap-2">
+              <Calendar className="w-4 h-4" /> Attendance Register
+            </button>
           </div>
         </>
       )}
 
       {/* Main Table Area */}
-      <div className="relative flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col animate-in fade-in duration-300">
+      <div className="relative flex-1 overflow-hidden flex flex-col translucent p-0 animate-in fade-in duration-300">
         <div className="flex-1 overflow-auto custom-scrollbar p-0">
           {viewMode === "attendance" ? (
             <Table
@@ -390,40 +371,32 @@ export default function Attendance() {
 
         {/* Loading Overlays */}
         {(loading && viewMode === "attendance") && (
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-10 transition-all duration-300">
-            <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-100 flex items-center gap-3">
-              <Loader /> <span className="text-sm font-semibold text-slate-600">Loading records...</span>
-            </div>
-          </div>
+          <Loader />
         )}
-        
+
         {(loadingLeaves && viewMode === "leaves") && (
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-10 transition-all duration-300">
-            <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-100 flex items-center gap-3">
-              <Loader /> <span className="text-sm font-semibold text-slate-600">Loading history...</span>
-            </div>
-          </div>
+          <Loader />
         )}
       </div>
 
       {/* User Attendance Modal */}
       {isModalOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-            
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="popup-card rounded-2xl shadow-2xl w-full max-w-lg relative overflow-hidden flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200">
+
             {/* Modal Header */}
-            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center sticky top-0 z-10">
+            <div className="px-6 py-5 border-b border-gray-200/20 flex justify-between items-center sticky top-0 z-10">
               <div>
-                <h3 className="text-lg font-bold text-slate-800">
+                <h3 className="text-lg font-bold text">
                   Attendance Record
                 </h3>
-                <p className="text-sm font-medium text-slate-500 capitalize mt-0.5">
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize mt-0.5">
                   {selectedUser.firstName} {selectedUser.lastName}
                 </p>
               </div>
               <button
                 onClick={closeModal}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors focus:outline-none"
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors focus:outline-none"
               >
                 <IoClose size={22} />
               </button>
@@ -431,186 +404,194 @@ export default function Attendance() {
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
-              {loadingAttendance ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <Loader />
-                  <p className="text-sm text-slate-500 mt-3 font-medium">Fetching attendance data...</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  
-                  {/* Calendar Widget */}
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-                      Select Date
-                    </label>
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                      {(() => {
-                        const now = selectedDate;
-                        const year = now.getFullYear();
-                        const month = now.getMonth();
-                        const firstDay = new Date(year, month, 1);
-                        const lastDay = new Date(year, month + 1, 0);
-                        const daysInMonth = lastDay.getDate();
-                        const startDayIndex = firstDay.getDay();
+              <div className="space-y-6">
 
-                        const days = [];
-                        for (let i = 0; i < startDayIndex; i++) days.push(null);
-                        for (let day = 1; day <= daysInMonth; day++) days.push(new Date(year, month, day));
-                        while (days.length < 42) days.push(null);
+                {/* Calendar Widget */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
+                    Select Date
+                  </label>
+                  <div className="translucent-inner rounded-xl shadow-sm p-4">
+                    {(() => {
+                      const now = selectedDate;
+                      const year = now.getFullYear();
+                      const month = now.getMonth();
+                      const firstDay = new Date(year, month, 1);
+                      const lastDay = new Date(year, month + 1, 0);
+                      const daysInMonth = lastDay.getDate();
+                      const startDayIndex = firstDay.getDay();
 
-                        const handleDateClick = (date) => { if (date) setSelectedDate(date); };
-                        const isSameDay = (d1, d2) => d1 && d2 && d1.getDate() === d2.getDate() && d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear();
-                        const prevMonth = () => setSelectedDate(new Date(year, month - 1, 1));
-                        const nextMonth = () => setSelectedDate(new Date(year, month + 1, 1));
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
+                      const days = [];
+                      for (let i = 0; i < startDayIndex; i++) days.push(null);
+                      for (let day = 1; day <= daysInMonth; day++) days.push(new Date(year, month, day));
+                      while (days.length < 42) days.push(null);
 
-                        return (
-                          <>
-                            <div className="flex items-center justify-between mb-4">
-                              <button onClick={prevMonth} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
-                                <FaAngleLeft />
-                              </button>
-                              <h4 className="text-sm font-bold text-slate-700">
-                                {firstDay.toLocaleString("default", { month: "long", year: "numeric" })}
-                              </h4>
-                              <button onClick={nextMonth} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
-                                <FaAngleRight />
-                              </button>
-                            </div>
-                            
-                            <div className="grid grid-cols-7 gap-1 mb-2">
-                              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day, i) => (
-                                <div key={i} className="text-center text-[10px] font-bold text-slate-400 uppercase py-1">
-                                  {day}
+                      const handleDateClick = (date) => { if (date) setSelectedDate(date); };
+                      const isSameDay = (d1, d2) => d1 && d2 && d1.getDate() === d2.getDate() && d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear();
+                      const prevMonth = () => setSelectedDate(new Date(year, month - 1, 1));
+                      const nextMonth = () => setSelectedDate(new Date(year, month + 1, 1));
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+
+                      return (
+                        <>
+                          <div className="flex items-center justify-between mb-4">
+                            <button onClick={prevMonth} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                              <FaAngleLeft />
+                            </button>
+                            <h4 className="text-sm font-bold text">
+                              {firstDay.toLocaleString("default", { month: "long", year: "numeric" })}
+                            </h4>
+                            <button onClick={nextMonth} className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                              <FaAngleRight />
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-7 gap-1 mb-2">
+                            {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day, i) => (
+                              <div key={i} className="text-center text-[10px] font-bold text-gray-400 uppercase py-1">
+                                {day}
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="grid grid-cols-7 gap-1">
+                            {days.map((date, i) => {
+                              const isSelected = isSameDay(date, selectedDate);
+                              const normalizedDate = date ? new Date(date.getFullYear(), date.getMonth(), date.getDate()) : null;
+                              const isFuture = normalizedDate && normalizedDate > today;
+                              const hasPunchInOnDate = date && !isFuture
+                                ? userAttendance.some((att) => {
+                                  if (!att.punch_in) return false;
+                                  return toLocalDateString(new Date(att.punch_in)) === toLocalDateString(date);
+                                })
+                                : false;
+
+                              let baseClass = "aspect-square rounded-lg flex items-center justify-center text-xs font-semibold transition-all border border-transparent ";
+
+                              if (!date) {
+                                return <div key={i} className={baseClass + "pointer-events-none"}></div>;
+                              }
+
+                              if (isSelected) {
+                                baseClass += "bg-violet-600 text-white shadow-md shadow-violet-500/30";
+                              } else if (isFuture) {
+                                baseClass += "text-gray-300 dark:text-gray-600 pointer-events-none";
+                              } else if (hasPunchInOnDate) {
+                                baseClass += "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 cursor-pointer";
+                              } else {
+                                baseClass += "bg-red-50 text-red-600 hover:bg-red-100 border-red-100 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 cursor-pointer";
+                              }
+
+                              return (
+                                <div key={i} onClick={() => handleDateClick(date)} className={baseClass}>
+                                  {date.getDate()}
                                 </div>
-                              ))}
-                            </div>
-                            
-                            <div className="grid grid-cols-7 gap-1">
-                              {days.map((date, i) => {
-                                const isSelected = isSameDay(date, selectedDate);
-                                const normalizedDate = date ? new Date(date.getFullYear(), date.getMonth(), date.getDate()) : null;
-                                const isFuture = normalizedDate && normalizedDate > today;
-                                const hasPunchInOnDate = date && !isFuture
-                                  ? userAttendance.some((att) => {
-                                      if (!att.punch_in) return false;
-                                      return toLocalDateString(new Date(att.punch_in)) === toLocalDateString(date);
-                                    })
-                                  : false;
-
-                                let baseClass = "aspect-square rounded-lg flex items-center justify-center text-xs font-semibold transition-all border border-transparent ";
-                                
-                                if (!date) {
-                                  return <div key={i} className={baseClass + "pointer-events-none"}></div>;
-                                }
-
-                                if (isSelected) {
-                                  baseClass += "bg-blue-600 text-white shadow-md shadow-blue-500/30";
-                                } else if (isFuture) {
-                                  baseClass += "text-slate-300 pointer-events-none";
-                                } else if (hasPunchInOnDate) {
-                                  baseClass += "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-100 cursor-pointer";
-                                } else {
-                                  baseClass += "bg-red-50 text-red-600 hover:bg-red-100 border-red-100 cursor-pointer";
-                                }
-
-                                return (
-                                  <div key={i} onClick={() => handleDateClick(date)} className={baseClass}>
-                                    {date.getDate()}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
+                </div>
 
-                  {/* Selected Date Details */}
-                  {selectedDate && (
-                    <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
-                      <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2 border-b border-slate-200 pb-2">
-                        <CalendarDays className="w-4 h-4 text-blue-500"/> 
-                        {selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                      </h4>
-                      
-                      {(() => {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const selectedNormalized = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-                        
-                        if (selectedNormalized > today) {
-                          return <div className="text-sm text-slate-500 font-medium py-2 text-center bg-white rounded-lg border border-slate-200 border-dashed">Future date. No records available yet.</div>;
-                        }
+                {/* Selected Date Details */}
+                {selectedDate && (
+                  <div className="translucent-inner rounded-xl p-5">
+                    <h4 className="text-sm font-bold text mb-4 flex items-center gap-2 border-b border-gray-200/20 pb-2">
+                      <CalendarDays className="w-4 h-4 text-violet-500" />
+                      {selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    </h4>
 
-                        const dateStr = toLocalDateString(selectedDate);
-                        const record = userAttendance.find((att) => att.punch_in && toLocalDateString(new Date(att.punch_in)) === dateStr);
+                    {(() => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const selectedNormalized = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
 
-                        if (!record) {
-                          return (
-                            <div className="flex items-center gap-2 text-sm text-red-600 font-medium py-2 px-3 bg-red-50 rounded-lg border border-red-100">
-                              <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                              Absent / No valid punch-in found.
-                            </div>
-                          );
-                        }
+                      if (selectedNormalized > today) {
+                        return <div className="text-sm text-gray-500 font-medium py-2 text-center rounded-lg border border-gray-200/20 border-dashed">Future date. No records available yet.</div>;
+                      }
 
-                        const formatTime = (isoStr) => {
-                          if (!isoStr) return "—";
-                          const dt = new Date(isoStr);
-                          return isNaN(dt.getTime()) ? "—" : dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                        };
+                      const dateStr = toLocalDateString(selectedDate);
+                      const records = userAttendance.filter((att) => att.punch_in && toLocalDateString(new Date(att.punch_in)) === dateStr);
 
-                        const hasPunchIn = !!record.punch_in;
-
+                      if (records.length === 0) {
                         return (
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col gap-1">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1.5"><LuCalendarClock className="text-blue-500"/> Status</span>
-                              <span className={`text-sm font-bold ${hasPunchIn ? "text-emerald-600" : "text-red-600"}`}>{hasPunchIn ? "Present" : "Absent"}</span>
-                            </div>
-                            
-                            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col gap-1">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1.5"><LiaUserClockSolid className="text-blue-500"/> Total Hours</span>
-                              <span className="text-sm font-bold text-slate-700">{record.working_hours ? `${record.working_hours.toFixed(2)} hrs` : "—"}</span>
-                            </div>
-
-                            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col gap-1">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1.5"><MdOutlineTimer className="text-emerald-500"/> Punch In</span>
-                              <span className="text-sm font-bold text-slate-700">{formatTime(record.punch_in)}</span>
-                            </div>
-
-                            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col gap-1">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1.5"><MdOutlineTimer className="text-orange-500"/> Punch Out</span>
-                              <span className="text-sm font-bold text-slate-700">{formatTime(record.punch_out)}</span>
-                            </div>
-
-                            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col gap-1">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1.5"><IoAlertCircleOutline className={record.late ? "text-red-500" : "text-slate-400"}/> Late</span>
-                              <span className={`text-sm font-bold ${record.late ? "text-red-600" : "text-slate-700"}`}>{record.late ? "Yes" : "No"}</span>
-                            </div>
-
-                            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col gap-1">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1.5"><PiClockUserLight className="text-purple-500"/> Overtime</span>
-                              <span className="text-sm font-bold text-slate-700">{record.overtime ? `${record.overtime.toFixed(2)} hrs` : "—"}</span>
-                            </div>
+                          <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 font-medium py-2 px-3 bg-red-50 dark:bg-red-500/10 rounded-lg border border-red-100 dark:border-red-500/20">
+                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                            Absent / No valid punch-in found.
                           </div>
                         );
-                      })()}
-                    </div>
-                  )}
-                </div>
-              )}
+                      }
+
+                      const totalHours = records.reduce((sum, r) => sum + (r.working_hours || 0), 0);
+
+                      const formatTime = (isoStr) => {
+                        if (!isoStr) return "—";
+                        const dt = new Date(isoStr);
+                        return isNaN(dt.getTime()) ? "—" : dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                      };
+
+                      return (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-semibold text-gray-500 dark:text-gray-400">{records.length} Session{records.length > 1 ? "s" : ""}</span>
+                            <span className="font-bold text-violet-600 dark:text-violet-400">Total Hours: {totalHours.toFixed(2)} hrs</span>
+                          </div>
+
+                          {records.map((record, idx) => {
+                            const hasPunchIn = !!record.punch_in;
+                            return (
+                              <div key={record.id || idx} className="grid grid-cols-2 gap-3 pb-4 border-b border-gray-200/20 last:border-0 last:pb-0">
+                                <div className="col-span-2 text-xs font-bold text-gray-400 uppercase">
+                                  Session {idx + 1}
+                                </div>
+                                <div className="translucent p-3 rounded-lg flex flex-col gap-1">
+                                  <span className="text-[10px] uppercase font-bold text-gray-400 flex items-center gap-1.5"><LuCalendarClock className="text-violet-500" /> Status</span>
+                                  <span className={`text-sm font-bold ${hasPunchIn ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>{hasPunchIn ? "Present" : "Absent"}</span>
+                                </div>
+
+                                <div className="translucent p-3 rounded-lg flex flex-col gap-1">
+                                  <span className="text-[10px] uppercase font-bold text-gray-400 flex items-center gap-1.5"><LiaUserClockSolid className="text-violet-500" /> Session Hours</span>
+                                  <span className="text-sm font-bold text">{record.working_hours ? `${record.working_hours.toFixed(2)} hrs` : "—"}</span>
+                                </div>
+
+                                <div className="translucent p-3 rounded-lg flex flex-col gap-1">
+                                  <span className="text-[10px] uppercase font-bold text-gray-400 flex items-center gap-1.5"><MdOutlineTimer className="text-emerald-500" /> Punch In</span>
+                                  <span className="text-sm font-bold text">{formatTime(record.punch_in)}</span>
+                                </div>
+
+                                <div className="translucent p-3 rounded-lg flex flex-col gap-1">
+                                  <span className="text-[10px] uppercase font-bold text-gray-400 flex items-center gap-1.5"><MdOutlineTimer className="text-orange-500" /> Punch Out</span>
+                                  <span className="text-sm font-bold text">{formatTime(record.punch_out)}</span>
+                                </div>
+
+                                <div className="translucent p-3 rounded-lg flex flex-col gap-1">
+                                  <span className="text-[10px] uppercase font-bold text-gray-400 flex items-center gap-1.5"><IoAlertCircleOutline className={record.late ? "text-red-500" : "text-gray-400"} /> Late</span>
+                                  <span className={`text-sm font-bold ${record.late ? "text-red-600 dark:text-red-400" : "text"}`}>{record.late ? "Yes" : "No"}</span>
+                                </div>
+
+                                <div className="translucent p-3 rounded-lg flex flex-col gap-1">
+                                  <span className="text-[10px] uppercase font-bold text-gray-400 flex items-center gap-1.5"><PiClockUserLight className="text-purple-500" /> Overtime</span>
+                                  <span className="text-sm font-bold text">{record.overtime ? `${record.overtime.toFixed(2)} hrs` : "—"}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+            <div className="px-6 py-4 border-t border-gray-200/20 flex justify-end">
               <button
                 onClick={closeModal}
-                className="px-5 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
+                className="button"
               >
                 Close
               </button>

@@ -1,4 +1,4 @@
-// UserChat.jsx — Fully synced with backend socket events
+// UserChat.jsx — Fully synced with backend socket events & Complete UI
 import React, { useEffect, useState, useContext, useRef, useCallback } from "react";
 import { AuthContext } from "../context/AuthProvider";
 import { io } from "socket.io-client";
@@ -57,19 +57,22 @@ const getMediaCategory = (mediaType, mediaUrl) => {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function Avatar({ entity, size = 11, ring = false }) {
+function Avatar({ entity, size = 11, header = false }) {
   const isGroup = entity?.type === "group";
-  const online = entity?.onlineStatus === "online";
+  const online = entity?.onlineStatus === "online" || entity?.onlineSatus === "online";
   const sz = `w-${size} h-${size}`;
+  const bgClass = header
+    ? (isGroup
+      ? "bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white"
+      : "bg-gradient-to-r text-white from-[#5A77FF] to-[#A052FF]")
+    : "dark:bg-[#333541] bg-gray-200";
   return (
     <div className="relative flex-shrink-0">
-      <div className={`${sz} rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm
-        ${isGroup ? "bg-gradient-to-br from-violet-500 to-fuchsia-600" : "bg-gradient-to-br from-sky-500 to-blue-600"}
-        ${ring ? "ring-2 ring-white" : ""}`}>
-        {isGroup ? <HiUserGroup size={size * 2} /> : getInitials(entity)}
+      <div className={`${sz} rounded-full flex items-center justify-center font-semibold text-sm shadow-sm ${bgClass}`}>
+        {isGroup ? <HiUserGroup size={size * 1.5} /> : getInitials(entity)}
       </div>
-      {!isGroup && online && (
-        <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white" />
+      {!isGroup && online && !header && (
+        <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full custom-border border-[#161821]" />
       )}
     </div>
   );
@@ -77,18 +80,20 @@ function Avatar({ entity, size = 11, ring = false }) {
 
 function Modal({ title, onClose, children, footer }) {
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[88vh]"
-        style={{ fontFamily: "'DM Sans', sans-serif" }}>
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-          <h3 className="text-base font-bold text-gray-800">{title}</h3>
-          <div onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+    <div className="fixed inset-0 backdrop-blur-md z-50 flex items-center justify-center p-4 bg-black/40">
+      <div
+        className="translucent-background rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[88vh]custom-borderborder-white/5"
+        style={{ fontFamily: "'DM Sans', sans-serif" }}
+      >
+        <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between flex-shrink-0">
+          <h3 className="text-base font-bold text">{title}</h3>
+          <div onClick={onClose} className="text-gray-400 hover:text p-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
             <IoClose size={20} />
           </div>
         </div>
         <div className="p-5 overflow-y-auto flex-1 space-y-4">{children}</div>
         {footer && (
-          <div className="px-5 py-4 border-t border-gray-100 bg-gray-50/60 rounded-b-2xl flex justify-end gap-2 flex-shrink-0">
+          <div className="px-5 py-4 border-t border-white/5 bg-white/5 rounded-b-2xl flex justify-end gap-2 flex-shrink-0">
             {footer}
           </div>
         )}
@@ -101,16 +106,28 @@ function SearchInput({ value, onChange, placeholder = "Search…" }) {
   return (
     <div className="relative">
       <IoSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={15} />
-      <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full pl-9 pr-3 py-2 bg-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-all" />
+      <input
+        type="text"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full pl-9 pr-3 py-2 dark:bg-[#1C1E2A] bg-gray-100 text placeholder-gray-500custom-borderborder-white/5 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#5A77FF] transition-all"
+      />
     </div>
   );
 }
 
 function MenuItem({ icon, label, onClick, variant = "default" }) {
-  const colors = { default: "text-gray-700 hover:bg-gray-50", danger: "text-red-600 hover:bg-red-50", warning: "text-orange-600 hover:bg-orange-50" };
+  const colors = {
+    default: "text-gray-300 hover:bg-[#2A2D3A] hover:text",
+    danger: "text-red-400 hover:bg-red-500/10",
+    warning: "text-orange-400 hover:bg-orange-500/10",
+  };
   return (
-    <div onClick={onClick} className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${colors[variant]}`}>
+    <div
+      onClick={onClick}
+      className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${colors[variant]}`}
+    >
       {icon}<span>{label}</span>
     </div>
   );
@@ -123,18 +140,22 @@ function NotificationToast({ notification, onDismiss }) {
   }, [notification.id, onDismiss]);
 
   return (
-    <div className="flex items-center gap-3 bg-white rounded-2xl shadow-2xl border border-gray-100 px-4 py-3 min-w-[280px] max-w-sm cursor-pointer hover:bg-gray-50 transition-colors"
-      style={{ animation: 'slideInRight 0.3s ease-out' }}
-      onClick={() => onDismiss(notification.id)}>
-      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+    <div
+      className="flex items-center gap-3 translucent-background rounded-2xl shadow-2xlcustom-borderborder-white/10 px-4 py-3 min-w-[280px] max-w-sm cursor-pointer hover:bg-white/5 transition-colors"
+      style={{ animation: "slideInRight 0.3s ease-out" }}
+      onClick={() => onDismiss(notification.id)}
+    >
+      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#5A77FF] to-[#A052FF] flex items-center justify-center text text-xs font-bold flex-shrink-0">
         {(notification.senderName?.[0] || "?").toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-gray-800 truncate">{notification.senderName}</p>
-        <p className="text-xs text-gray-500 truncate">{notification.text || "\ud83d\udcce Sent a file"}</p>
+        <p className="text-sm font-bold text truncate">{notification.senderName}</p>
+        <p className="text-xs text-gray-400 truncate">{notification.text || "📎 Sent a file"}</p>
       </div>
-      <div onClick={(e) => { e.stopPropagation(); onDismiss(notification.id); }}
-        className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0">
+      <div
+        onClick={e => { e.stopPropagation(); onDismiss(notification.id); }}
+        className="p-1 text-gray-400 hover:text rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
+      >
         <IoClose size={14} />
       </div>
     </div>
@@ -143,14 +164,18 @@ function NotificationToast({ notification, onDismiss }) {
 
 function MediaBubble({ msg, own }) {
   const category = getMediaCategory(msg.mediaType, msg.mediaUrl);
-  const bgAccent = own ? "bg-blue-500/40 border-blue-400/30" : "bg-gray-100 border-gray-200";
+  const bgAccent = own ? "bg-white/10 border-white/20" : "dark:bg-[#1C1E2A] bg-gray-100 border-white/5";
   const fileName = msg.originalName || msg.mediaUrl?.split("/").pop() || "File";
 
   if (category === "image") {
     return (
       <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className="block mb-2">
-        <img src={msg.mediaUrl} alt={fileName} loading="lazy"
-          className="rounded-xl max-w-full max-h-64 object-cover shadow-sm cursor-zoom-in hover:opacity-90 transition-opacity" />
+        <img
+          src={msg.mediaUrl}
+          alt={fileName}
+          loading="lazy"
+          className="rounded-xl max-w-full max-h-64 object-cover shadow-sm cursor-zoom-in hover:opacity-90 transition-opacity"
+        />
       </a>
     );
   }
@@ -159,25 +184,30 @@ function MediaBubble({ msg, own }) {
   }
   if (category === "audio") {
     return (
-      <div className={`flex items-center gap-3 rounded-xl px-3 py-2.5 mb-2 border ${bgAccent}`}>
-        <div className={`p-2 rounded-lg ${own ? "bg-blue-400/40" : "bg-gray-200"}`}>
-          <IoMusicalNote size={18} className={own ? "text-white" : "text-gray-600"} />
+      <div className={`flex items-center gap-3 rounded-xl px-3 py-2.5 mb-2custom-border${bgAccent}`}>
+        <div className={`p-2 rounded-lg ${own ? "bg-white/20" : "bg-white/5"}`}>
+          <IoMusicalNote size={18} className="text" />
         </div>
-        <audio controls src={msg.mediaUrl} className="flex-1 h-8 min-w-0" style={{ accentColor: own ? "#fff" : "#3b82f6" }} />
+        <audio controls src={msg.mediaUrl} className="flex-1 h-8 min-w-0 invert" />
       </div>
     );
   }
   return (
-    <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" download={fileName}
-      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 mb-2 border ${bgAccent} hover:opacity-80 transition-opacity`}>
-      <div className={`p-2.5 rounded-lg flex-shrink-0 ${own ? "bg-blue-400/40" : "bg-blue-50"}`}>
-        <IoDocument size={20} className={own ? "text-white" : "text-blue-500"} />
+    <a
+      href={msg.mediaUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      download={fileName}
+      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 mb-2custom-border${bgAccent} hover:opacity-80 transition-opacity`}
+    >
+      <div className={`p-2.5 rounded-lg flex-shrink-0 ${own ? "bg-white/20" : "bg-white/5"}`}>
+        <IoDocument size={20} className="text" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-xs font-semibold truncate ${own ? "text-white" : "text-gray-800"}`}>{fileName}</p>
-        {msg.fileSize && <p className={`text-[10px] ${own ? "text-blue-200" : "text-gray-400"}`}>{formatBytes(msg.fileSize)}</p>}
+        <p className="text-xs font-semibold truncate text">{fileName}</p>
+        {msg.fileSize && <p className={`text-[10px] ${own ? "opacity-70" : "text-gray-400"}`}>{formatBytes(msg.fileSize)}</p>}
       </div>
-      <IoDownload size={16} className={own ? "text-blue-200" : "text-gray-400"} />
+      <IoDownload size={16} className={own ? "text-white/70" : "text-gray-400"} />
     </a>
   );
 }
@@ -195,19 +225,22 @@ function FilePreview({ file, onRemove }) {
   }, [file, category]);
 
   return (
-    <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-3 py-2.5 shadow-sm">
-      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
+    <div className="flex items-center gap-3 dark:bg-[#1C1E2A] bg-gray-100custom-borderborder-white/5 rounded-xl px-3 py-2.5">
+      <div className="w-10 h-10 rounded-lg bg-[#2A2D3A] flex items-center justify-center flex-shrink-0 overflow-hidden">
         {category === "image" && previewUrl
           ? <img src={previewUrl} alt="preview" className="w-full h-full object-cover rounded-lg" />
-          : category === "video" ? <IoVideocam size={20} className="text-blue-500" />
-            : category === "audio" ? <IoMusicalNote size={20} className="text-blue-500" />
-              : <IoDocument size={20} className="text-blue-500" />}
+          : category === "video" ? <IoVideocam size={20} className="text-[#5A77FF]" />
+            : category === "audio" ? <IoMusicalNote size={20} className="text-[#5A77FF]" />
+              : <IoDocument size={20} className="text-[#5A77FF]" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-gray-800 truncate">{file.name}</p>
+        <p className="text-xs font-semibold text truncate">{file.name}</p>
         <p className="text-[10px] text-gray-400">{formatBytes(file.size)}</p>
       </div>
-      <div onClick={onRemove} className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg cursor-pointer transition-colors flex-shrink-0">
+      <div
+        onClick={onRemove}
+        className="p-1 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg cursor-pointer transition-colors flex-shrink-0"
+      >
         <IoClose size={15} />
       </div>
     </div>
@@ -220,6 +253,7 @@ export default function UserChat() {
   const { user } = useContext(AuthContext);
   const token = localStorage.getItem("accessToken");
 
+  // ── State ──────────────────────────────────────────────────────────────────
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -237,13 +271,13 @@ export default function UserChat() {
   const [forwardMsg, setForwardMsg] = useState(null);
   const [forwardSearch, setForwardSearch] = useState("");
 
-  // File upload state
   const [pendingFile, setPendingFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
 
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [selectedMembers, setSelectedMembers] = useState([]);
@@ -259,7 +293,6 @@ export default function UserChat() {
   const [selectedNewMembers, setSelectedNewMembers] = useState([]);
   const [contextMenu, setContextMenu] = useState(null);
 
-  // Notification & pagination state
   const [unreadCounts, setUnreadCounts] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -267,6 +300,7 @@ export default function UserChat() {
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+  // ── Refs ───────────────────────────────────────────────────────────────────
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimerRef = useRef(null);
@@ -283,11 +317,16 @@ export default function UserChat() {
   const notifIdRef = useRef(0);
   const currentPageRef = useRef(1);
   const totalPagesRef = useRef(1);
+  const usersRef = useRef([]);
+  const formatMessageRef = useRef(null);
 
   const getUserId = useCallback(() => (user && (user.userId || user.id)) || null, [user]);
 
+  // ── Keep refs in sync ──────────────────────────────────────────────────────
+  useEffect(() => { usersRef.current = users; }, [users]);
   useEffect(() => { activeChatRef.current = activeChat; }, [activeChat]);
-  // Auto-scroll for new messages; preserve position when loading older
+
+  // ── Auto-scroll / scroll-restoration ──────────────────────────────────────
   useEffect(() => {
     if (isLoadingMoreRef.current && chatContainerRef.current) {
       const newScrollHeight = chatContainerRef.current.scrollHeight;
@@ -296,16 +335,13 @@ export default function UserChat() {
       setIsLoadingMore(false);
       return;
     }
-    // Use requestAnimationFrame to ensure DOM is fully rendered before scrolling
     requestAnimationFrame(() => {
       const el = chatContainerRef.current;
-      if (el) {
-        el.scrollTop = el.scrollHeight;
-      }
+      if (el) el.scrollTop = el.scrollHeight;
     });
   }, [messages]);
 
-  // ── Notification helpers ─────────────────────────────────────────────────
+  // ── Notification helpers ───────────────────────────────────────────────────
   const addNotification = useCallback((notif) => {
     const id = ++notifIdRef.current;
     setNotifications(prev => [...prev.slice(-4), { ...notif, id }]);
@@ -324,7 +360,7 @@ export default function UserChat() {
     });
   }, []);
 
-  // ── Load older messages on scroll up ─────────────────────────────────────
+  // ── Infinite scroll ────────────────────────────────────────────────────────
   const handleScrollUp = useCallback(() => {
     const el = chatContainerRef.current;
     if (!el || isLoadingMoreRef.current || !currentRoomRef.current) return;
@@ -342,6 +378,7 @@ export default function UserChat() {
     }
   }, []);
 
+  // ── Close menus on outside click ──────────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setShowGroupMenu(false);
@@ -352,16 +389,19 @@ export default function UserChat() {
     return () => document.removeEventListener("mousedown", handler);
   }, [contextMenu]);
 
-  // ── Format a raw message from the server ─────────────────────────────────
+  // ── formatMessage ──────────────────────────────────────────────────────────
   const formatMessage = useCallback((raw) => {
     const uid = getUserId();
+    const currentUsers = usersRef.current;
     const senderId = raw.senderId ?? raw.sender?.id;
     let senderName = "Unknown";
 
-    if (raw.Sender) senderName = `${raw.Sender.firstName || ""} ${raw.Sender.lastName || ""}`.trim() || raw.Sender.email;
-    else if (raw.sender) senderName = `${raw.sender.firstName || ""} ${raw.sender.lastName || ""}`.trim() || raw.sender.email;
-    else {
-      const found = users.find(u => u.id === senderId);
+    if (raw.Sender) {
+      senderName = `${raw.Sender.firstName || ""} ${raw.Sender.lastName || ""}`.trim() || raw.Sender.email;
+    } else if (raw.sender) {
+      senderName = `${raw.sender.firstName || ""} ${raw.sender.lastName || ""}`.trim() || raw.sender.email;
+    } else {
+      const found = currentUsers.find(u => u.id === senderId);
       if (found) senderName = getFullName(found);
       else if (senderId === uid) senderName = getFullName(user);
     }
@@ -382,11 +422,17 @@ export default function UserChat() {
       timestamp: raw.createdAt ?? raw.timestamp ?? new Date().toISOString(),
       seen: raw.status === "seen" || raw.seen === true,
     };
-  }, [users, user, getUserId]);
+  }, [user, getUserId]);
 
-  // ── Socket Setup ──────────────────────────────────────────────────────────
+  useEffect(() => { formatMessageRef.current = formatMessage; }, [formatMessage]);
+
+  // ── Socket Setup ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!token || !user) { setLoading(false); setError("Not authenticated."); return; }
+    if (!token || !user) {
+      setLoading(false);
+      setError("Not authenticated.");
+      return;
+    }
 
     const socket = io(SOCKET_URL, {
       transports: ["polling", "websocket"],
@@ -397,22 +443,29 @@ export default function UserChat() {
     });
     socketRef.current = socket;
 
-    // ── Connection lifecycle
+    // ── Connection lifecycle ─────────────────────────────────────────────────
     socket.on("connect", () => {
       setConnectionStatus("connected");
       setError(null);
-      // ✅ Correct: backend listens to "UserList" and "getMyGroups"
       socket.emit("UserList", { page: 1, limit: 100, search: "" });
       socket.emit("getMyGroups", { page: 1, limit: 100, search: "" });
       socket.emit("online", { userId: getUserId() });
     });
-    socket.on("connect_error", () => { setConnectionStatus("error"); setLoading(false); });
+
+    socket.on("connect_error", () => {
+      setConnectionStatus("error");
+      setLoading(false);
+    });
+
     socket.on("disconnect", () => setConnectionStatus("disconnected"));
 
-    // ── User list
-    // ✅ Backend emits "UserList" with { success, total, totalPages, currentPage, data }
+    // ── User & group lists ───────────────────────────────────────────────────
     socket.on("UserList", (res) => {
-      if (!res?.success) { setError(res?.error || "Failed to load users"); setLoading(false); return; }
+      if (!res?.success) {
+        setError(res?.error || "Failed to load users");
+        setLoading(false);
+        return;
+      }
       setUsers((res.data || []).map(u => ({
         ...u,
         onlineStatus: u.onlineStatus ?? u.onlineSatus ?? "offline",
@@ -421,117 +474,120 @@ export default function UserChat() {
       setLoading(false);
     });
 
-    // ── Group list
-    // ✅ Backend listener is "getMyGroups"; backend emits back "getMyGroups"
-    // ✅ Backend returns { success, total, totalPages, currentPage, data } where data are ChatRoom objects with groupName field and unreadCount
     socket.on("getMyGroups", (res) => {
-      if (res?.success) setGroups(res.data || []);
-      else if (res?.error) console.error("getMyGroups error:", res.error);
+      if (res?.success) {
+        setGroups(res.data || []);
+      } else if (res?.error) {
+        console.error("getMyGroups error:", res.error);
+      }
     });
 
-    // ── Create Group
-    // ✅ Backend emits "createGroup" back with { roomId, type, groupName, members } OR { error }
+    // ── Real-time online/offline presence (backend emits userStatusChange) ───
+    socket.on("userStatusChange", ({ userId: changedId, onlineSatus }) => {
+      setUsers(prev =>
+        prev.map(u =>
+          u.id === changedId
+            ? { ...u, onlineSatus, onlineStatus: onlineSatus }
+            : u
+        )
+      );
+      // Also update activeChat header if it's the same person
+      setActiveChat(prev => {
+        if (!prev || prev.type === "group") return prev;
+        if (prev.id === changedId) {
+          return { ...prev, onlineSatus, onlineStatus: onlineSatus };
+        }
+        return prev;
+      });
+    });
+
+    // ── Group management ─────────────────────────────────────────────────────
     socket.on("createGroup", (data) => {
       setIsCreatingGroup(false);
       if (data?.error) { setError(data.error); return; }
-      // Add the new group directly to state (no re-fetch to avoid duplicates)
       if (data?.roomId) {
         setGroups(prev => {
-          // Prevent duplicate if already exists
           if (prev.some(g => g.roomId === data.roomId)) return prev;
           return [{ roomId: data.roomId, type: "group", groupName: data.groupName }, ...prev];
         });
-      }
-      setShowCreateGroup(false);
-      setNewGroupName("");
-      setSelectedMembers([]);
-      setCreateModalSearch("");
-      // Switch to the newly created group
-      // Backend returns: { roomId, type, groupName, members }
-      if (data?.roomId) {
+        setShowCreateGroup(false);
+        setNewGroupName("");
+        setSelectedMembers([]);
+        setCreateModalSearch("");
         setActiveChat({ roomId: data.roomId, type: "group", groupName: data.groupName });
       }
     });
 
-    // ── Update Group Name
-    // ✅ Backend listener: "updateGroupName"; emits back "updateGroupName" with { roomId, newName, updatedBy } OR { error }
     socket.on("updateGroupName", ({ error, roomId, newName }) => {
       if (error) { setError(error); return; }
-      setGroups(p => p.map(g => g.roomId === roomId ? { ...g, groupName: newName } : g));
-      setActiveChat(p => p?.roomId === roomId ? { ...p, groupName: newName } : p);
+      setGroups(prev => prev.map(g => g.roomId === roomId ? { ...g, groupName: newName } : g));
+      setActiveChat(prev => prev?.roomId === roomId ? { ...prev, groupName: newName } : prev);
     });
 
-    // ── Get Group Details (members list)
-    // ✅ Backend listener: "getGroupDetails"; emits back "getGroupDetails" with { roomId, participants: [User] } OR { error }
-    // participants are raw User objects (not wrapped in { User, isAdmin })
     socket.on("getGroupDetails", ({ error, roomId, participants }) => {
       if (error) { console.error("getGroupDetails error:", error); return; }
       setGroupMembers(participants || []);
     });
 
-    // ── Add Group Members
-    // ✅ Backend emits "addGroupMembers" with { roomId, addedMembers, addedBy } on success OR { error }
-    // NOTE: No "success" field on the success path — presence of addedMembers indicates success
     socket.on("addGroupMembers", (data) => {
       if (data?.error) { setError(data.error); return; }
-      // Success: data = { roomId, addedMembers, addedBy }
       setShowAddMembers(false);
       setSelectedNewMembers([]);
       setAddMemberSearch("");
-      // Refresh members panel if we're viewing the same group
       if (currentRoomRef.current === data.roomId) {
         socket.emit("getGroupDetails", { roomId: data.roomId });
       }
     });
 
-    // ── Leave Group / Member Removed
-    // ✅ Backend emits "leaveGroup" for TWO scenarios:
-    //    1. Current user left successfully: { roomId } (from socket.emit to self)
-    //    2. A member was kicked: { roomId, removedMember, removedBy } (broadcast to room)
-    socket.on("leaveGroup", (data) => {
+    socket.on("removeGroupMember", (data) => {
       if (data?.error) { setError(data.error); return; }
       if (data?.removedMember) {
-        // Someone was removed — update members list if panel is open
-        setGroupMembers(p => p.filter(m => (m.id ?? m.userId) !== data.removedMember));
-      } else if (data?.roomId) {
-        // Current user left the group — close the chat and remove from list
-        setGroups(p => p.filter(g => g.roomId !== data.roomId));
-        setActiveChat(p => p?.roomId === data.roomId ? null : p);
+        setGroupMembers(prev => prev.filter(m => (m.id ?? m.userId) !== data.removedMember));
       }
     });
 
-    // ── Group Deleted
-    // ✅ Backend emits "groupDeleted" with { roomId, message, deletedBy } to all members
-    socket.on("groupDeleted", (data) => {
+    socket.on("leaveGroup", (data) => {
       if (data?.error) { setError(data.error); return; }
-      if (data?.roomId) {
-        setGroups(p => p.filter(g => g.roomId !== data.roomId));
-        setActiveChat(p => p?.roomId === data.roomId ? null : p);
-        if (data.message) {
-          addNotification({
-            senderName: "System",
-            text: data.message,
-            roomId: data.roomId,
-          });
+      if (data?.removedMember) {
+        setGroupMembers(prev => prev.filter(m => (m.id ?? m.userId) !== data.removedMember));
+      } else if (data?.roomId) {
+        setGroups(prev => prev.filter(g => g.roomId !== data.roomId));
+        setActiveChat(prev => prev?.roomId === data.roomId ? null : prev);
+        if (currentRoomRef.current === data.roomId) {
+          currentRoomRef.current = null;
+          setCurrentRoom(null);
+          setMessages([]);
         }
       }
     });
 
-    // ── Member Left (someone left voluntarily — broadcast to others)
-    // ✅ Backend emits "memberLeft" with { roomId, leftMember } when a user leaves
-    socket.on("memberLeft", ({ leftMember }) => {
-      setGroupMembers(p => p.filter(m => (m.id ?? m.userId) !== leftMember));
+    socket.on("groupDeleted", (data) => {
+      if (data?.error) { setError(data.error); return; }
+      if (data?.roomId) {
+        setGroups(prev => prev.filter(g => g.roomId !== data.roomId));
+        setActiveChat(prev => prev?.roomId === data.roomId ? null : prev);
+        if (currentRoomRef.current === data.roomId) {
+          currentRoomRef.current = null;
+          setCurrentRoom(null);
+          setMessages([]);
+        }
+        if (data.message) {
+          addNotification({ senderName: "System", text: data.message, roomId: data.roomId });
+        }
+      }
     });
 
-    // ── Messages
-    // ✅ Backend emits "mychats" with { success, total, totalPages, currentPage, data }
+    socket.on("memberLeft", ({ leftMember }) => {
+      setGroupMembers(prev => prev.filter(m => (m.id ?? m.userId) !== leftMember));
+    });
+
+    // ── Messages ─────────────────────────────────────────────────────────────
     socket.on("mychats", (res) => {
       if (!res?.success) return;
       const rows = Array.isArray(res?.data) ? res.data : [];
       const uid = getUserId();
-      const fmt = rows.map(formatMessage).reverse();
+      const fmt = rows.map(r => formatMessageRef.current(r)).reverse();
 
-      // Update pagination tracking
       currentPageRef.current = res.currentPage;
       totalPagesRef.current = res.totalPages;
       setCurrentPage(res.currentPage);
@@ -541,7 +597,6 @@ export default function UserChat() {
       if (res.currentPage === 1) {
         setMessages(fmt);
       } else {
-        // Prepend older messages
         setMessages(prev => [...fmt, ...prev]);
       }
 
@@ -552,85 +607,75 @@ export default function UserChat() {
       });
     });
 
-    // ✅ Backend emits "receiveMessage" with the raw Message object directly (NOT wrapped in { data })
     socket.on("receiveMessage", (raw) => {
-      const msg = formatMessage(raw);
+      const msg = formatMessageRef.current(raw);
       const uid = getUserId();
 
       if (msg.roomId && msg.roomId !== currentRoomRef.current) {
-        // Message for a different chat — show notification + increment unread
-        setUnreadCounts(prev => ({
-          ...prev,
-          [msg.roomId]: (prev[msg.roomId] || 0) + 1,
-        }));
+        setUnreadCounts(prev => ({ ...prev, [msg.roomId]: (prev[msg.roomId] || 0) + 1 }));
         addNotification({
           senderName: msg.senderName,
           text: msg.text || (msg.mediaUrl ? "📎 Sent a file" : ""),
           roomId: msg.roomId,
         });
         socket.emit("UserList", { page: 1, limit: 100, search: "" });
-        // Also refresh groups in case user was added to a new group
         socket.emit("getMyGroups", { page: 1, limit: 100, search: "" });
         return;
       }
+
       if (msg.senderId !== uid) {
         socket.emit("seenMessage", { msg_id: msg.id, roomId: currentRoomRef.current });
       }
+
       setMessages(prev => {
-        const dup = prev.some(m =>
+        const isDuplicate = prev.some(m =>
           m.id === msg.id ||
-          (m.text === msg.text && m.senderId === msg.senderId &&
+          (m.text === msg.text &&
+            m.senderId === msg.senderId &&
             Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 2000)
         );
-        return dup ? prev : [...prev, msg];
+        return isDuplicate ? prev : [...prev, msg];
       });
     });
 
-    // ✅ Backend emits "seenMessage" with { success, data: updatedCount, msg_id, seenBy }
     socket.on("seenMessage", (data) => {
       if (!data?.success) return;
       if (data.msg_id) {
-        // Use String() for safe matching across Integer/UUID/String
-        setMessages(p => p.map(m => String(m.id) === String(data.msg_id) ? { ...m, seen: true } : m));
+        setMessages(prev =>
+          prev.map(m => String(m.id) === String(data.msg_id) ? { ...m, seen: true } : m)
+        );
       } else {
-        // Fallback: If no msg_id was provided, assume the other user just read all of OUR messages.
-        // Therefore, we mark OUR messages (senderId === uid) as seen.
-        setMessages(p => p.map(m => m.senderId === getUserId() ? { ...m, seen: true } : m));
+        setMessages(prev =>
+          prev.map(m => m.senderId === getUserId() ? { ...m, seen: true } : m)
+        );
       }
     });
 
-    // ✅ Backend emits "Deleted" with { id }
     socket.on("Deleted", ({ id }) => {
-      if (id) setMessages(p => p.filter(m => m.id !== id));
+      if (id) setMessages(prev => prev.filter(m => m.id !== id));
     });
 
-    // ✅ Backend emits "onlineUser" with { success, data: "online" | "offline" }
-    // NOTE: backend does NOT include userId in this event — generic broadcast only
+    // ── Presence & typing ────────────────────────────────────────────────────
     socket.on("onlineUser", (res) => {
-      // Since the backend doesn't return which userId is online/offline,
-      // we can only use this as a trigger to refresh the user list for badges
       if (res?.success) {
         socket.emit("UserList", { page: 1, limit: 100, search: "" });
       }
     });
 
-    // ✅ Backend emits "typing" with the same data that was sent by client
-    socket.on("typing", ({ roomId, userId: uid, isTyping }) => {
-      if (roomId !== currentRoomRef.current || uid === getUserId()) return;
+    socket.on("typing", ({ roomId, userId: typingUid, isTyping }) => {
+      if (roomId !== currentRoomRef.current || typingUid === getUserId()) return;
       if (!isTyping) { setTypingUser(null); return; }
-      const found = users.find(u => u.id === uid);
+      const found = usersRef.current.find(u => u.id === typingUid);
       setTypingUser(found ? getFullName(found) : "Someone");
       clearTimeout(typingTimerRef.current);
       typingTimerRef.current = setTimeout(() => setTypingUser(null), 3000);
     });
 
-    // ✅ Backend emits "errorMessage" with { error }
-    socket.on("errorMessage", ({ error: msg }) => setError(msg));
-
-    // ✅ Backend emits "roomJoined" with { roomId, type } — optional: use for confirmation
     socket.on("roomJoined", ({ roomId }) => {
       console.log("Joined room:", roomId);
     });
+
+    socket.on("errorMessage", ({ error: msg }) => setError(msg));
 
     socket.connect();
 
@@ -641,7 +686,7 @@ export default function UserChat() {
     };
   }, [user, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Search users ──────────────────────────────────────────────────────────
+  // ── Search sidebar ─────────────────────────────────────────────────────────
   useEffect(() => {
     const t = setTimeout(() => {
       if (socketRef.current?.connected) {
@@ -652,7 +697,7 @@ export default function UserChat() {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // ── Switch active chat ────────────────────────────────────────────────────
+  // ── Open / switch chat ─────────────────────────────────────────────────────
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket || !activeChat || !user) return;
@@ -674,8 +719,6 @@ export default function UserChat() {
     setEditNameMode(false);
     setShowMembersPanel(false);
     setGroupMembers([]);
-
-    // Reset pagination
     setCurrentPage(1);
     currentPageRef.current = 1;
     setTotalPages(1);
@@ -684,27 +727,42 @@ export default function UserChat() {
     setIsLoadingMore(false);
     isLoadingMoreRef.current = false;
 
-    // Clear unread count for this room
     clearUnreadCount(roomId);
 
-    // ✅ Backend "joinRoom" listener expects { roomId, type, members }
-    socket.emit("joinRoom", {
-      roomId,
-      type: grp ? "group" : "private",
-      members: [],
-    });
+    if (!grp) {
+      setUsers(prev =>
+        prev.map(u => {
+          const rid = buildRoomId(getUserId(), u.id);
+          return rid === roomId ? { ...u, unseenCount: 0 } : u;
+        })
+      );
+    } else {
+      setGroups(prev =>
+        prev.map(g => g.roomId === roomId ? { ...g, unreadCount: 0 } : g)
+      );
+    }
 
-    setTimeout(() => {
+    socket.emit("joinRoom", { roomId, type: grp ? "group" : "private", members: [] });
+
+    const loadTimer = setTimeout(() => {
       socket.emit("mychats", { roomId, page: 1 });
     }, 150);
 
-    // ✅ Backend "getGroupDetails" listener expects { roomId }
     if (grp) {
       socket.emit("getGroupDetails", { roomId });
     }
+
+    const refreshTimer = setTimeout(() => {
+      socket.emit("UserList", { page: 1, limit: 100, search: "" });
+    }, 500);
+
+    return () => {
+      clearTimeout(loadTimer);
+      clearTimeout(refreshTimer);
+    };
   }, [activeChat]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── File upload via XHR (progress tracking) ───────────────────────────────
+  // ── File upload ────────────────────────────────────────────────────────────
   const uploadFile = (file) => new Promise((resolve, reject) => {
     setIsUploading(true);
     setUploadProgress(0);
@@ -713,21 +771,33 @@ export default function UserChat() {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${API_URL}/api/chat/upload`);
     xhr.setRequestHeader("token", token);
+
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100));
     };
+
     xhr.onload = () => {
       setIsUploading(false);
       if (xhr.status === 200) {
         try {
           const data = JSON.parse(xhr.responseText);
-          data.success ? resolve(data) : (setUploadError(data.error || "Upload failed"), reject(data.error));
-        } catch { setUploadError("Invalid server response"); reject("parse error"); }
+          if (data.success) { resolve(data); }
+          else { setUploadError(data.error || "Upload failed"); reject(data.error); }
+        } catch {
+          setUploadError("Invalid server response");
+          reject("parse error");
+        }
       } else {
-        setUploadError(`Upload failed (${xhr.status})`); reject(xhr.status);
+        setUploadError(`Upload failed (${xhr.status})`);
+        reject(xhr.status);
       }
     };
-    xhr.onerror = () => { setIsUploading(false); setUploadError("Network error during upload"); reject("network"); };
+
+    xhr.onerror = () => {
+      setIsUploading(false);
+      setUploadError("Network error during upload");
+      reject("network");
+    };
 
     const fd = new FormData();
     fd.append("file", file);
@@ -737,19 +807,22 @@ export default function UserChat() {
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > MAX_FILE_MB * 1024 * 1024) { setUploadError(`File exceeds ${MAX_FILE_MB} MB`); return; }
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+      setUploadError(`File exceeds ${MAX_FILE_MB} MB`);
+      return;
+    }
     setUploadError(null);
     setPendingFile(file);
     setShowAttachMenu(false);
     e.target.value = "";
   };
 
-  // ── Send message ──────────────────────────────────────────────────────────
-  // ✅ Backend "sendMessage" expects { roomId, message }
+  // ── Send message ───────────────────────────────────────────────────────────
   const sendMessage = async (e) => {
     e?.preventDefault();
     const text = messageText.trim();
     const socket = socketRef.current;
+
     if (!activeChat || !socket?.connected) { socket?.connect(); return; }
     if (!text && !pendingFile) return;
 
@@ -777,89 +850,131 @@ export default function UserChat() {
       setMessageText("");
       setReplyTo(null);
       textareaRef.current?.focus();
-    } catch { /* uploadError already set */ }
+    } catch {
+      // uploadError is already set inside uploadFile
+    }
   };
 
-  // ── Typing indicator ──────────────────────────────────────────────────────
+  // ── Typing indicator ───────────────────────────────────────────────────────
   const handleTyping = () => {
     const socket = socketRef.current;
     if (!socket || !currentRoomRef.current) return;
-    socket.emit("typing", { roomId: currentRoomRef.current, userId: getUserId(), isTyping: true });
+    socket.emit("typing", {
+      roomId: currentRoomRef.current,
+      userId: getUserId(),
+      isTyping: true,
+    });
     clearTimeout(typingTimerRef.current);
-    typingTimerRef.current = setTimeout(() =>
-      socket.emit("typing", { roomId: currentRoomRef.current, userId: getUserId(), isTyping: false }), 1500);
+    typingTimerRef.current = setTimeout(() => {
+      socket.emit("typing", {
+        roomId: currentRoomRef.current,
+        userId: getUserId(),
+        isTyping: false,
+      });
+    }, 1500);
   };
 
-  // ── Message actions ───────────────────────────────────────────────────────
-  // ✅ Backend "messageToDelete" expects { id, senderId }
+  // ── Message actions ────────────────────────────────────────────────────────
   const deleteMessage = (msg) => {
     socketRef.current?.emit("messageToDelete", { id: msg.id, senderId: msg.senderId });
     setContextMenu(null);
   };
 
-  // ── Group actions ─────────────────────────────────────────────────────────
-  // ✅ Backend "createGroup" expects { members, name }
-  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  /**
+   * Forward: since the backend has no dedicated forwardMessage handler,
+   * we join the target room first, then sendMessage with the same content.
+   */
+  const handleForward = (targetRoomId) => {
+    const socket = socketRef.current;
+    if (!socket || !forwardMsg) return;
+
+    // Join target room first
+    socket.emit("joinRoom", { roomId: targetRoomId, type: "private", members: [] });
+
+    // Small delay then send
+    setTimeout(() => {
+      socket.emit("sendMessage", {
+        roomId: targetRoomId,
+        message: forwardMsg.text || null,
+        ...(forwardMsg.mediaUrl ? {
+          mediaUrl: forwardMsg.mediaUrl,
+          mediaType: forwardMsg.mediaType,
+          originalName: forwardMsg.originalName,
+          fileSize: forwardMsg.fileSize,
+        } : {}),
+      });
+    }, 200);
+
+    setForwardMsg(null);
+    setForwardSearch("");
+  };
+
+  // ── Group actions ──────────────────────────────────────────────────────────
   const createGroup = () => {
     if (!newGroupName.trim() || !selectedMembers.length || isCreatingGroup) return;
     setIsCreatingGroup(true);
-    socketRef.current?.emit("createGroup", { name: newGroupName.trim(), members: selectedMembers });
-    // Reset after short delay as safety net
-    setTimeout(() => setIsCreatingGroup(false), 2000);
+    socketRef.current?.emit("createGroup", {
+      name: newGroupName.trim(),
+      members: selectedMembers,
+    });
+    setTimeout(() => setIsCreatingGroup(false), 5000);
   };
 
-  // ✅ Backend "updateGroupName" expects { roomId, newName } (NOT "editGroupName")
   const renameGroup = () => {
     if (!editNameValue.trim()) return;
-    socketRef.current?.emit("updateGroupName", { roomId: activeChat.roomId, newName: editNameValue.trim() });
+    socketRef.current?.emit("updateGroupName", {
+      roomId: activeChat.roomId,
+      newName: editNameValue.trim(),
+    });
     setEditNameMode(false);
   };
 
-  // ✅ Backend "leaveGroup" expects { roomId }
   const leaveGroup = () => {
     if (!window.confirm("Leave this group?")) return;
     socketRef.current?.emit("leaveGroup", { roomId: activeChat.roomId });
+    setShowGroupMenu(false);
   };
 
-  // ✅ Backend "deleteGroup" expects { roomId }
   const deleteGroup = () => {
-    if (!window.confirm("Are you sure you want to completely delete this group for everyone? This action cannot be undone.")) return;
+    if (!window.confirm("Delete this group for everyone? This cannot be undone.")) return;
     socketRef.current?.emit("deleteGroup", { roomId: activeChat.roomId });
     setShowGroupMenu(false);
   };
 
-  // ✅ Backend "getGroupDetails" expects { roomId } — opens members panel
   const openMembers = () => {
     setShowMembersPanel(true);
     setShowGroupMenu(false);
     socketRef.current?.emit("getGroupDetails", { roomId: activeChat.roomId });
   };
 
-  // ✅ Backend "removeGroupMember" expects { roomId, memberIdToRemove } (NOT memberId)
   const removeMember = (id) => {
     if (!window.confirm("Remove this member?")) return;
-    socketRef.current?.emit("removeGroupMember", { roomId: activeChat.roomId, memberIdToRemove: id });
+    socketRef.current?.emit("removeGroupMember", {
+      roomId: activeChat.roomId,
+      memberIdToRemove: id,
+    });
   };
 
-  // ✅ Backend "addGroupMembers" expects { roomId, newMembers } (NOT members)
   const addMembers = () => {
     if (!selectedNewMembers.length) return;
-    socketRef.current?.emit("addGroupMembers", { roomId: activeChat.roomId, newMembers: selectedNewMembers });
+    socketRef.current?.emit("addGroupMembers", {
+      roomId: activeChat.roomId,
+      newMembers: selectedNewMembers,
+    });
   };
 
-  // ── Derived state ─────────────────────────────────────────────────────────
+  // ── Derived values ─────────────────────────────────────────────────────────
   const filteredUsers = users.filter(u =>
     getFullName(u).toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // ✅ Groups use "groupName" field (backend ChatRoom model field name)
   const filteredGroups = groups.filter(g =>
     (g.groupName || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const isGroup = activeChat?.type === "group";
-  // ✅ groupMembers are raw User objects from getGroupDetails (participants array)
+
   const existingIds = groupMembers.map(m => m.id ?? m.userId);
   const addableUsers = users.filter(u =>
     !existingIds.includes(u.id) &&
@@ -878,52 +993,70 @@ export default function UserChat() {
     (t.label ?? "").toLowerCase().includes(forwardSearch.toLowerCase())
   );
 
-  // ✅ Backend "forwardMessage" — emit if you add it later
-  const handleForward = (rid) => {
-    socketRef.current?.emit("forwardMessage", { messageId: forwardMsg.id, toRoomId: rid });
-    setForwardMsg(null);
-  };
-
   const canSend = !!(messageText.trim() || pendingFile) && !isUploading && connectionStatus === "connected";
 
+  // ── Early return ───────────────────────────────────────────────────────────
   if (!user) return (
-    <div className="flex items-center justify-center h-screen bg-gray-50">
-      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    <div className="flex items-center justify-center h-screen bg-[#0B0E17]">
+      <div className="w-8 h-8 border-4 border-[#5A77FF] border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-[85vh] rounded-2xl overflow-hidden shadow-2xl border border-gray-200 bg-white relative"
-      style={{ fontFamily: "'DM Sans', sans-serif" }}>
-
+    <div
+      className="flex h-[85vh] overflow-hidden gap-6 bg-transparent"
+      style={{ fontFamily: "'DM Sans', sans-serif" }}
+    >
       {/* Hidden file inputs */}
-      <input ref={imageInputRef} type="file" accept="image/*,video/*"
-        className="hidden" onChange={handleFileSelect} />
-      <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,audio/*"
-        className="hidden" onChange={handleFileSelect} />
+      <input ref={imageInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleFileSelect} />
+      <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,audio/*" className="hidden" onChange={handleFileSelect} />
+
+      {/* ══ GLOBAL ERROR BANNER ══════════════════════════════════════════════ */}
+      {error && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 bg-red-500/20custom-borderborder-red-500/40 text-red-300 px-5 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
+          <span className="text-sm font-medium">⚠️ {error}</span>
+          <div onClick={() => setError(null)} className="cursor-pointer hover:text-red-200 p-1"><IoClose size={16} /></div>
+        </div>
+      )}
 
       {/* ══ CREATE GROUP MODAL ════════════════════════════════════════════════ */}
       {showCreateGroup && (
-        <Modal title="New Group" onClose={() => setShowCreateGroup(false)}
+        <Modal
+          title="New Group"
+          onClose={() => { setShowCreateGroup(false); setNewGroupName(""); setSelectedMembers([]); setCreateModalSearch(""); }}
           footer={<>
-            <div onClick={() => setShowCreateGroup(false)}
-              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer">
+            <div
+              onClick={() => { setShowCreateGroup(false); setNewGroupName(""); setSelectedMembers([]); setCreateModalSearch(""); }}
+              className="px-4 py-2 text-sm text-gray-300 hover:bg-white/5 rounded-xl transition-colors cursor-pointer"
+            >
               Cancel
             </div>
-            <div onClick={createGroup}
-              className={`px-5 py-2 text-sm font-semibold bg-blue-600 text-white rounded-xl transition-colors cursor-pointer
-                ${!newGroupName.trim() || !selectedMembers.length ? "opacity-40 pointer-events-none" : "hover:bg-blue-700"}`}>
-              Create
+            <div
+              onClick={createGroup}
+              className={`px-5 py-2 text-sm font-semibold bg-gradient-to-r from-[#5A77FF] to-[#A052FF] text-white rounded-xl transition-colors cursor-pointer
+                ${(!newGroupName.trim() || !selectedMembers.length || isCreatingGroup) ? "opacity-40 pointer-events-none" : "hover:opacity-90"}`}
+            >
+              {isCreatingGroup ? "Creating…" : "Create"}
             </div>
-          </>}>
+          </>}
+        >
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Group Name</label>
-            <input type="text" value={newGroupName} onChange={e => setNewGroupName(e.target.value)}
-              placeholder="e.g. Design Team" autoFocus
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-all" />
+            <label className="block text-xs font-semibold text-white uppercase tracking-wider mb-1.5">Group Name</label>
+            <input
+              type="text"
+              value={newGroupName}
+              onChange={e => setNewGroupName(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && createGroup()}
+              placeholder="e.g. Design Team"
+              autoFocus
+              className="w-full px-4 py-2.5 dark:bg-[#1C1E2A] bg-gray-100 textcustom-borderborder-white/5 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#5A77FF] transition-all"
+            />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Add Members</label>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+              Add Members ({selectedMembers.length} selected)
+            </label>
             <SearchInput value={createModalSearch} onChange={setCreateModalSearch} placeholder="Search people…" />
           </div>
           {selectedMembers.length > 0 && (
@@ -931,30 +1064,33 @@ export default function UserChat() {
               {selectedMembers.map(id => {
                 const u = users.find(x => x.id === id);
                 return (
-                  <span key={id} className="flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                  <span key={id} className="flex items-center gap-1 bg-[#5A77FF]/20 text-[#7C93FF] text-xs font-medium px-2.5 py-1 rounded-fullcustom-borderborder-[#5A77FF]/30">
                     {getFullName(u)}
-                    <div onClick={() => setSelectedMembers(p => p.filter(m => m !== id))}
-                      className="cursor-pointer hover:text-red-500 ml-0.5"><IoClose size={13} /></div>
+                    <div onClick={() => setSelectedMembers(prev => prev.filter(m => m !== id))} className="cursor-pointer hover:text ml-0.5">
+                      <IoClose size={13} />
+                    </div>
                   </span>
                 );
               })}
             </div>
           )}
-          <div className="max-h-52 overflow-y-auto space-y-0.5 -mx-1">
+          <div className="max-h-52 overflow-y-auto space-y-0.5 -mx-1 scrollbar-hide">
             {users
               .filter(u => getFullName(u).toLowerCase().includes(createModalSearch.toLowerCase()))
               .map(u => {
                 const sel = selectedMembers.includes(u.id);
                 return (
-                  <div key={u.id}
-                    onClick={() => setSelectedMembers(p => sel ? p.filter(id => id !== u.id) : [...p, u.id])}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${sel ? "bg-blue-50" : "hover:bg-gray-50"}`}>
-                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${sel ? "bg-blue-600 border-blue-600" : "border-gray-300"}`}>
+                  <div
+                    key={u.id}
+                    onClick={() => setSelectedMembers(prev => sel ? prev.filter(id => id !== u.id) : [...prev, u.id])}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${sel ? "bg-white/10" : "hover:bg-white/5"}`}
+                  >
+                    <div className={`w-5 h-5 rounded-md custom-border flex items-center justify-center flex-shrink-0 ${sel ? "bg-[#5A77FF] border-[#5A77FF]" : "border-gray-500"}`}>
                       {sel && <IoCheckmark size={12} className="text-white" />}
                     </div>
                     <Avatar entity={u} size={8} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{getFullName(u)}</p>
+                      <p className="text-sm font-semibold text truncate">{getFullName(u)}</p>
                       <p className="text-xs text-gray-400 truncate">{u.email}</p>
                     </div>
                   </div>
@@ -966,157 +1102,202 @@ export default function UserChat() {
 
       {/* ══ FORWARD MODAL ════════════════════════════════════════════════════ */}
       {forwardMsg && (
-        <Modal title="Forward Message" onClose={() => setForwardMsg(null)}>
-          <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-600 italic border border-gray-100 truncate">
+        <Modal title="Forward Message" onClose={() => { setForwardMsg(null); setForwardSearch(""); }}>
+          <div className="dark:bg-[#1C1E2A] bg-gray-100 rounded-xl p-3 text-sm text-gray-300 italiccustom-borderborder-white/5 truncate">
             {forwardMsg.mediaUrl ? `📎 ${forwardMsg.originalName || "File"}` : `"${forwardMsg.text}"`}
           </div>
           <SearchInput value={forwardSearch} onChange={setForwardSearch} placeholder="Search conversations…" />
-          <div className="max-h-64 overflow-y-auto space-y-0.5 -mx-1">
+          <div className="max-h-64 overflow-y-auto space-y-0.5 -mx-1 scrollbar-hide">
             {forwardTargets.map(t => (
-              <div key={t.roomId} onClick={() => handleForward(t.roomId)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-blue-50 transition-colors group">
+              <div
+                key={t.roomId}
+                onClick={() => handleForward(t.roomId)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-white/5 transition-colors group"
+              >
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0
-                  ${t.isGroup ? "bg-gradient-to-br from-violet-500 to-fuchsia-600" : "bg-gradient-to-br from-sky-500 to-blue-600"}`}>
+                  ${t.isGroup ? "bg-gradient-to-br from-violet-500 to-fuchsia-600" : "bg-[#333541]"}`}>
                   {t.isGroup ? <HiUserGroup size={16} /> : (t.label?.[0] ?? "?").toUpperCase()}
                 </div>
-                <span className="text-sm font-medium text-gray-700 flex-1 truncate">{t.label ?? "Unnamed"}</span>
-                <IoArrowForward size={16} className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="text-sm font-medium text flex-1 truncate">{t.label ?? "Unnamed"}</span>
+                <IoArrowForward size={16} className="text-[#5A77FF] opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             ))}
-            {!forwardTargets.length && <p className="text-center text-sm text-gray-400 py-6">No conversations found.</p>}
+            {!forwardTargets.length && (
+              <p className="text-center text-sm text-gray-500 py-6">No conversations found.</p>
+            )}
           </div>
         </Modal>
       )}
 
       {/* ══ ADD MEMBERS MODAL ════════════════════════════════════════════════ */}
       {showAddMembers && (
-        <Modal title="Add Members"
-          onClose={() => { setShowAddMembers(false); setSelectedNewMembers([]); }}
+        <Modal
+          title="Add Members"
+          onClose={() => { setShowAddMembers(false); setSelectedNewMembers([]); setAddMemberSearch(""); }}
           footer={<>
-            <div onClick={() => { setShowAddMembers(false); setSelectedNewMembers([]); }}
-              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl cursor-pointer transition-colors">
+            <div
+              onClick={() => { setShowAddMembers(false); setSelectedNewMembers([]); setAddMemberSearch(""); }}
+              className="px-4 py-2 text-sm text-gray-300 hover:bg-white/5 rounded-xl cursor-pointer transition-colors"
+            >
               Cancel
             </div>
-            <div onClick={addMembers}
-              className={`px-5 py-2 text-sm font-semibold bg-blue-600 text-white rounded-xl cursor-pointer transition-colors
-                ${!selectedNewMembers.length ? "opacity-40 pointer-events-none" : "hover:bg-blue-700"}`}>
+            <div
+              onClick={addMembers}
+              className={`px-5 py-2 text-sm font-semibold bg-gradient-to-r from-[#5A77FF] to-[#A052FF] text-white rounded-xl cursor-pointer transition-colors
+                ${!selectedNewMembers.length ? "opacity-40 pointer-events-none" : "hover:opacity-90"}`}
+            >
               Add {selectedNewMembers.length > 0 ? `(${selectedNewMembers.length})` : ""}
             </div>
-          </>}>
+          </>}
+        >
           <SearchInput value={addMemberSearch} onChange={setAddMemberSearch} placeholder="Search users…" />
           {selectedNewMembers.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {selectedNewMembers.map(id => {
                 const u = users.find(x => x.id === id);
                 return (
-                  <span key={id} className="flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                  <span key={id} className="flex items-center gap-1 bg-[#5A77FF]/20 text-[#7C93FF] text-xs font-medium px-2.5 py-1 rounded-fullcustom-borderborder-[#5A77FF]/30">
                     {getFullName(u)}
-                    <div onClick={() => setSelectedNewMembers(p => p.filter(m => m !== id))}
-                      className="cursor-pointer"><IoClose size={13} /></div>
+                    <div onClick={() => setSelectedNewMembers(prev => prev.filter(m => m !== id))} className="cursor-pointer hover:text">
+                      <IoClose size={13} />
+                    </div>
                   </span>
                 );
               })}
             </div>
           )}
-          <div className="max-h-64 overflow-y-auto space-y-0.5 -mx-1">
+          <div className="max-h-64 overflow-y-auto space-y-0.5 -mx-1 scrollbar-hide">
             {addableUsers.map(u => {
               const sel = selectedNewMembers.includes(u.id);
               return (
-                <div key={u.id}
-                  onClick={() => setSelectedNewMembers(p => sel ? p.filter(id => id !== u.id) : [...p, u.id])}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${sel ? "bg-blue-50" : "hover:bg-gray-50"}`}>
-                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${sel ? "bg-blue-600 border-blue-600" : "border-gray-300"}`}>
+                <div
+                  key={u.id}
+                  onClick={() => setSelectedNewMembers(prev => sel ? prev.filter(id => id !== u.id) : [...prev, u.id])}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${sel ? "bg-white/10" : "hover:bg-white/5"}`}
+                >
+                  <div className={`w-5 h-5 rounded-md custom-border flex items-center justify-center flex-shrink-0 ${sel ? "bg-[#5A77FF] border-[#5A77FF]" : "border-gray-500"}`}>
                     {sel && <IoCheckmark size={12} className="text-white" />}
                   </div>
                   <Avatar entity={u} size={8} />
-                  <p className="text-sm font-semibold text-gray-800 truncate flex-1">{getFullName(u)}</p>
+                  <p className="text-sm font-semibold text truncate flex-1">{getFullName(u)}</p>
                 </div>
               );
             })}
-            {!addableUsers.length && <p className="text-center text-sm text-gray-400 py-4">No users to add.</p>}
+            {!addableUsers.length && <p className="text-center text-sm text-gray-500 py-4">No users to add.</p>}
           </div>
         </Modal>
       )}
 
       {/* ══ CONTEXT MENU ════════════════════════════════════════════════════ */}
       {contextMenu && (
-        <div ref={menuRef}
+        <div
+          ref={menuRef}
           style={{ top: contextMenu.y, left: contextMenu.x, position: "fixed", zIndex: 9999 }}
-          className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden min-w-[160px] py-1">
+          className="translucent-background rounded-xl shadow-2xlcustom-borderborder-white/10 overflow-hidden min-w-[160px] py-1"
+        >
           <MenuItem
             icon={<IoArrowUndo size={15} className="text-gray-400" />}
             label="Reply"
-            onClick={() => { setReplyTo(contextMenu.msg); setContextMenu(null); textareaRef.current?.focus(); }} />
+            onClick={() => { setReplyTo(contextMenu.msg); setContextMenu(null); textareaRef.current?.focus(); }}
+          />
           <MenuItem
             icon={<IoArrowForward size={15} className="text-gray-400" />}
             label="Forward"
-            onClick={() => { setForwardMsg(contextMenu.msg); setContextMenu(null); }} />
+            onClick={() => { setForwardMsg(contextMenu.msg); setContextMenu(null); }}
+          />
           {contextMenu.msg.senderId === getUserId() && (
             <MenuItem
               icon={<IoTrash size={15} />}
               label="Delete"
               variant="danger"
-              onClick={() => deleteMessage(contextMenu.msg)} />
+              onClick={() => deleteMessage(contextMenu.msg)}
+            />
           )}
         </div>
       )}
 
       {/* ══ SIDEBAR ══════════════════════════════════════════════════════════ */}
-      <div className={`${sidebarCollapsed ? "w-[72px]" : "w-72"} flex flex-col border-r border-gray-100 transition-all duration-300 flex-shrink-0 bg-gray-50`}>
-        <div className="px-4 py-4 border-b border-gray-100 bg-white flex-shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            {!sidebarCollapsed && <h2 className="text-base font-bold text-gray-900 tracking-tight">Messages</h2>}
-            <div className="flex items-center gap-2 ml-auto">
-              <div className={`w-2 h-2 rounded-full flex-shrink-0
-                ${connectionStatus === "connected" ? "bg-emerald-400"
-                  : connectionStatus === "error" ? "bg-red-400"
-                    : "bg-amber-400 animate-pulse"}`}
-                title={connectionStatus} />
+      <div
+        className={`${sidebarCollapsed ? "w-[72px]" : "w-[320px]"} flex flex-col rounded-2xlcustom-borderborder-white/5 transition-all duration-300 flex-shrink-0 translucent-background relative`}
+      >
+        {/* Sidebar Header */}
+        <div className="px-4 py-5 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4">
+            {!sidebarCollapsed && (
+              <h2 className="text-xl font-bold text tracking-tight">Conversations</h2>
+            )}
+            <div className={`flex items-center gap-2 ${sidebarCollapsed ? "w-full justify-center" : "ml-auto"}`}>
               {!sidebarCollapsed && (
-                <div onClick={() => setShowCreateGroup(true)}
-                  className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all cursor-pointer">
-                  <IoAdd size={17} />
+                <div
+                  onClick={() => setShowCreateGroup(true)}
+                  className="p-1.5 bg-white/5 text-gray-300 hover:text rounded-lg transition-all cursor-pointer"
+                  title="New Group"
+                >
+                  <IoAdd size={20} />
                 </div>
               )}
+              {/* ✅ SIDEBAR COLLAPSE TOGGLE — was missing before */}
+              <div
+                onClick={() => setSidebarCollapsed(prev => !prev)}
+                className="p-1.5 bg-white/5 text-gray-300 hover:text rounded-lg transition-all cursor-pointer"
+                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {sidebarCollapsed ? <IoChevronForward size={18} /> : <IoChevronBack size={18} />}
+              </div>
             </div>
           </div>
-          {!sidebarCollapsed && <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search…" />}
+          {!sidebarCollapsed && (
+            <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search teammates..." />
+          )}
         </div>
 
-        <div className="flex-1 overflow-y-auto py-2">
-          {loading
-            ? <div className="flex justify-center py-10"><div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" /></div>
-            : (<>
-              {/* Groups — use groupName field from backend */}
+        {/* Sidebar List */}
+        <div className="flex-1 overflow-y-auto px-2 pb-2 scrollbar-hide">
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <div className="w-6 h-6 custom-border border-[#5A77FF] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <>
+              {/* Groups */}
               {filteredGroups.length > 0 && (
-                <div>
-                  {!sidebarCollapsed && (
-                    <p className="px-4 pt-2 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Groups</p>
+                <div className="mb-2">
+                  {!sidebarCollapsed && filteredGroups.length > 0 && (
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-3 mb-1.5">Groups</p>
                   )}
                   {filteredGroups.map(g => {
                     const active = activeChat?.roomId === g.roomId && activeChat?.type === "group";
+                    const localCount = unreadCounts[g.roomId] || 0;
+                    const backendCount = g.unreadCount || 0;
+                    const totalCount = localCount > 0 ? localCount : backendCount;
                     return (
-                      <div key={g.id ?? g.roomId}
+                      <div
+                        key={g.id ?? g.roomId}
                         onClick={() => setActiveChat({ ...g, type: "group" })}
                         title={sidebarCollapsed ? g.groupName : undefined}
-                        className={`flex items-center gap-3 px-3 py-2.5 mx-1.5 rounded-xl transition-all cursor-pointer
-                          ${active ? "bg-violet-50" : "hover:bg-gray-100"}`}
-                        style={{ width: "calc(100% - 12px)" }}>
+                        className={`flex items-center gap-3 px-2 py-3 mb-0.5 rounded-2xl transition-all cursor-pointer
+                          ${active ? "dark:bg-[#333545] bg-gray-100" : "hover:bg-white/5"}`}
+                      >
                         <Avatar entity={{ ...g, type: "group" }} size={10} />
                         {!sidebarCollapsed && (
                           <div className="flex-1 min-w-0 flex items-center justify-between">
-                            <span className={`text-sm font-semibold truncate ${active ? "text-violet-900" : "text-gray-800"}`}>
-                              {g.groupName || "Unnamed Group"}
-                            </span>
-                            {(() => {
-                              const count = (unreadCounts[g.roomId] || 0) + (g.unreadCount || 0);
-                              return count > 0 ? (
-                                <span className="flex-shrink-0 ml-1 bg-violet-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center animate-pulse">
-                                  {count > 99 ? "99+" : count}
-                                </span>
-                              ) : null;
-                            })()}
+                            <div className="min-w-0">
+                              <span className="text-[14px] font-semibold truncate text block">
+                                {g.groupName || "Unnamed Group"}
+                              </span>
+                              <span className="text-xs text-gray-400">Group</span>
+                            </div>
+                            {totalCount > 0 && (
+                              <span className="flex-shrink-0 ml-2 bg-[#5A77FF] text-white text-[10px] font-bold min-w-[20px] h-[20px] px-1 rounded-full flex items-center justify-center">
+                                {totalCount > 99 ? "99+" : totalCount}
+                              </span>
+                            )}
                           </div>
+                        )}
+                        {sidebarCollapsed && totalCount > 0 && (
+                          <span className="absolute top-1 right-1 w-4 h-4 bg-[#5A77FF] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                            {totalCount > 9 ? "9+" : totalCount}
+                          </span>
                         )}
                       </div>
                     );
@@ -1124,37 +1305,42 @@ export default function UserChat() {
                 </div>
               )}
 
-              {/* Direct Messages */}
+              {/* Users */}
               {filteredUsers.length > 0 && (
                 <div>
                   {!sidebarCollapsed && (
-                    <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Direct</p>
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-3 mb-1.5">Direct Messages</p>
                   )}
                   {filteredUsers.map(u => {
                     const active = activeChat?.id === u.id && activeChat?.type !== "group";
+                    const rid = buildRoomId(getUserId(), u.id);
+                    const localCount = unreadCounts[rid] || 0;
+                    const backendCount = u.unseenCount || 0;
+                    const totalCount = localCount > 0 ? localCount : backendCount;
+                    const isOnline = u.onlineStatus === "online" || u.onlineSatus === "online";
                     return (
-                      <div key={u.id}
+                      <div
+                        key={u.id}
                         onClick={() => setActiveChat(u)}
                         title={sidebarCollapsed ? getFullName(u) : undefined}
-                        className={`flex items-center gap-3 px-3 py-2.5 mx-1.5 rounded-xl transition-all cursor-pointer
-                          ${active ? "bg-blue-50" : "hover:bg-gray-100"}`}
-                        style={{ width: "calc(100% - 12px)" }}>
+                        className={`flex items-center gap-3 px-2 py-3 mb-0.5 rounded-2xl transition-all cursor-pointer
+                          ${active ? "dark:bg-[#2A2B38] bg-gray-100" : "hover:bg-white/5"}`}
+                      >
                         <Avatar entity={u} size={10} />
                         {!sidebarCollapsed && (
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <span className={`text-sm font-semibold truncate ${active ? "text-blue-900" : "text-gray-800"}`}>{getFullName(u)}</span>
-                              {(() => {
-                                const rid = buildRoomId(getUserId(), u.id);
-                                const count = (unreadCounts[rid] || 0) + (u.unseenCount || 0);
-                                return count > 0 ? (
-                                  <span className="flex-shrink-0 ml-1 bg-blue-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center animate-pulse">
-                                    {count > 99 ? "99+" : count}
-                                  </span>
-                                ) : null;
-                              })()}
+                          <div className="flex-1 min-w-0 flex items-start justify-between">
+                            <div className="flex-1 min-w-0 pr-2">
+                              <span className="text-[14px] font-bold truncate text block">{getFullName(u)}</span>
+                              <p className={`text-xs truncate leading-relaxed mt-0.5 flex items-center gap-1 ${isOnline ? "text-emerald-400" : "text-gray-400"}`}>
+                                {isOnline && <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full inline-block flex-shrink-0" />}
+                                {isOnline ? "Online" : (u.role || "Team Member")}
+                              </p>
                             </div>
-                            <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                            {totalCount > 0 && (
+                              <span className="flex-shrink-0 bg-[#5A77FF] text-white text-[10px] font-bold min-w-[20px] h-[20px] px-1 rounded-full flex items-center justify-center mt-0.5">
+                                {totalCount > 99 ? "99+" : totalCount}
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1164,467 +1350,500 @@ export default function UserChat() {
               )}
 
               {!filteredGroups.length && !filteredUsers.length && (
-                <p className="text-center text-sm text-gray-400 py-10">No conversations found.</p>
+                <p className="text-center text-sm text-gray-500 py-10">No conversations found.</p>
               )}
-            </>)}
-        </div>
-
-        {/* Current user footer */}
-        <div className="px-3 py-3 border-t border-gray-100 bg-white flex-shrink-0">
-          <div className={`flex items-center gap-3 ${sidebarCollapsed ? "justify-center" : ""}`}>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-              {getInitials(user)}
-            </div>
-            {!sidebarCollapsed && (
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-gray-800 truncate">{getFullName(user)}</p>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{user.role}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Sidebar collapse toggle */}
-      <div onClick={() => setSidebarCollapsed(p => !p)}
-        className="absolute top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-full p-1 shadow-md hover:shadow-lg z-30 transition-all cursor-pointer"
-        style={{ left: sidebarCollapsed ? "calc(72px - 13px)" : "calc(288px - 13px)" }}>
-        {sidebarCollapsed
-          ? <IoChevronForward size={14} className="text-gray-500" />
-          : <IoChevronBack size={14} className="text-gray-500" />}
-      </div>
-
-      {/* ══ CHAT AREA ════════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 flex flex-col overflow-hidden bg-[#efeae2]">
-          {activeChat ? (<>
-
-            {/* Chat Header */}
-            <div className="px-6 py-2.5 border-b border-gray-200 bg-[#f0f2f5] flex items-center justify-between flex-shrink-0 z-20">
-              <div className="flex items-center gap-3 min-w-0">
-                <Avatar entity={activeChat} size={11} />
-                <div className="min-w-0">
-                  {editNameMode && isGroup ? (
-                    <div className="flex items-center gap-2">
-                      <input value={editNameValue}
-                        onChange={e => setEditNameValue(e.target.value)}
-                        onKeyDown={e => e.key === "Enter" && renameGroup()}
-                        autoFocus
-                        className="border border-blue-300 rounded-lg px-2.5 py-1 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-300" />
-                      <div onClick={renameGroup}
-                        className="text-white bg-emerald-500 hover:bg-emerald-600 p-1 rounded-lg cursor-pointer">
-                        <IoCheckmark size={14} />
-                      </div>
-                      <div onClick={() => setEditNameMode(false)}
-                        className="text-white bg-gray-400 hover:bg-gray-500 p-1 rounded-lg cursor-pointer">
-                        <IoClose size={14} />
-                      </div>
-                    </div>
-                  ) : (
-                    <h3 className="text-sm font-bold text-gray-900 truncate">
-                      {/* ✅ Use groupName for groups */}
-                      {isGroup ? (activeChat.groupName || "Group") : getFullName(activeChat)}
-                    </h3>
-                  )}
-                  <p className="text-xs text-gray-400 truncate">
-                    {isGroup
-                      ? (groupMembers.length > 0 ? `${groupMembers.length} members` : "Group")
-                      : activeChat.onlineStatus === "online"
-                        ? <span className="text-emerald-500 font-medium">Active now</span>
-                        : "Offline"}
-                  </p>
-                </div>
-              </div>
-
-              {isGroup && (
-                <div className="relative" ref={menuRef}>
-                  <div onClick={() => setShowGroupMenu(p => !p)}
-                    className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer">
-                    <IoEllipsisVertical size={19} />
-                  </div>
-                  {showGroupMenu && (
-                    <div className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 py-1">
-                      <MenuItem icon={<IoPeople size={15} className="text-gray-400" />} label="View Members" onClick={openMembers} />
-                      <MenuItem icon={<IoPersonAdd size={15} className="text-gray-400" />} label="Add Members"
-                        onClick={() => { setShowAddMembers(true); setShowGroupMenu(false); }} />
-                      <MenuItem icon={<IoPencil size={15} className="text-gray-400" />} label="Edit Name"
-                        onClick={() => {
-                          // ✅ Seed with groupName (backend field)
-                          setEditNameMode(true);
-                          setEditNameValue(activeChat.groupName || "");
-                          setShowGroupMenu(false);
-                        }} />
-                      <div className="border-t border-gray-100 my-1" />
-                      <MenuItem icon={<IoExit size={15} />} label="Leave Group" variant="warning"
-                        onClick={() => { leaveGroup(); setShowGroupMenu(false); }} />
-                      <MenuItem icon={<IoTrash size={15} />} label="Delete Group" variant="danger"
-                        onClick={deleteGroup} />
-                      <div className="border-t border-gray-100 my-1" />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Messages List */}
-            <div className="flex-1 overflow-y-auto px-[5%] py-4 flex flex-col"
-              ref={chatContainerRef}
-              onScroll={handleScrollUp}
-              onClick={() => setShowGroupMenu(false)}>
-
-              {/* Loading older messages indicator */}
-              {isLoadingMore && (
-                <div className="flex justify-center py-3">
-                  <div className="flex items-center gap-2 bg-white border border-gray-100 rounded-full px-4 py-2 shadow-sm">
-                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-xs text-gray-500 font-medium">Loading older messages…</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Scroll up hint */}
-              {hasMore && !isLoadingMore && messages.length > 0 && (
-                <div className="flex justify-center py-2">
-                  <span className="text-[11px] text-gray-400 font-medium">↑ Scroll up for older messages</span>
-                </div>
-              )}
-              {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center flex-1 text-center">
-                  <div className="w-20 h-20 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center mb-4">
-                    {isGroup
-                      ? <HiUserGroup className="w-10 h-10 text-gray-300" />
-                      : <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>}
-                  </div>
-                  <p className="text-base font-bold text-gray-700">No messages yet</p>
-                  <p className="text-sm text-gray-400 mt-1">Say hello 👋</p>
-                </div>
-              ) : (<>
-                {/* Spacer pushes messages to bottom like WhatsApp */}
-                <div className="flex-1" />
-                <div className="space-y-1">
-                  {messages.map((msg, idx) => {
-                    const own = msg.senderId === getUserId();
-                    const showDate = idx === 0 ||
-                      new Date(msg.timestamp) - new Date(messages[idx - 1].timestamp) > 300000;
-
-                    return (
-                      <div key={msg.id || idx}>
-                        {showDate && (
-                          <div className="flex justify-center my-4">
-                            <span className="text-[11.5px] font-medium text-gray-600 bg-[#E1F2FB] px-3 py-1 rounded-md shadow-sm">
-                              {dateStr(msg.timestamp)}
-                            </span>
-                          </div>
-                        )}
-                        <div className={`flex ${own ? "justify-end" : "justify-start"} group mb-1`}>
-
-                          {/* Hover action buttons */}
-                          <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity
-                          ${own ? "order-first mr-1.5" : "order-last ml-1.5"}`}>
-                            <div
-                              onClick={() => { setReplyTo(msg); textareaRef.current?.focus(); }}
-                              className="p-1.5 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 text-gray-500 cursor-pointer"
-                              title="Reply">
-                              <IoArrowUndo size={13} />
-                            </div>
-                            <div
-                              onClick={() => setForwardMsg(msg)}
-                              className="p-1.5 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 text-gray-500 cursor-pointer"
-                              title="Forward">
-                              <IoArrowForward size={13} />
-                            </div>
-                            {own && (
-                              <div
-                                onClick={() => deleteMessage(msg)}
-                                className="p-1.5 rounded-full bg-white border border-red-100 shadow-sm hover:bg-red-50 text-red-400 cursor-pointer"
-                                title="Delete">
-                                <IoTrash size={13} />
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Message bubble */}
-                          <div
-                            className={`relative max-w-[75%] px-3 py-1.5 shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]
-                            ${own
-                                ? "bg-[#d9fdd3] text-[#111b21] rounded-lg rounded-tr-[0px]"
-                                : "bg-white text-[#111b21] rounded-lg rounded-tl-[0px]"}`}
-                            onContextMenu={e => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, msg }); }}>
-
-                            {/* Sender name in group chats */}
-                            {!own && isGroup && (
-                              <p className="text-[12px] font-bold text-violet-500 mb-0.5 tracking-wide cursor-pointer hover:underline">
-                                {msg.senderName}
-                              </p>
-                            )}
-
-                            {/* Reply preview */}
-                            {msg.replyToMessage && (
-                              <div className="text-xs rounded-md px-2.5 py-1.5 mb-1.5 border-l-4 bg-black/5 border-violet-500 cursor-pointer">
-                                <p className="font-bold mb-0.5 text-violet-600">
-                                  {msg.replyToMessage.senderId === getUserId() ? "You" : msg.replyToMessage.senderName || msg.senderName}
-                                </p>
-                                <p className="truncate text-gray-600">
-                                  {msg.replyToMessage.message || msg.replyToMessage.text || "📎 File"}
-                                </p>
-                              </div>
-                            )}
-
-                            {/* Media content */}
-                            {msg.mediaUrl && <MediaBubble msg={msg} own={own} />}
-
-                            {/* Text content & Time inline wrapper */}
-                            <div className="relative inline-block w-full">
-                              {msg.text && (
-                                <p className="text-[14.5px] leading-snug break-words whitespace-pre-wrap m-0">
-                                  {msg.text}
-                                  {/* Dummy spacing to prevent timestamp overlap */}
-                                  <span className="inline-block w-[70px] h-2 bg-transparent" />
-                                </p>
-                              )}
-
-                              {/* Time + seen status */}
-                              <div className={`flex items-center gap-[3px] select-none text-gray-500 ${msg.text ? "absolute bottom-[-2px] right-0" : "justify-end mt-1"}`}>
-                                <span className="text-[10px] font-medium leading-none mt-[2px]">
-                                  {timeStr(msg.timestamp)}
-                                </span>
-                                {own && (
-                                  msg.seen
-                                    ? <IoCheckmarkDone size={15} className="text-[#53bdeb]" />
-                                    : <IoCheckmark size={15} className="text-[#8696a0]" />
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Typing indicator */}
-                {typingUser && (
-                  <div className="flex justify-start mt-1">
-                    <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-2.5 shadow-sm flex items-center gap-2">
-                      <div className="flex gap-1">
-                        {[0, 150, 300].map(d => (
-                          <span key={d} className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"
-                            style={{ animationDelay: `${d}ms` }} />
-                        ))}
-                      </div>
-                      <span className="text-xs text-gray-400">{typingUser} is typing…</span>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </>)}
-            </div>
-
-            {/* Reply bar */}
-            {replyTo && (
-              <div className="px-5 py-2.5 bg-blue-50 border-t border-blue-100 flex items-center gap-3 flex-shrink-0">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-blue-600 mb-0.5">
-                    Replying to {replyTo.senderName}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {replyTo.mediaUrl ? `📎 ${replyTo.originalName || "File"}` : replyTo.text}
-                  </p>
-                </div>
-                <div onClick={() => setReplyTo(null)}
-                  className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-blue-100 transition-colors flex-shrink-0 cursor-pointer">
-                  <IoClose size={16} />
-                </div>
-              </div>
-            )}
-
-            {/* ── INPUT AREA ──────────────────────────────────────────────── */}
-            <div className="px-5 py-3 bg-[#f0f2f5] flex-shrink-0 z-20 w-full">
-
-              {/* File preview */}
-              {pendingFile && (
-                <div className="mb-3">
-                  <FilePreview file={pendingFile} onRemove={() => {
-                    setPendingFile(null); setUploadError(null); setUploadProgress(0);
-                  }} />
-                </div>
-              )}
-
-              {/* Upload progress */}
-              {isUploading && (
-                <div className="mb-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-blue-600 font-medium flex items-center gap-1.5">
-                      <IoCloudUpload size={13} />Uploading…
-                    </span>
-                    <span className="text-xs text-gray-400 font-medium">{uploadProgress}%</span>
-                  </div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full transition-all duration-150"
-                      style={{ width: `${uploadProgress}%` }} />
-                  </div>
-                </div>
-              )}
-
-              {/* Upload error */}
-              {uploadError && (
-                <p className="text-xs text-red-500 font-medium mb-2.5 flex items-center gap-1.5">
-                  ⚠️ {uploadError}
-                  <span onClick={() => setUploadError(null)}
-                    className="cursor-pointer underline hover:text-red-700 ml-1">
-                    Dismiss
-                  </span>
-                </p>
-              )}
-
-              <div className="flex items-end gap-2.5 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2
-                focus-within:ring-2 focus-within:ring-blue-400/40 focus-within:border-blue-300 transition-all">
-
-                {/* Attach button */}
-                <div className="relative flex-shrink-0 self-end pb-1" ref={attachMenuRef}>
-                  <div onClick={() => setShowAttachMenu(p => !p)} title="Attach"
-                    className={`p-2 rounded-xl transition-all cursor-pointer
-                      ${showAttachMenu ? "bg-blue-100 text-blue-600" : "text-gray-400 hover:text-blue-500 hover:bg-blue-50"}`}>
-                    <IoAttach size={20} />
-                  </div>
-                  {showAttachMenu && (
-                    <div className="absolute bottom-full mb-2 left-0 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 w-48 z-20 overflow-hidden">
-                      <div onClick={() => imageInputRef.current?.click()}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 cursor-pointer transition-colors">
-                        <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-                          <IoImage size={15} className="text-purple-600" />
-                        </div>
-                        <span className="font-medium">Photo / Video</span>
-                      </div>
-                      <div onClick={() => fileInputRef.current?.click()}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 cursor-pointer transition-colors">
-                        <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                          <IoDocument size={15} className="text-blue-600" />
-                        </div>
-                        <span className="font-medium">Document / File</span>
-                      </div>
-                      <div className="px-4 pt-0.5 pb-1.5">
-                        <p className="text-[10px] text-gray-400">Max {MAX_FILE_MB} MB</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Text input */}
-                <textarea ref={textareaRef} rows={1} value={messageText}
-                  onChange={e => { setMessageText(e.target.value); handleTyping(); }}
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-                  }}
-                  placeholder={
-                    isUploading ? "Uploading…"
-                      : pendingFile ? "Add a caption… (optional)"
-                        : connectionStatus === "connected" ? "Type a message…"
-                          : "Reconnecting…"
-                  }
-                  disabled={connectionStatus !== "connected" || isUploading}
-                  className="flex-1 bg-transparent text-sm resize-none focus:outline-none max-h-28 py-2 placeholder-gray-400" />
-
-                {/* Send button */}
-                <div onClick={canSend ? sendMessage : undefined}
-                  className={`p-2.5 rounded-xl transition-all shadow-sm flex-shrink-0 self-end mb-0.5
-                    ${canSend
-                      ? "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md cursor-pointer"
-                      : "bg-gray-100 text-gray-300 cursor-not-allowed"}`}>
-                  {isUploading
-                    ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    : <IoSend size={17} className="ml-0.5" />}
-                </div>
-              </div>
-
-              {connectionStatus !== "connected" && (
-                <p className="text-xs text-red-500 font-medium mt-1.5 px-1 animate-pulse">
-                  {connectionStatus === "error" ? "⚠️ Connection failed" : "🔄 Reconnecting…"}
-                </p>
-              )}
-            </div>
-
-          </>) : (
-            /* Empty state */
-            <div className="flex flex-col items-center justify-center flex-1 bg-gray-50/30">
-              <div className="w-24 h-24 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center mb-5">
-                <svg className="w-12 h-12 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-700 mb-2">Your Messages</h3>
-              <p className="text-sm text-gray-400 text-center max-w-xs leading-relaxed">Select a conversation or start a new group.</p>
-            </div>
+            </>
           )}
         </div>
 
-        {/* ── Members Side Panel ─────────────────────────────────────────── */}
-        {showMembersPanel && isGroup && (
-          <div className="w-64 border-l border-gray-100 flex flex-col bg-white flex-shrink-0">
-            <div className="px-4 py-3.5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-              <h4 className="text-sm font-bold text-gray-800">Members</h4>
-              <div className="flex items-center gap-1">
-                <div onClick={() => { setShowAddMembers(true); setShowMembersPanel(false); }}
-                  className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
-                  title="Add">
-                  <IoPersonAdd size={15} />
-                </div>
-                <div onClick={() => setShowMembersPanel(false)}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-                  <IoClose size={16} />
-                </div>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto py-2">
-              {groupMembers.length === 0
-                ? <div className="flex justify-center py-8">
-                  <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                </div>
-                // ✅ participants from getGroupDetails are raw User objects (id, firstName, lastName, email, role)
-                : groupMembers.map(member => {
-                  const mid = member.id ?? member.userId;
-                  return (
-                    <div key={mid} className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 rounded-xl mx-1.5 group">
-                      <Avatar entity={member} size={9} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 truncate">{getFullName(member)}</p>
-                        <p className="text-[10px] text-gray-400 truncate">{member.role}</p>
-                      </div>
-                      {mid !== getUserId() && (
-                        <div onClick={() => removeMember(mid)}
-                          className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
-                          title="Remove">
-                          <IoPersonRemove size={14} />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+        {/* Collapsed: new group button at bottom */}
+        {sidebarCollapsed && (
+          <div className="px-2 pb-4 flex justify-center">
+            <div
+              onClick={() => setShowCreateGroup(true)}
+              className="p-2 bg-white/5 text-gray-300 hover:text rounded-xl transition-all cursor-pointer"
+              title="New Group"
+            >
+              <IoAdd size={20} />
             </div>
           </div>
         )}
       </div>
 
-      {/* ══ NOTIFICATION TOASTS ═══════════════════════════════════════════════ */}
-      {notifications.length > 0 && (
-        <div className="fixed top-4 right-4 z-[60] flex flex-col gap-2">
-          {notifications.map(n => (
-            <NotificationToast key={n.id} notification={n} onDismiss={dismissNotification} />
-          ))}
+      {/* ══ CHAT AREA ════════════════════════════════════════════════════════ */}
+      <div className="flex-1 flex flex-col overflow-hidden rounded-2xlcustom-borderborder-white/5 translucent-background min-w-0">
+        {activeChat ? (
+          <>
+            {/* Chat Header */}
+            <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between flex-shrink-0 z-20">
+              <div className="flex items-center gap-4 min-w-0">
+                <Avatar entity={activeChat} size={12} header={true} />
+                <div className="min-w-0">
+                  {editNameMode && isGroup ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={editNameValue}
+                        onChange={e => setEditNameValue(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") renameGroup(); if (e.key === "Escape") setEditNameMode(false); }}
+                        autoFocus
+                        className="dark:bg-[#1C1E2A] bg-gray-100 textcustom-borderborder-white/10 rounded-lg px-2.5 py-1 text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-[#5A77FF]"
+                      />
+                      <div onClick={renameGroup} className="text-white bg-emerald-500 hover:bg-emerald-600 p-1.5 rounded-lg cursor-pointer">
+                        <IoCheckmark size={14} />
+                      </div>
+                      <div onClick={() => setEditNameMode(false)} className="text-gray-400 hover:text bg-white/5 p-1.5 rounded-lg cursor-pointer">
+                        <IoClose size={14} />
+                      </div>
+                    </div>
+                  ) : (
+                    <h3 className="text-lg font-bold text truncate leading-none mb-1">
+                      {isGroup ? (activeChat.groupName || "Group") : getFullName(activeChat)}
+                    </h3>
+                  )}
+                  <p className="text-sm text-gray-400 truncate leading-none">
+                    {isGroup
+                      ? (groupMembers.length > 0 ? `${groupMembers.length} members` : "Group")
+                      : (activeChat.role || "Team Member")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                {/* ✅ Online status uses unified onlineStatus/onlineSatus check */}
+                {!isGroup && (activeChat.onlineStatus === "online" || activeChat.onlineSatus === "online") && (
+                  <span className="text-sm text-emerald-400 font-medium flex items-center gap-1.5">
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full inline-block animate-pulse" />
+                    Online now
+                  </span>
+                )}
+                {isGroup && (
+                  <div className="relative" ref={menuRef}>
+                    <div
+                      onClick={() => setShowGroupMenu(prev => !prev)}
+                      className="p-2 rounded-xl text-gray-400 hover:text hover:bg-white/5 transition-colors cursor-pointer"
+                    >
+                      <IoEllipsisVertical size={20} />
+                    </div>
+                    {showGroupMenu && (
+                      <div className="absolute right-0 top-full mt-1.5 w-52 dark:bg-[#1C1E2A] bg-white rounded-xl shadow-2xlcustom-borderborder-white/10 overflow-hidden z-50 py-1">
+                        <MenuItem icon={<IoPeople size={15} className="text-gray-400" />} label="View Members" onClick={openMembers} />
+                        <MenuItem
+                          icon={<IoPersonAdd size={15} className="text-gray-400" />}
+                          label="Add Members"
+                          onClick={() => { setShowAddMembers(true); setShowGroupMenu(false); }}
+                        />
+                        <MenuItem
+                          icon={<IoPencil size={15} className="text-gray-400" />}
+                          label="Edit Name"
+                          onClick={() => { setEditNameMode(true); setEditNameValue(activeChat.groupName || ""); setShowGroupMenu(false); }}
+                        />
+                        <div className="border-t border-white/5 my-1" />
+                        <MenuItem icon={<IoExit size={15} />} label="Leave Group" variant="warning" onClick={leaveGroup} />
+                        <MenuItem icon={<IoTrash size={15} />} label="Delete Group" variant="danger" onClick={deleteGroup} />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Messages List */}
+            <div
+              className="flex-1 overflow-y-auto px-6 py-6 flex flex-col scrollbar-hide"
+              ref={chatContainerRef}
+              onScroll={handleScrollUp}
+              onClick={() => { setShowGroupMenu(false); setContextMenu(null); }}
+            >
+              {isLoadingMore && (
+                <div className="flex justify-center py-3">
+                  <div className="flex items-center gap-2 dark:bg-[#1C1E2A] bg-gray-100custom-borderborder-white/5 rounded-full px-4 py-2 shadow-sm">
+                    <div className="w-4 h-4 custom-border border-[#5A77FF] border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs text-gray-400 font-medium">Loading older messages…</span>
+                  </div>
+                </div>
+              )}
+
+              {hasMore && !isLoadingMore && messages.length > 0 && (
+                <div className="flex justify-center py-2">
+                  <span className="text-[11px] text-gray-500 font-medium">↑ Scroll up for older messages</span>
+                </div>
+              )}
+
+              {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center flex-1 text-center">
+                  <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                    {isGroup
+                      ? <HiUserGroup className="w-10 h-10 text-gray-500" />
+                      : <svg className="w-10 h-10 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
+                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>}
+                  </div>
+                  <p className="text-base font-bold text-gray-300">No messages yet</p>
+                  <p className="text-sm text-gray-500 mt-1">Say hello 👋</p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1" />
+                  <div className="space-y-4">
+                    {messages.map((msg, idx) => {
+                      const own = msg.senderId === getUserId();
+                      const showDate = idx === 0 ||
+                        new Date(msg.timestamp) - new Date(messages[idx - 1].timestamp) > 300000;
+
+                      return (
+                        <div key={msg.id || `${msg.senderId}-${msg.timestamp}-${idx}`}>
+                          {showDate && (
+                            <div className="flex justify-center my-4">
+                              <span className="text-xs font-medium text-gray-500 bg-white/5 px-3 py-1 rounded-full">
+                                {dateStr(msg.timestamp)}
+                              </span>
+                            </div>
+                          )}
+                          <div className={`flex ${own ? "justify-end" : "justify-start"} group relative`}>
+                            {/* Hover action buttons */}
+                            <div
+                              className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute top-1/2 -translate-y-1/2 z-10
+                                ${own ? "right-[calc(100%+8px)]" : "left-[calc(100%+8px)]"}`}
+                            >
+                              <div
+                                onClick={() => { setReplyTo(msg); textareaRef.current?.focus(); }}
+                                className="p-1.5 rounded-full dark:bg-[#1C1E2A] bg-gray-200custom-borderborder-white/5 hover:bg-white/10 text-gray-400 cursor-pointer"
+                                title="Reply"
+                              >
+                                <IoArrowUndo size={13} />
+                              </div>
+                              <div
+                                onClick={() => setForwardMsg(msg)}
+                                className="p-1.5 rounded-full dark:bg-[#1C1E2A] bg-gray-200custom-borderborder-white/5 hover:bg-white/10 text-gray-400 cursor-pointer"
+                                title="Forward"
+                              >
+                                <IoArrowForward size={13} />
+                              </div>
+                              {own && (
+                                <div
+                                  onClick={() => deleteMessage(msg)}
+                                  className="p-1.5 rounded-full dark:bg-[#1C1E2A] bg-gray-200custom-borderborder-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 cursor-pointer"
+                                  title="Delete"
+                                >
+                                  <IoTrash size={13} />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Message bubble */}
+                            <div
+                              className={`relative max-w-[70%] px-4 py-3 shadow-lg
+                                ${own
+                                  ? "bg-gradient-to-r from-[#5A77FF] to-[#A052FF] text-white rounded-[18px] rounded-br-md"
+                                  : "dark:bg-[#2A2B38] bg-gray-100 text-gray-700 dark:text-white rounded-[18px] rounded-bl-md"}`}
+                              onContextMenu={e => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, msg }); }}
+                            >
+                              {/* Group sender name */}
+                              {!own && isGroup && (
+                                <p className="text-[12px] font-bold text-[#A052FF] mb-1 tracking-wide">
+                                  {msg.senderName}
+                                </p>
+                              )}
+
+                              {/* Reply preview */}
+                              {msg.replyToMessage && (
+                                <div className="text-xs rounded-lg px-3 py-2 mb-2 border-l-4 bg-black/20 border-white/40 cursor-pointer">
+                                  <p className="font-bold mb-0.5 opacity-90">
+                                    {msg.replyToMessage.senderId === getUserId() ? "You" : (msg.replyToMessage.senderName || msg.senderName)}
+                                  </p>
+                                  <p className="truncate opacity-70">
+                                    {msg.replyToMessage.message || msg.replyToMessage.text || "📎 File"}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Media */}
+                              {msg.mediaUrl && <MediaBubble msg={msg} own={own} />}
+
+                              {/* Text + timestamp */}
+                              <div className="relative inline-block w-full">
+                                {msg.text && (
+                                  <p className={`text-[14px] leading-relaxed break-words whitespace-pre-wrap m-0
+                                    ${own ? "text-white" : "dark:text-gray-200 text-gray-700"}`}>
+                                    {msg.text}
+                                  </p>
+                                )}
+                                <div className="mt-1 flex items-center gap-1 justify-end text-[10px] opacity-60">
+                                  <span>{timeStr(msg.timestamp)}</span>
+                                  {own && (
+                                    msg.seen
+                                      ? <IoCheckmarkDone size={12} className="text-sky-300 opacity-100" title="Seen" />
+                                      : <IoCheckmark size={12} title="Sent" />
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Typing indicator */}
+                  {typingUser && (
+                    <div className="flex justify-start mt-3">
+                      <div className="dark:bg-[#2A2B38] bg-gray-100 rounded-[18px] rounded-bl-md px-4 py-2.5 shadow-sm flex items-center gap-2">
+                        <span className="text-xs text-gray-400">{typingUser} is typing</span>
+                        <div className="flex gap-1">
+                          {[0, 150, 300].map(d => (
+                            <span key={d} className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: `${d}ms` }} />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </>
+              )}
+            </div>
+
+            {/* Reply preview strip */}
+            {replyTo && (
+              <div className="px-6 py-3 dark:bg-[#1C1E2A] bg-gray-50 border-t border-white/5 flex items-center gap-3 flex-shrink-0">
+                <div className="flex-1 min-w-0 border-l-4 border-[#5A77FF] pl-3">
+                  <p className="text-sm font-bold text-[#5A77FF] mb-0.5">
+                    Replying to {replyTo.senderId === getUserId() ? "yourself" : replyTo.senderName}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">
+                    {replyTo.mediaUrl ? `📎 ${replyTo.originalName || "File"}` : replyTo.text}
+                  </p>
+                </div>
+                <div
+                  onClick={() => setReplyTo(null)}
+                  className="text-gray-400 hover:text p-1.5 rounded-lg hover:bg-white/5 transition-colors flex-shrink-0 cursor-pointer"
+                >
+                  <IoClose size={18} />
+                </div>
+              </div>
+            )}
+
+            {/* ── INPUT AREA ────────────────────────────────────────────────── */}
+            <div className="px-5 py-4 flex-shrink-0 z-20 w-full border-t border-white/5">
+              {pendingFile && (
+                <div className="mb-3">
+                  <FilePreview file={pendingFile} onRemove={() => { setPendingFile(null); setUploadError(null); setUploadProgress(0); }} />
+                </div>
+              )}
+
+              {isUploading && (
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-[#5A77FF] font-medium flex items-center gap-1.5">
+                      <IoCloudUpload size={13} /> Uploading…
+                    </span>
+                    <span className="text-xs text-gray-400">{uploadProgress}%</span>
+                  </div>
+                  <div className="h-1.5 dark:bg-[#1C1E2A] bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#5A77FF] to-[#A052FF] rounded-full transition-all duration-150"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {uploadError && (
+                <p className="text-xs text-red-400 font-medium mb-3 flex items-center gap-1.5">
+                  ⚠️ {uploadError}
+                  <span onClick={() => setUploadError(null)} className="cursor-pointer underline hover:text-red-300 ml-1">
+                    Dismiss
+                  </span>
+                </p>
+              )}
+
+              <div className="flex items-end gap-3">
+                <div className="flex-1 dark:bg-[#1C1E2A] bg-gray-100custom-borderborder-white/5 rounded-[14px] px-4 py-3 flex items-center min-w-0">
+                  <textarea
+                    ref={textareaRef}
+                    rows={1}
+                    value={messageText}
+                    onChange={e => { setMessageText(e.target.value); handleTyping(); }}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+                    }}
+                    placeholder={
+                      isUploading ? "Uploading…"
+                        : pendingFile ? "Add a caption… (optional)"
+                          : connectionStatus === "connected" ? "Type your message..."
+                            : "Reconnecting…"
+                    }
+                    disabled={connectionStatus !== "connected" || isUploading}
+                    className="flex-1 bg-transparent px-1 py-0.5 text-[14px] text resize-none focus:outline-none max-h-28 placeholder-gray-500 leading-snug scrollbar-hide min-w-0"
+                    style={{ fieldSizing: "content" }}
+                  />
+                </div>
+
+                {/* Attach button */}
+                <div className="relative flex-shrink-0" ref={attachMenuRef}>
+                  <button
+                    onClick={() => setShowAttachMenu(prev => !prev)}
+                    title="Attach file"
+                    className={`flex items-center gap-2 px-4 py-3 rounded-[14px] transition-all font-medium text-[14px] h-full
+                      ${showAttachMenu
+                        ? "bg-white/10 text-white"
+                        : "dark:bg-[#1C1E2A] bg-gray-100custom-borderborder-white/5 text-gray-300 hover:text hover:bg-white/5"}`}
+                  >
+                    <IoAttach size={19} />
+                    <span className="hidden sm:inline">Attach</span>
+                  </button>
+                  {showAttachMenu && (
+                    <div className="absolute bottom-full mb-2 right-0 dark:bg-[#1C1E2A] bg-white rounded-xl shadow-2xlcustom-borderborder-white/10 py-1.5 w-48 z-20 overflow-hidden">
+                      <div
+                        onClick={() => imageInputRef.current?.click()}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 cursor-pointer transition-colors"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                          <IoImage size={14} className="text-purple-400" />
+                        </div>
+                        <span className="font-medium text">Photo / Video</span>
+                      </div>
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 cursor-pointer transition-colors"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                          <IoDocument size={14} className="text-[#5A77FF]" />
+                        </div>
+                        <span className="font-medium text">Document / File</span>
+                      </div>
+                      <div className="px-4 pt-1 pb-1.5">
+                        <p className="text-[10px] text-gray-500">Max {MAX_FILE_MB} MB per file</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Send button */}
+                <button
+                  onClick={canSend ? sendMessage : undefined}
+                  disabled={!canSend}
+                  className={`flex items-center gap-2 px-5 py-3 rounded-[14px] transition-all font-semibold text-[14px] flex-shrink-0
+                    ${canSend
+                      ? "bg-gradient-to-r from-[#5A77FF] to-[#A052FF] text-white hover:opacity-90 cursor-pointer"
+                      : "dark:bg-[#1C1E2A] bg-gray-100 text-gray-500 cursor-not-allowedcustom-borderborder-white/5"}`}
+                >
+                  {isUploading
+                    ? <div className="w-4 h-4 custom-border border-white border-t-transparent rounded-full animate-spin" />
+                    : <><IoSend size={17} /> <span className="hidden sm:inline">Send</span></>}
+                </button>
+              </div>
+
+              {connectionStatus !== "connected" && (
+                <p className="text-xs text-red-400 font-medium mt-2 px-1 animate-pulse">
+                  {connectionStatus === "error"
+                    ? "⚠️ Connection failed — check your network"
+                    : "🔄 Reconnecting…"}
+                </p>
+              )}
+            </div>
+          </>
+        ) : (
+          /* Empty state */
+          <div className="flex flex-col items-center justify-center flex-1">
+            <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-5">
+              <svg className="w-12 h-12 text-[#5A77FF]/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text mb-2">Your Messages</h3>
+            <p className="text-[15px] text-gray-400 text-center max-w-xs leading-relaxed">
+              Select a conversation from the left or create a new group.
+            </p>
+            <div
+              onClick={() => setShowCreateGroup(true)}
+              className="mt-5 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#5A77FF] to-[#A052FF] text-white rounded-xl font-semibold text-sm cursor-pointer hover:opacity-90 transition-opacity"
+            >
+              <IoAdd size={18} /> New Group
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ══ GROUP MEMBERS PANEL ══════════════════════════════════════════════ */}
+      {showMembersPanel && isGroup && (
+        <div className="w-[270px]custom-borderborder-white/5 rounded-2xl flex flex-col translucent-background flex-shrink-0">
+          <div className="px-5 py-5 border-b border-white/5 flex items-center justify-between flex-shrink-0">
+            <h4 className="text-[14px] font-bold text">Members ({groupMembers.length})</h4>
+            <div className="flex items-center gap-2">
+              <div
+                onClick={() => { setShowAddMembers(true); setShowMembersPanel(false); }}
+                className="p-1.5 text-[#5A77FF] bg-[#5A77FF]/10 hover:bg-[#5A77FF]/20 rounded-lg transition-colors cursor-pointer"
+                title="Add member"
+              >
+                <IoPersonAdd size={15} />
+              </div>
+              <div
+                onClick={() => setShowMembersPanel(false)}
+                className="p-1.5 text-gray-400 hover:text rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                <IoClose size={17} />
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto py-2 scrollbar-hide">
+            {groupMembers.length === 0 ? (
+              <div className="flex justify-center py-8">
+                <div className="w-5 h-5 custom-border border-[#5A77FF] border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              groupMembers.map(member => {
+                const mid = member.id ?? member.userId;
+                const isSelf = mid === getUserId();
+                const isOnline = member.onlineStatus === "online" || member.onlineSatus === "online";
+                return (
+                  <div
+                    key={mid}
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors group"
+                  >
+                    <div className="relative flex-shrink-0">
+                      <Avatar entity={member} size={9} />
+                      {isOnline && (
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full custom-border border-[#161821]" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text truncate">
+                        {getFullName(member)}{isSelf ? " (You)" : ""}
+                      </p>
+                      <p className={`text-[11px] truncate mt-0.5 ${isOnline ? "text-emerald-400" : "text-gray-500"}`}>
+                        {isOnline ? "Online" : (member.role || "Member")}
+                      </p>
+                    </div>
+                    {!isSelf && (
+                      <div
+                        onClick={() => removeMember(mid)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-lg transition-all cursor-pointer flex-shrink-0"
+                        title="Remove member"
+                      >
+                        <IoPersonRemove size={14} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
 
-      {/* Notification slide-in animation */}
-      <style>{`
-        @keyframes slideInRight {
-          from { transform: translateX(110%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-      `}</style>
+      {/* ══ NOTIFICATION TOASTS ══════════════════════════════════════════════ */}
+      {notifications.length > 0 && (
+        <div className="fixed top-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none">
+          {notifications.map(n => (
+            <div key={n.id} className="pointer-events-auto">
+              <NotificationToast notification={n} onDismiss={dismissNotification} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

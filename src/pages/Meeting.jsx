@@ -2,18 +2,19 @@ import React, { useEffect, useState, useContext } from "react";
 import Table from "../components/Table";
 import Toast from "../components/Toast";
 import { AuthContext } from "../context/AuthProvider";
+import { motion } from "framer-motion";
 import { adminApi, meetingApi } from "../api";
 import Loader from "../components/Loader";
-import { 
-  CalendarPlus, 
-  Download, 
-  Search, 
-  Users, 
-  X, 
-  CalendarClock, 
-  Building2, 
-  User, 
-  Phone, 
+import {
+  CalendarPlus,
+  Download,
+  Search,
+  Users,
+  X,
+  CalendarClock,
+  Building2,
+  User,
+  Phone,
   Mail,
   ChevronRight
 } from "lucide-react";
@@ -28,7 +29,7 @@ export default function MeetingManagement() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("All Time");
   const [selectedSalesperson, setSelectedSalesperson] = useState(null);
-  
+
   // ✅ Backend pagination state
   const [meetings, setMeetings] = useState([]); // current page only
   const [totalMeetings, setTotalMeetings] = useState(0);
@@ -56,9 +57,9 @@ export default function MeetingManagement() {
     );
   });
 
-  useEffect(()=>{
-    window.scrollTo(0,0);
-  },[])
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [])
 
   // Fetch managers (admin only) - unchanged
   const fetchManagers = async () => {
@@ -169,15 +170,15 @@ export default function MeetingManagement() {
 
       const res = await meetingApi.assignMeeting(payload);
       if (res.data?.success) {
-  Toast.success("Meeting scheduled successfully!");
-  setIsScheduleModalOpen(false);
-  resetScheduleForm();
-  // ✅ Just refetch by "refreshing" the current state
-  // Option A (recommended): Reset to page 1 to see new meeting
-  setCurrentPage(1);
-  // OR
-  // Option B: Keep current page — but risk missing if new meeting pushes total
-} else {
+        Toast.success("Meeting scheduled successfully!");
+        setIsScheduleModalOpen(false);
+        resetScheduleForm();
+        // ✅ Just refetch by "refreshing" the current state
+        // Option A (recommended): Reset to page 1 to see new meeting
+        setCurrentPage(1);
+        // OR
+        // Option B: Keep current page — but risk missing if new meeting pushes total
+      } else {
         Toast.error(res.data?.message || "Failed to schedule meeting.");
       }
     } catch (error) {
@@ -203,14 +204,14 @@ export default function MeetingManagement() {
 
   // Fetch meetings when dependencies change
   useEffect(() => {
-  if (selectedSalesperson) {
-    setMeetings([]); // ✅ Clear immediately
-    fetchMeetings(selectedSalesperson.id, currentPage, globalSearch, activeTab);
-  } else {
-    setMeetings([]);
-    setTotalMeetings(0);
-  }
-}, [selectedSalesperson, currentPage, globalSearch, activeTab]);
+    if (selectedSalesperson) {
+      setMeetings([]); // ✅ Clear immediately
+      fetchMeetings(selectedSalesperson.id, currentPage, globalSearch, activeTab);
+    } else {
+      setMeetings([]);
+      setTotalMeetings(0);
+    }
+  }, [selectedSalesperson, currentPage, globalSearch, activeTab]);
 
   // Reset to page 1 on filter/tab change
   useEffect(() => {
@@ -252,27 +253,19 @@ export default function MeetingManagement() {
       <Toaster position="top-right" />
 
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
-            Meeting Management
-          </h1>
-          <p className="text-sm text-slate-500 mt-1 font-medium">
-            Schedule and track meetings for your sales team.
-          </p>
-        </div>
-        
+      <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4 py-4">
+
         <div className="flex flex-wrap items-center gap-3">
           {selectedSalesperson && totalMeetings > 0 && (
             <div
               onClick={handleExportMeetings}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
+              className="inline-flex items-center gap-2 px-4 py-2.5 translucentcustom-borderborder-slate-200 text rounded-xl text-sm font-semibold hover:translucent transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
             >
               <Download className="w-4 h-4" />
               Export CSV
             </div>
           )}
-          <div
+          <button
             onClick={() => {
               if (!selectedSalesperson) {
                 Toast.error("Please select a salesperson first.");
@@ -280,22 +273,22 @@ export default function MeetingManagement() {
               }
               setIsScheduleModalOpen(true);
             }}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all px-5 py-2.5 rounded-xl text-sm"
+            className="inline-flex items-center gap-2 bg-violet-violet hover:bg-violet-700 font-semibold shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all px-5 py-2.5 rounded-xl text-sm"
           >
             <CalendarPlus className="w-4 h-4" />
             Schedule Meeting
-          </div>
+          </button>
         </div>
       </div>
 
       {/* Main Split View */}
       <div className="flex-1 flex flex-col lg:flex-row gap-4 overflow-hidden min-h-0">
-        
+
         {/* Left Panel: Team List */}
-        <div className="w-full lg:w-[300px] flex flex-col h-[40vh] lg:h-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden shrink-0">
-          
-          <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">
+        <div className="w-full lg:w-[300px] flex flex-col h-[40vh] lg:h-full translucent rounded-2xl shadow-smcustom-borderborder-slate-200 overflow-hidden shrink-0">
+
+          <div className="p-4 custom-border-bottom border-slate-100">
+            <h2 className="text-sm font-bold uppercase tracking-wider text mb-4">
               {isAdmin ? "Select Team Member" : "My Team"}
             </h2>
 
@@ -315,7 +308,7 @@ export default function MeetingManagement() {
                       setSalespersons([]);
                     }
                   }}
-                  className="w-full pl-3 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 appearance-none focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all cursor-pointer"
+                  className="w-full pl-3 pr-8 py-2.5 translucent-inner custom-borderborder-slate-200 rounded-xl text-sm font-medium text appearance-none focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all cursor-pointer"
                 >
                   <option value="" disabled>Select a Manager</option>
                   {managers.map((m) => (
@@ -328,22 +321,20 @@ export default function MeetingManagement() {
             )}
 
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+
               <input
                 type="text"
                 placeholder="Search team..."
                 value={globalSearch}
                 onChange={(e) => setGlobalSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                className="w-full pl-9 pr-4 py-2 translucent-inner custom-border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all"
               />
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-10 text-slate-500">
-                <Loader />
-              </div>
+              <Loader />
             ) : filteredSalespersons.length > 0 ? (
               <div className="flex flex-col gap-1">
                 {filteredSalespersons.map((sp) => {
@@ -356,28 +347,26 @@ export default function MeetingManagement() {
                         setCurrentPage(1);
                         fetchMeetings(sp.id, 1, globalSearch, activeTab);
                       }}
-                      className={`group relative flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 ${
-                        isSelected
-                          ? "bg-blue-50/80 border border-blue-200"
-                          : "bg-white border border-transparent hover:bg-slate-50 hover:border-slate-200"
-                      }`}
+                      className={`group relative flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 ${isSelected
+                        ? "translucent custom-border border-violet-200"
+                        : "custom-border border-transparent hover:translucent hover:border-slate-200"
+                        }`}
                     >
                       <div className="flex items-center gap-3 overflow-hidden">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                          isSelected ? "bg-blue-600 text-white shadow-md shadow-blue-500/30" : "bg-slate-100 text-slate-600"
-                        }`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isSelected ? "bg-violet-600 text-white shadow-md shadow-violet-500/30" : "custom-border"
+                          }`}>
                           {sp.firstName?.charAt(0)}{sp.lastName?.charAt(0)}
                         </div>
                         <div className="min-w-0">
-                          <p className={`text-sm font-semibold truncate capitalize ${isSelected ? "text-blue-900" : "text-slate-800"}`}>
+                          <p className={`text-sm font-semibold truncate capitalize ${isSelected ? "text" : "text"}`}>
                             {sp.firstName} {sp.lastName}
                           </p>
-                          <p className={`text-xs truncate mt-0.5 ${isSelected ? "text-blue-600" : "text-slate-500"}`}>
+                          <p className={`text-xs truncate mt-0.5 ${isSelected ? "text-violet-600" : "text"}`}>
                             {sp.email}
                           </p>
                         </div>
                       </div>
-                      {isSelected && <ChevronRight className="w-4 h-4 text-blue-500 shrink-0" />}
+                      {isSelected && <ChevronRight className="w-4 h-4 text-violet-500 shrink-0" />}
                     </div>
                   );
                 })}
@@ -385,8 +374,8 @@ export default function MeetingManagement() {
             ) : (
               <div className="flex flex-col items-center justify-center h-full py-10 text-center px-4">
                 <Users className="w-12 h-12 text-slate-200 mb-3" />
-                <p className="text-sm font-medium text-slate-500">
-                  {isAdmin 
+                <p className="text-sm font-medium text">
+                  {isAdmin
                     ? (selectedManager ? "No team members found." : "Select a manager first.")
                     : "No team members found."
                   }
@@ -394,50 +383,49 @@ export default function MeetingManagement() {
               </div>
             )}
           </div>
-          
+
           {/* Quick Stats Footer */}
-          <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+          <div className="p-4 custom-border-top flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-xs font-bold text-slate-400 uppercase">Team Size</span>
-              <span className="text-lg font-black text-slate-800">{filteredSalespersons.length}</span>
+              <span className="text-lg font-black text">{filteredSalespersons.length}</span>
             </div>
             <div className="flex flex-col text-right">
               <span className="text-xs font-bold text-slate-400 uppercase">Total Meetings</span>
-              <span className="text-lg font-black text-blue-600">{totalMeetings}</span>
+              <span className="text-lg font-black text-violet-600">{totalMeetings}</span>
             </div>
           </div>
 
         </div>
 
         {/* Right Panel: Meetings Table */}
-        <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
-          
+        <div className="flex-1 flex flex-col translucent rounded-2xl shadow-smcustom-borderborder-slate-200 overflow-hidden relative">
+
           {selectedSalesperson ? (
             <>
               {/* Right Panel Header */}
-              <div className="p-5 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-slate-50/30">
+              <div className="p-5custom-border-bottom border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-blue-100 text-blue-600 rounded-xl">
+                  <div className="p-2.5 text-violet-600 rounded-xl custom-border">
                     <CalendarClock className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-800">
+                    <h3 className="text-lg font-bold text">
                       <span className="capitalize">{selectedSalesperson.firstName} {selectedSalesperson.lastName}</span>'s Meetings
                     </h3>
                   </div>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex bg-slate-100 p-1 rounded-xl">
+                <div className="flex p-1 rounded-xl justify-center items-center">
                   {["All Time", "Today", "This Week", "This Month"].map((tab) => (
                     <div
                       key={tab}
                       onClick={() => setActiveTab(tab)}
-                      className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                        activeTab === tab
-                          ? "bg-white text-blue-600 shadow-sm"
-                          : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                      }`}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeTab === tab
+                        ? "text-white shadow-sm bg-violet-600 px-4 py-2"
+                        : "text hover:text hover:bg-slate-200/50"
+                        }`}
                     >
                       {tab}
                     </div>
@@ -449,52 +437,52 @@ export default function MeetingManagement() {
               <div className="flex-1 overflow-auto custom-scrollbar p-0 relative">
                 <Table
                   columns={[
-                    { 
-                      key: "companyName", 
-                      label: "Company", 
+                    {
+                      key: "companyName",
+                      label: "Company",
                       render: (row) => (
-                        <div className="font-medium text-slate-800 flex items-center gap-2">
+                        <div className="font-medium text flex items-center gap-2">
                           <Building2 className="w-4 h-4 text-slate-400" />
-                          {row.companyName || "—"}
+                          {row.name || "—"}
                         </div>
-                      ) 
+                      )
                     },
-                    { 
-                      key: "personName", 
-                      label: "Contact", 
+                    {
+                      key: "personName",
+                      label: "Contact",
                       render: (row) => (
-                        <div className="capitalize flex items-center gap-2 text-slate-700">
+                        <div className="capitalize flex items-center gap-2 text">
                           <User className="w-4 h-4 text-slate-400" />
-                          {row.personName || "—"}
+                          {row.mobile || "—"}
                         </div>
-                      ) 
+                      )
                     },
-                    { 
-                      key: "mobileNumber", 
-                      label: "Mobile", 
+                    {
+                      key: "mobileNumber",
+                      label: "Mobile",
                       render: (row) => (
-                        <div className="flex items-center gap-2 text-slate-600">
+                        <div className="flex items-center gap-2 text">
                           <Phone className="w-3.5 h-3.5 text-slate-400" />
-                          {row.mobileNumber || "—"}
+                          {row.mobile || "—"}
                         </div>
-                      ) 
+                      )
                     },
-                    { 
-                      key: "companyEmail", 
-                      label: "Email", 
+                    {
+                      key: "companyEmail",
+                      label: "Email",
                       render: (row) => (
-                        <div className="break-words flex items-center gap-2 text-slate-600">
+                        <div className="break-words flex items-center gap-2 text">
                           <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate max-w-[150px]" title={row.companyEmail}>{row.companyEmail || "—"}</span>
+                          <span className="truncate max-w-[150px]" title={row.email}>{row.email || "—"}</span>
                         </div>
-                      ) 
+                      )
                     },
                     {
                       key: "meetingTimeIn",
                       label: "Check-in",
                       render: (row) =>
                         row.meetingTimeIn ? (
-                          <span className="inline-flex px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-700">
+                          <span className="inline-flex px-2.5 py-1 rounded-md text-xs font-semibold translucent text">
                             {new Date(row.meetingTimeIn).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                           </span>
                         ) : "—",
@@ -504,7 +492,7 @@ export default function MeetingManagement() {
                       label: "Check-out",
                       render: (row) =>
                         row.meetingTimeOut ? (
-                          <span className="inline-flex px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 text-slate-700">
+                          <span className="inline-flex px-2.5 py-1 rounded-md text-xs font-semibold translucent text">
                             {new Date(row.meetingTimeOut).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                           </span>
                         ) : "—",
@@ -521,22 +509,18 @@ export default function MeetingManagement() {
 
                 {/* Loading Overlay */}
                 {meetingsLoading && (
-                  <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-10 transition-all duration-300">
-                    <div className="bg-white p-4 rounded-xl shadow-lg border border-slate-100 flex items-center gap-3">
-                      <Loader /> <span className="text-sm font-semibold text-slate-600">Fetching meetings...</span>
-                    </div>
-                  </div>
+                  <Loader />
                 )}
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full py-10 text-center px-4 bg-slate-50/50">
-              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100 mb-4">
-                <Users className="w-10 h-10 text-blue-400" />
+            <div className="flex flex-col items-center justify-center h-full py-10 text-center px-4 custom-border">
+              <div className="w-20 h-20 translucent rounded-full flex items-center justify-center shadow-smcustom-borderborder-slate-100 mb-4">
+                <Users className="w-10 h-10 text-violet-600" />
               </div>
-              <h3 className="text-xl font-bold text-slate-800 mb-2">No Team Member Selected</h3>
-              <p className="text-sm font-medium text-slate-500 max-w-sm">
-                {isAdmin 
+              <h3 className="text-xl font-bold text mb-2">No Team Member Selected</h3>
+              <p className="text-sm font-medium text max-w-sm">
+                {isAdmin
                   ? "Select a manager, then select a salesperson from the left panel to view and manage their meetings."
                   : "Select a salesperson from the left panel to view their assigned meetings and schedule."}
               </p>
@@ -547,13 +531,13 @@ export default function MeetingManagement() {
 
       {/* Schedule Meeting Modal */}
       {isScheduleModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md border border-slate-100 relative overflow-hidden animate-in zoom-in-95 duration-200">
-            
+        <div className="fixed inset-0 flex items-center justify-center z-50 theblur p-4 animate-in fade-in duration-200 ">
+          <div className="rounded-2xl shadow-2xl max-w-xl w-full relative overflow-hidden animate-in zoom-in-95 duration-200 popup-card">
+
             {/* Modal Header */}
-            <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50/50">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <CalendarPlus className="w-5 h-5 text-blue-500" />
+            <div className="flex justify-between items-center px-6 py-5 custom-border-bottom custom-border">
+              <h2 className="text-lg font-bold text flex items-center gap-2">
+                <CalendarPlus className="w-5 h-5 text-violet-500" />
                 Schedule Meeting
               </h2>
               <div
@@ -561,23 +545,23 @@ export default function MeetingManagement() {
                   setIsScheduleModalOpen(false);
                   resetScheduleForm();
                 }}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors focus:outline-none"
+                className="p-2 text-slate-400 hover:text hover:translucent rounded-full transition-colors focus:outline-none"
               >
                 <X size={20} />
               </div>
             </div>
 
             <div className="p-6 space-y-5">
-              
+
               {/* Selected Assignee Badge */}
               {selectedSalesperson && (
-                <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
+                <div className="custom-border border-violet-100 p-4 rounded-xl flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center font-bold text-sm">
                     {selectedSalesperson.firstName?.charAt(0)}{selectedSalesperson.lastName?.charAt(0)}
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-0.5">Assigning To</p>
-                    <p className="text-sm font-bold text-blue-900 capitalize">
+                    <p className="text-xs font-bold text-violet-400 uppercase tracking-wider mb-0.5">Assigning To</p>
+                    <p className="text-sm font-bold text-violet-900 capitalize">
                       {selectedSalesperson.firstName} {selectedSalesperson.lastName}
                     </p>
                   </div>
@@ -586,15 +570,13 @@ export default function MeetingManagement() {
 
               {/* Select Meeting */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                <label className="block text-sm font-semibold text mb-1.5">
                   Select Client / Meeting <span className="text-red-500">*</span>
                 </label>
                 {meetingsForDropdownLoading ? (
-                  <div className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm font-medium flex items-center gap-2">
-                    <Loader /> Loading clients...
-                  </div>
+                  <div className="w-full flex justify-center items-center">Loading Clients</div>
                 ) : availableMeetings.length === 0 ? (
-                  <div className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 text-sm font-medium">
+                  <div className="w-full px-4 py-3custom-borderborder-slate-200 rounded-xl translucent text text-sm font-medium">
                     No available clients found.
                   </div>
                 ) : (
@@ -604,19 +586,19 @@ export default function MeetingManagement() {
                       name="meetingId"
                       value={scheduleForm.meetingId}
                       onChange={handleScheduleInputChange}
-                      className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 appearance-none focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all cursor-pointer"
+                      className="w-full pl-10 pr-10 py-3 translucentcustom-borderborder-slate-200 rounded-xl text-sm font-medium text appearance-none focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all cursor-pointer"
                     >
                       <option value="" disabled>Select a client meeting</option>
                       {availableMeetings.map((meeting) => (
                         <option key={meeting.id} value={meeting.id}>
-                          {meeting.companyName || "Unnamed Company"}
+                          {meeting.name || "Unnamed Company"}
                           {meeting.personName ? ` - ${meeting.personName}` : ""}
                         </option>
                       ))}
                     </select>
                     {/* Custom Select Arrow */}
                     <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 dark:text-slate-400 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                       </svg>
                     </div>
@@ -626,7 +608,7 @@ export default function MeetingManagement() {
 
               {/* Select Time */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                <label className="block text-sm font-semibold text mb-1.5">
                   Scheduled Time <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -636,39 +618,38 @@ export default function MeetingManagement() {
                     name="scheduledTime"
                     value={scheduleForm.scheduledTime}
                     onChange={handleScheduleInputChange}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl text-sm font-medium text focus:outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all"
                   />
                 </div>
               </div>
             </div>
 
             {/* Modal Actions */}
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-slate-100 custom-border rounded-2xl flex justify-end gap-3">
               <div
                 type="div"
                 onClick={() => {
                   setIsScheduleModalOpen(false);
                   resetScheduleForm();
                 }}
-                className="px-5 py-2.5 text-sm font-semibold text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200"
+                className="px-5 py-2.5 text-sm font-semibold text translucent custom-border rounded-xl hover:translucent transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200"
               >
                 Cancel
               </div>
-              <div
+              <button
                 type="div"
                 onClick={handleScheduleMeeting}
                 disabled={scheduleLoading || !scheduleForm.meetingId || !scheduleForm.scheduledTime}
-                className="px-5 py-2.5 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2"
+                className="px-5 py-2.5 text-sm font-semibold bg-violet-600 rounded-xl hover:bg-violet-700 disabled:bg-slate-300 disabled:text disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2"
               >
                 {scheduleLoading ? (
                   <>
-                    <Loader />
-                    Scheduling...
+                    Please wait ...
                   </>
                 ) : (
                   "Schedule Meeting"
                 )}
-              </div>
+              </button>
             </div>
           </div>
         </div>

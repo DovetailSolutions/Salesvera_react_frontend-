@@ -1,56 +1,50 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import SidePanel from "./SidePanel";
 import { Outlet } from "react-router-dom";
 import Topbar from "./Topbar";
 import Footer from "./Footer";
-import { AuthContext } from "../context/AuthProvider"; 
+import { AuthContext } from "../context/AuthProvider";
 import Loader from "./Loader";
 
 export default function Layout({ routes }) {
   const { loading } = useContext(AuthContext);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0b1120]">
         <Loader />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800 selection:bg-blue-500 selection:text-white">
-      
-      {/* Sidebar Navigation */}
-      <SidePanel routes={routes} />
-      
-      {/* Main Content Wrapper 
-        - ml-64 (16rem/256px) matches the w-64 of the fixed SidePanel perfectly.
-        - flex flex-col ensures the Footer is always pushed to the bottom.
-      */}
-      <main className="flex-1 flex flex-col min-h-screen ml-64 transition-all duration-300 w-[calc(100%-16rem)]">
-        
-        {/* Topbar Wrapper - Sticky to top for easy access while scrolling */}
-        <div className="w-full flex justify-center items-center h-[40px] fixed z-20 bg-white/50 top-0 left-0 backdrop-blur-lg"></div>
-        <div className="sticky top-0 z-30 px-2">
-          <Topbar />
-        </div>
+    <div className="bg-slate-50 dark:bg-[#0b1120]">
+      <div className="relative min-h-screen w-full flex bg-slate-50 dark:bg-[#0b1120] font-sans selection:bg-blue-500 selection:text-white text-slate-800 dark:text-slate-200 overflow-x-hidden">
 
-        {/* Page Content Area 
-          - Added padding (p-6 md:p-8) so content breathes.
-          - max-w-7xl prevents ultra-wide monitors from stretching UI too far.
-        */}
-        <div className="flex-1 p-4 py-2 overflow-x-hidden">
-          <div className="max-w-7xl mx-auto w-full h-full animate-in fade-in duration-500">
-            <Outlet />
+        {/* --- Ambient Background Gradients --- */}
+        <div className="pointer-events-none fixed top-[-15%] left-[5%] w-[800px] h-[600px] rounded-full bg-indigo-500/10 dark:bg-indigo-600/10 blur-[120px] z-0" />
+        <div className="pointer-events-none fixed top-[20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-violet-500/10 dark:bg-indigo-600/15 blur-[120px] z-0" />
+        {/* ------------------------------------ */}
+
+        {/* Sidebar */}
+        <SidePanel routes={routes} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+        {/* Main Content Area */}
+        {/* FIX: Changed ml-[260px] to lg:ml-[260px] so it takes full screen on mobile */}
+        <main className="flex-1 flex flex-col min-h-screen transition-all duration-300 relative z-10 w-full lg:ml-[260px]">
+          <div className="flex-1 flex flex-col px-4 overflow-x-hidden">
+            <div className="sticky top-0 z-10">
+              <Topbar onOpenSidebar={() => setSidebarOpen(true)} routes={routes} />
+            </div>
+
+            <div className="flex-1 w-full mx-auto animate-in fade-in duration-500">
+              <Outlet />
+            </div>
           </div>
-        </div>
-
-        {/* Footer Container */}
-        <div className="mt-auto border-slate-200 bg-white/50 backdrop-blur-sm mx-2">
           <Footer />
-        </div>
-        
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

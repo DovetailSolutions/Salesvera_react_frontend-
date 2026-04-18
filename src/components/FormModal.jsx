@@ -22,12 +22,12 @@ const FormModal = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 ">
         {fields.map((field) => {
           const { name, label, type = "text", placeholder, required = false, options } = field;
 
           return (
-            <div key={name}>
+            <div className="" key={name}>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {label} {required && <span className="text-red-500">*</span>}
               </label>
