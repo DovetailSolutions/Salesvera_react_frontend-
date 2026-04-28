@@ -358,7 +358,14 @@ export default function CreateQuotationModal({
                 const payload = {
                     quotationId: invoiceData.id || invoiceData._id,
                     type: formData.type || "item",
-                    tallyInvoiceNumber: formData.tallyInvoiceNumber || "",
+                    tallyInvoiceNumber: (() => {
+                        const now = new Date();
+                        const pad = (n) => String(n).padStart(2, "0");
+                        const datePart =
+                            `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
+                            `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+                        return `${datePart}${nanoid(6).toUpperCase()}`;
+                    })(),
                     QuotationNumber: invoiceData.quotation?.quotationNumber || invoiceData.quotationNumber || "",
                     QuotationDate: invoiceData.quotation?.date || invoiceData.createdAt?.split('T')[0] || "",
                     referenceNumber: formData.referenceNumber || invoiceData.referenceNumber || invoiceData.quotation?.referenceNumber || "",

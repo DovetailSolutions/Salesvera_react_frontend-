@@ -3,6 +3,8 @@ import toast from "react-hot-toast";
 import { X, Plus, Trash2, Search, Copy } from "lucide-react";
 import { menuapi, quotationApi, authApi } from "../api"; // Ensure invoiceApi is exported in your api file
 import Loader from "./Loader";
+import { nanoid } from "nanoid";
+
 
 export default function CreateQuotationModal({
     isOpen,
@@ -28,7 +30,7 @@ export default function CreateQuotationModal({
 
     const initialFormState = {
         type: "item",
-        tallyInvoiceNumber: "",
+        tallyInvoiceNumber: Date.now(),
         QuotationNumber: "",
         referenceNumber: "",
         companyName: "",
@@ -84,7 +86,7 @@ export default function CreateQuotationModal({
 
             setFormData({
                 type: qt.type || "item",
-                tallyInvoiceNumber: qt.tallyQuotationNumber || "",
+                tallyInvoiceNumber: Date.now() || "",
                 QuotationNumber: rootData.quotationNumber || qt.quotationNumber || "",
                 referenceNumber: qt.referenceNumber || rootData.referenceNumber || "",
                 companyName: qt.companyName || "",
@@ -391,7 +393,7 @@ export default function CreateQuotationModal({
                 cgst: totals.cgst,
                 sgst: totals.sgst,
                 igst: totals.igst,
-                discount: totals.calculatedOverallDiscount,
+                overallDiscount: totals.calculatedOverallDiscount,
                 totalValue: totals.totalValue,
 
                 bankName: formData.bankName,
@@ -411,6 +413,8 @@ export default function CreateQuotationModal({
 
             if (isInvoiceMode) {
                 payload.quotationId = invoiceData.id || invoiceData._id;
+                payload.tallyInvoiceNumber = Date.now()
+                payload.overallDiscount = totals.calculatedOverallDiscount;
                 await quotationApi.createInvoice(payload);
                 toast.success("Invoice prepared successfully", { id: loadingToast });
             } else {
@@ -639,7 +643,7 @@ export default function CreateQuotationModal({
 
                                         <div className="sm:col-span-1">
                                             <label className="block text-xs font-medium text-slate-500 mb-1">Disc(%)</label>
-                                            <input disabled={isInvoiceMode} type="number" min="0" value={item.discount} onChange={(e) => handleItemChange(index, 'discount', e.target.value)} className="w-full px-3 py-2  custom-border custom-border-slate-200 rounded-lg text-sm disabled:opacity-60" />
+                                            <input disabled={isInvoiceMode} type="number" min="0" value={item.overallDiscount} onChange={(e) => handleItemChange(index, 'discount', e.target.value)} className="w-full px-3 py-2  custom-border custom-border-slate-200 rounded-lg text-sm disabled:opacity-60" />
                                         </div>
 
                                         <div className="sm:col-span-1 flex justify-end">

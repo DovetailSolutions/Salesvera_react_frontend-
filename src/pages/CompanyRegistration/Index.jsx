@@ -13,65 +13,65 @@ import Step5 from "./steps/Step5";
 import Step6 from "./steps/Step6";
 
 const buildCompanyPayload = (data) => ({
-  companyName:              data.companyName,
-  legalName:                data.legalName,
-  registrationNo:           data.registrationNo,
-  gst:                      data.gst              || "",
-  pan:                      data.pan,
-  industry:                 data.industry,
-  companySize:              data.companySize,
-  website:                  data.website          || "",
-  companyEmail:             data.companyEmail,
-  companyPhone:             data.companyPhone,
-  timezone:                 data.timezone,
-  currency:                 data.currency,
-  bankAccountHolder:        data.bankAccountHolder,
-  bankName:                 data.bankName,
-  bankAccountNumber:        data.bankAccountNumber,
-  bankIfsc:                 data.bankIfsc,
-  bankBranchName:           data.bankBranchName   || "",
-  bankAccountType:          data.bankAccountType,
-  bankMicr:                 data.bankMicr         || "",
-  upiId:                    data.upiId            || "",
-  payrollCycle:             data.payrollCycle,
-  lateMarkAfter:            Number(data.lateMarkAfter)            || 0,
-  autoHalfDayAfter:         Number(data.autoHalfDayAfter)         || 0,
-  casualHolidaysTotal:      Number(data.casualHolidaysTotal)      || 0,
-  casualHolidaysPerMonth:   Number(data.casualHolidaysPerMonth)   || 0,
-  casualHolidayNotice:      Number(data.casualHolidayNotice)      || 0,
-  compOffMinHours:          Number(data.compOffMinHours)          || 0,
-  compOffExpiryDays:        Number(data.compOffExpiryDays)        || 0,
-  casualCarryForwardLimit:  Number(data.casualCarryForwardLimit)  || 0,
+  companyName: data.companyName,
+  legalName: data.legalName,
+  registrationNo: data.registrationNo,
+  gst: data.gst || "",
+  pan: data.pan,
+  industry: data.industry,
+  companySize: data.companySize,
+  website: data.website || "",
+  companyEmail: data.companyEmail,
+  companyPhone: data.companyPhone,
+  timezone: data.timezone,
+  currency: data.currency,
+  bankAccountHolder: data.bankAccountHolder,
+  bankName: data.bankName,
+  bankAccountNumber: data.bankAccountNumber,
+  bankIfsc: data.bankIfsc,
+  bankBranchName: data.bankBranchName || "",
+  bankAccountType: data.bankAccountType,
+  bankMicr: data.bankMicr || "",
+  upiId: data.upiId || "",
+  payrollCycle: data.payrollCycle,
+  lateMarkAfter: Number(data.lateMarkAfter) || 0,
+  autoHalfDayAfter: Number(data.autoHalfDayAfter) || 0,
+  casualHolidaysTotal: Number(data.casualHolidaysTotal) || 0,
+  casualHolidaysPerMonth: Number(data.casualHolidaysPerMonth) || 0,
+  casualHolidayNotice: Number(data.casualHolidayNotice) || 0,
+  compOffMinHours: Number(data.compOffMinHours) || 0,
+  compOffExpiryDays: Number(data.compOffExpiryDays) || 0,
+  casualCarryForwardLimit: Number(data.casualCarryForwardLimit) || 0,
   casualCarryForwardExpiry: Number(data.casualCarryForwardExpiry) || 0,
 });
 
 const buildBranchPayload = (branch) => ({
-  branchName:    branch.branchName,
-  branchCode:    branch.branchCode,
-  branchCity:    branch.branchCity,
-  branchState:   branch.branchState,
+  branchName: branch.branchName,
+  branchCode: branch.branchCode,
+  branchCity: branch.branchCity,
+  branchState: branch.branchState,
   branchCountry: branch.branchCountry,
-  postalCode:    branch.postalCode,
-  addressLine1:  branch.addressLine1,
-  addressLine2:  branch.addressLine2  || "",
-  branchEmail:   branch.branchEmail   || "",
-  branchPhone:   branch.branchPhone   || "",
-  latitude:      Number(branch.latitude)   || 0,
-  longitude:     Number(branch.longitude)  || 0,
-  geoRadius:     Number(branch.geoRadius)  || 0,
+  postalCode: branch.postalCode,
+  addressLine1: branch.addressLine1,
+  addressLine2: branch.addressLine2 || "",
+  branchEmail: branch.branchEmail || "",
+  branchPhone: branch.branchPhone || "",
+  latitude: Number(branch.latitude) || 0,
+  longitude: Number(branch.longitude) || 0,
+  geoRadius: Number(branch.geoRadius) || 0,
 });
 
 const buildShiftPayload = (shift, companyId, branchId) => ({
   companyId,
   branchId,
-  shiftName:    shift.shiftName,
-  shiftCode:    shift.shiftCode,
-  startTime:    shift.startTime,
-  endTime:      shift.endTime,
-  graceTime:    Number(shift.graceTime)    || 0,
+  shiftName: shift.shiftName,
+  shiftCode: shift.shiftCode,
+  startTime: shift.startTime,
+  endTime: shift.endTime,
+  graceTime: Number(shift.graceTime) || 0,
   halfDayHours: Number(shift.halfDayHours) || 4,
   fullDayHours: Number(shift.fullDayHours) || 8,
-  nightShift:   !!shift.nightShift,
+  nightShift: !!shift.nightShift,
 });
 
 const STEP1_FIELDS = [
@@ -117,16 +117,16 @@ export default function CompanyRegister() {
   }
 
   const [currentStep, setCurrentStep] = useState(initialDraft?.meta?.currentStep || 1);
-  const [submitted,   setSubmitted]   = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   // Per-step save state
   const [stepLoading, setStepLoading] = useState(false);
-  const [stepError,   setStepError]   = useState(null);
+  const [stepError, setStepError] = useState(null);
 
   // IDs returned by APIs – needed by later steps
   const [companyId, setCompanyId] = useState(initialDraft?.meta?.companyId || null);
   const [branchIds, setBranchIds] = useState(initialDraft?.meta?.branchIds || []);
-  const [adminId,   setAdminId]   = useState(initialDraft?.meta?.adminId   || null); // <-- NEW: Track Admin ID
+  const [adminId, setAdminId] = useState(initialDraft?.meta?.adminId || null); // <-- NEW: Track Admin ID
 
   // Which steps have already been persisted to the backend
   const [savedSteps, setSavedSteps] = useState(new Set(initialDraft?.meta?.savedSteps || []));
@@ -141,17 +141,17 @@ export default function CompanyRegister() {
     formState: { errors },
   } = useForm({
     defaultValues: initialDraft?.formData || {
-      country:     "IN",
-      branches:    [{ ...DEFAULT_BRANCH }],
-      shifts:      [],
+      country: "IN",
+      branches: [{ ...DEFAULT_BRANCH }],
+      shifts: [],
       departments: [],
-      leaveTypes:  [],
-      holidays:    [],
+      leaveTypes: [],
+      holidays: [],
     },
   });
 
   // ── Auto-Save to Local Storage ─────────────────────────────────────────────
-  
+
   const saveToLocalStorage = (formData) => {
     const meta = {
       currentStep,
@@ -175,20 +175,20 @@ export default function CompanyRegister() {
   }, [currentStep, savedSteps, companyId, branchIds, adminId]);
 
   // ── Clear Draft Logic ──────────────────────────────────────────────────────
-  
+
   const handleClearDraft = () => {
     if (!window.confirm("Are you sure you want to clear all existing data? You will need to start over.")) return;
-    
+
     localStorage.removeItem(DRAFT_KEY);
-    
+
     // Reset React Hook Form
     reset({
-      country:     "IN",
-      branches:    [{ ...DEFAULT_BRANCH }],
-      shifts:      [],
+      country: "IN",
+      branches: [{ ...DEFAULT_BRANCH }],
+      shifts: [],
       departments: [],
-      leaveTypes:  [],
-      holidays:    [],
+      leaveTypes: [],
+      holidays: [],
     });
 
     // Reset Component State
@@ -202,7 +202,7 @@ export default function CompanyRegister() {
 
   // ── Per-step save functions ───────────────────────────────────────────────
 
-const saveStep1 = async () => {
+  const saveStep1 = async () => {
     const valid = await trigger(STEP1_FIELDS);
     if (!valid) return false;
 
@@ -225,9 +225,9 @@ const saveStep1 = async () => {
       };
 
       // Extract adminId from the registration response
-      const authRes = await authApi.register(userPayload); 
-      const newAdminId = authRes.data?.data?.item?.id; 
-      
+      const authRes = await authApi.register(userPayload);
+      const newAdminId = authRes.data?.data?.item?.id;
+
       if (newAdminId) {
         setAdminId(newAdminId);
       }
@@ -237,7 +237,7 @@ const saveStep1 = async () => {
         ...buildCompanyPayload(values),
         adminId: newAdminId
       });
-      
+
       const newCompanyId = res.data?.data?.id;
       setCompanyId(newCompanyId);
 
@@ -268,7 +268,7 @@ const saveStep1 = async () => {
 
   const saveStep2 = async () => {
     const branches = getValues("branches") || [];
-    const valid    = await trigger(branchFieldNames(branches));
+    const valid = await trigger(branchFieldNames(branches));
     if (!valid) return false;
 
     if (savedSteps.has(2)) return true;
@@ -343,8 +343,8 @@ const saveStep1 = async () => {
     try {
       await Promise.all(
         departments.map((dept) =>
-          companyApi.addDepartment({ 
-            ...dept, 
+          companyApi.addDepartment({
+            ...dept,
             companyId,
             // adminId // <-- NEW: Passed to Department API 
           })
@@ -412,7 +412,7 @@ const saveStep1 = async () => {
 
     setStepLoading(true);
     setStepError(null);
-    
+
     try {
       const formattedHolidays = holidays.map((holiday) => {
         let selectedBranchIds = [];
@@ -422,7 +422,7 @@ const saveStep1 = async () => {
         } else if (holiday.branchId && holiday.branchId !== "All") {
           selectedBranchIds = [parseInt(holiday.branchId, 10)];
         } else {
-          selectedBranchIds = branchIds; 
+          selectedBranchIds = branchIds;
         }
 
         selectedBranchIds = selectedBranchIds.filter(id => id != null && !isNaN(id));
@@ -431,7 +431,7 @@ const saveStep1 = async () => {
           holidayName: holiday.holidayName,
           holidayDate: holiday.holidayDate,
           holidayType: holiday.holidayType,
-          branchId: selectedBranchIds, 
+          branchId: selectedBranchIds,
           description: holiday.description || ""
         };
       });
@@ -461,11 +461,11 @@ const saveStep1 = async () => {
 
     let ok = false;
     switch (currentStep) {
-      case 1: ok = await saveStep1();              break;
-      case 2: ok = await saveStep2();              break;
-      case 3: ok = await saveStep3();              break;
-      case 4: ok = await saveStep4();              break;
-      case 5: ok = await saveStep5();              break;
+      case 1: ok = await saveStep1(); break;
+      case 2: ok = await saveStep2(); break;
+      case 3: ok = await saveStep3(); break;
+      case 4: ok = await saveStep4(); break;
+      case 5: ok = await saveStep5(); break;
       default: ok = true;
     }
 
@@ -495,9 +495,9 @@ const saveStep1 = async () => {
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-slate-100">
-        <div className="bg-white rounded-3xl shadow-xl p-12 text-center max-w-md w-full">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-5">
+      <div className="min-h-screen flex items-center justify-center translucent">
+        <div className="popuprounded-3xl shadow-xl p-12 text-center max-w-md w-full">
+          <div className="w-16 h-16 rounded-full translucent-inner flex items-center justify-center mx-auto mb-5">
             <Check className="w-8 h-8 text-emerald-600" />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 mb-2">Company Registered!</h2>
@@ -508,12 +508,12 @@ const saveStep1 = async () => {
             onClick={() => {
               setSubmitted(false);
               reset({
-                country:     "IN",
-                branches:    [{ ...DEFAULT_BRANCH }],
-                shifts:      [],
+                country: "IN",
+                branches: [{ ...DEFAULT_BRANCH }],
+                shifts: [],
                 departments: [],
-                leaveTypes:  [],
-                holidays:    [],
+                leaveTypes: [],
+                holidays: [],
               });
               setCurrentStep(1);
               setSavedSteps(new Set());
@@ -531,22 +531,22 @@ const saveStep1 = async () => {
   }
 
   const StepComponents = [Step1, Step2, Step3, Step4, Step5, Step6];
-  const StepComponent  = StepComponents[currentStep - 1];
-  const isLastStep     = currentStep === STEPS.length;
+  const StepComponent = StepComponents[currentStep - 1];
+  const isLastStep = currentStep === STEPS.length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-100">
+    <div className="min-h-screen translucent">
       <div className="p-4 md:p-0 mx-auto">
 
         {/* Page header with Clear Data Button */}
-        <div className="mb-4 bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="mb-4  rounded-xl custom-border p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Company Registration</h1>
-            <p className="text-slate-500 text-sm mt-1">
+            <h1 className="text-3xl font-bold text tracking-tight">Company Registration</h1>
+            <p className="text-slate-400 text-sm mt-1">
               Complete all 6 sections to set up your organisation on the platform.
             </p>
           </div>
-          
+
           <button
             type="button"
             onClick={handleClearDraft}
@@ -561,10 +561,10 @@ const saveStep1 = async () => {
 
           {/* ── Sidebar ── */}
           <aside className="lg:w-72 shrink-0">
-            <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm sticky top-6">
+            <div className="rounded-xl custom-border p-3 sticky top-6">
               {STEPS.map((step) => {
-                const isActive  = step.id === currentStep;
-                const isDone    = savedSteps.has(step.id);
+                const isActive = step.id === currentStep;
+                const isDone = savedSteps.has(step.id);
                 const isReached = step.id <= currentStep;
 
                 return (
@@ -573,18 +573,18 @@ const saveStep1 = async () => {
                     onClick={() => isReached && !stepLoading && setCurrentStep(step.id)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm
                       transition-all mb-0.5
-                      ${isActive    ? "bg-indigo-50 text-indigo-700 font-semibold cursor-pointer"
-                        : isDone    ? "text-slate-600 hover:bg-slate-50 font-medium cursor-pointer"
-                        : isReached ? "text-slate-500 hover:bg-slate-50 cursor-pointer"
-                        : "text-slate-300 cursor-not-allowed"}`}
+                      ${isActive ? "text font-semibold cursor-pointer translucent custom-border"
+                        : isDone ? "font-medium cursor-pointer"
+                          : isReached ? "text cursor-pointer"
+                            : "text-slate-300 cursor-not-allowed"}`}
                   >
                     {/* Circle badge */}
                     <div
                       className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0
                         text-xs font-bold transition-all
-                        ${isActive ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                          : isDone  ? "bg-emerald-100 text-emerald-600"
-                          : "bg-slate-100 text-slate-400"}`}
+                        ${isActive ? "bg-indigo-600 text-white "
+                          : isDone ? "bg-emerald-100 text-emerald-600"
+                            : "bg-indigo-400  text-white "}`}
                     >
                       {isDone ? <Check className="w-3.5 h-3.5" /> : step.id}
                     </div>
@@ -615,9 +615,9 @@ const saveStep1 = async () => {
                   <span>Progress</span>
                   <span>{savedSteps.size} / {STEPS.length} saved</span>
                 </div>
-                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-500"
+                    className="h-full      rounded-full transition-all duration-500"
                     style={{ width: `${(savedSteps.size / STEPS.length) * 100}%` }}
                   />
                 </div>
@@ -627,7 +627,7 @@ const saveStep1 = async () => {
 
           {/* ── Form ── */}
           <main className="flex-1 min-w-0">
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 lg:p-8 mb-4 min-h-[500px]">
+            <div className="rounded-2xl custom-border p-6 lg:p-8 mb-4 min-h-[500px]">
               <StepComponent
                 register={register}
                 errors={errors}
@@ -672,9 +672,9 @@ const saveStep1 = async () => {
                   <div
                     key={s.id}
                     className={`rounded-full transition-all duration-300
-                      ${s.id === currentStep  ? "w-5 h-2 bg-indigo-500"
+                      ${s.id === currentStep ? "w-5 h-2 bg-indigo-500"
                         : savedSteps.has(s.id) ? "w-2 h-2 bg-emerald-400"
-                        : "w-2 h-2 bg-slate-200"}`}
+                          : "w-2 h-2 bg-slate-200"}`}
                   />
                 ))}
               </div>
@@ -697,7 +697,7 @@ const saveStep1 = async () => {
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-all shadow-sm
                     ${stepLoading
                       ? "bg-indigo-400 cursor-not-allowed"
-                      : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200 cursor-pointer"}`}
+                      : "bg-indigo-600 cursor-pointer"}`}
                 >
                   {stepLoading ? (
                     <>

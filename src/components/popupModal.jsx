@@ -14,7 +14,7 @@ const Modal = ({ isOpen, onClose, children, title }) => {
         onClick={(e) => e.stopPropagation()}
       >
         {(title || onClose) && (
-          <div className="flex justify-between items-center p-4">
+          <div className="flex justify-between items-center p-4 w-full">
             {title && <h2 className="text-xl font-bold">{title}</h2>}
             {onClose && (
               <button
@@ -28,7 +28,7 @@ const Modal = ({ isOpen, onClose, children, title }) => {
           </div>
         )}
 
-        <div className="p-4">{children}</div>
+        <div className="p-4 w-full">{children}</div>
       </div>
     </div>
   );

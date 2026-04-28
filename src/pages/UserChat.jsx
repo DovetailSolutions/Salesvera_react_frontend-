@@ -11,6 +11,8 @@ import {
   IoVideocam, IoImage, IoDownload, IoCloudUpload,
 } from "react-icons/io5";
 import { HiUserGroup } from "react-icons/hi";
+import { useNotifications } from "../utils/NotificationContext";
+
 
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
@@ -253,6 +255,8 @@ export default function UserChat() {
   const { user } = useContext(AuthContext);
   const token = localStorage.getItem("accessToken");
 
+  const pushNotification = useNotifications();
+
   // ── State ──────────────────────────────────────────────────────────────────
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -451,6 +455,16 @@ export default function UserChat() {
       socket.emit("getMyGroups", { page: 1, limit: 100, search: "" });
       socket.emit("online", { userId: getUserId() });
     });
+
+    socket.on("notification", (data) => {
+      console.log("🔔 notification received:", data);
+      pushNotification({
+        title: data.title || "New Notification",
+        body: data.body || "",
+        type: data.type || "info",
+      });
+    });
+
 
     socket.on("connect_error", () => {
       setConnectionStatus("error");
@@ -1523,7 +1537,7 @@ export default function UserChat() {
                               {own && (
                                 <div
                                   onClick={() => deleteMessage(msg)}
-                                  className="p-1.5 rounded-full dark:bg-[#1C1E2A] bg-gray-200custom-borderborder-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 cursor-pointer"
+                                  className="p-1.5 rounded-full dark:bg-[#1C1E2A] bg-gray-200 custom-borde rborder-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 cursor-pointer"
                                   title="Delete"
                                 >
                                   <IoTrash size={13} />

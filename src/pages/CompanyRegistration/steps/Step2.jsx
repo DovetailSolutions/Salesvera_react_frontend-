@@ -7,7 +7,7 @@ import { inputCls, selectCls } from "../ui/inputStyles";
 import { DEFAULT_BRANCH } from "../constants";
 
 const Step2 = ({ register, errors, control }) => {
-  const [countries,     setCountries]     = useState([]);
+  const [countries, setCountries] = useState([]);
   const [headOfficeIdx, setHeadOfficeIdx] = useState(0);
 
   const { fields, append, remove } = useFieldArray({ control, name: "branches" });
@@ -36,26 +36,26 @@ const Step2 = ({ register, errors, control }) => {
         <div
           key={field.id}
           className={`mb-6 rounded-2xl border-2 transition-all
-            ${headOfficeIdx === idx ? "border-indigo-300 bg-indigo-50/20" : "border-slate-200 bg-white"}`}
+            ${headOfficeIdx === idx ? "custom-border" : "custom-border"}`}
         >
           {/* Card header */}
           <div
-            className={`flex items-center justify-between px-5 py-3.5 rounded-t-2xl border-b
-              ${headOfficeIdx === idx ? "border-indigo-200 bg-indigo-50/40" : "border-slate-100 bg-slate-50/60"}`}
+            className={`flex items-center justify-between px-5 py-3.5 rounded-t-2xl custom-border-bottom
+              ${headOfficeIdx === idx ? "custom-border-top" : "custom-border-top"}`}
           >
             <div className="flex items-center gap-2.5">
               <div
                 className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm shadow-sm
-                  ${headOfficeIdx === idx ? "bg-indigo-600 text-white" : "bg-white border border-slate-200 text-slate-500"}`}
+                  ${headOfficeIdx === idx ? "bg-violet-600 text-white" : "bg-white border border-slate-200 text-slate-500"}`}
               >
                 {idx + 1}
               </div>
               <div>
-                <span className="text-sm font-bold text-slate-700">
+                <span className="text-sm font-bold text">
                   {field.branchName || `Branch ${idx + 1}`}
                 </span>
                 {headOfficeIdx === idx && (
-                  <span className="ml-2 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold uppercase tracking-wide">
+                  <span className="ml-2 px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-600 dark:text-violet-100 text-violet-600 text-[10px] font-bold uppercase tracking-wide">
                     Head Office
                   </span>
                 )}
@@ -66,8 +66,8 @@ const Step2 = ({ register, errors, control }) => {
                 onClick={() => setHeadOfficeIdx(idx)}
                 className={`text-xs px-3 py-1.5 rounded-lg border font-semibold cursor-pointer transition-all
                   ${headOfficeIdx === idx
-                    ? "border-indigo-400 bg-indigo-100 text-indigo-700"
-                    : "border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600"}`}
+                    ? "border-violet-400 bg-violet-100 text-violet-700"
+                    : "border-slate-200 text-slate-500 hover:border-violet-300 hover:text-violet-600"}`}
               >
                 {headOfficeIdx === idx ? "✓ Head Office" : "Set as Head Office"}
               </div>
@@ -207,7 +207,7 @@ const Step2 = ({ register, errors, control }) => {
 
       <div
         onClick={() => append({ ...DEFAULT_BRANCH })}
-        className="w-full py-3 rounded-xl border-2 border-dashed border-indigo-200 text-indigo-500 text-sm font-semibold hover:bg-indigo-50 cursor-pointer transition-all flex items-center justify-center gap-2"
+        className="w-full py-3 rounded-xl bg-violet-600 cursor-pointer transition-all flex items-center justify-center gap-2"
       >
         <Plus className="w-4 h-4" /> Add Another Branch
       </div>

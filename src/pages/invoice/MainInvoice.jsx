@@ -466,8 +466,8 @@ export default function MainInvoice() {
             label: "Status",
             sortable: false,
             render: (row) => (
-                <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${row.status === "draft" ? "bg-slate-100 text border-slate-200" :
-                    row.status === "paid" ? "bg-emerald-50 text-emerald-600 border-emerald-200" :
+                <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${row.status === "draft" ? "bg-slate-100 text-black border-slate-200" :
+                    row.status === "accepted" ? "bg-emerald-50 text-emerald-600 border-emerald-200" :
                         "bg-amber-50 text-amber-600 border-amber-200"
                     }`}>
                     {row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : "Unknown"}

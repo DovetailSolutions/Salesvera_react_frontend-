@@ -46,11 +46,11 @@ const Step1 = ({ register, errors, control }) => {
 
         {/* Logo upload */}
         <Field label="Company Logo">
-          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all group mb-4">
+          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed custom-border rounded-xl cursor-pointer hover:border-violet-400 transition-all group mb-4">
             {logoPreview ? (
               <img src={logoPreview} alt="logo" className="h-24 object-contain rounded-xl" />
             ) : (
-              <div className="flex flex-col items-center gap-2 text-slate-400 group-hover:text-indigo-500 transition-colors">
+              <div className="flex flex-col items-center gap-2 text-slate-400 group-hover:text-violet-500 transition-colors">
                 <Upload className="w-7 h-7" />
                 <span className="text-xs font-medium">Click to upload logo (PNG, JPG, SVG)</span>
               </div>
@@ -194,7 +194,7 @@ const Step1 = ({ register, errors, control }) => {
         </div>
       </div>
 
-      <hr className="border-slate-200" />
+      <hr className="custom-border" />
 
       {/* ── Bank Details ── */}
       <div>
@@ -205,11 +205,11 @@ const Step1 = ({ register, errors, control }) => {
         />
 
         {fields.map((item, index) => (
-          <div key={item.id} className="relative bg-slate-50 border border-slate-200 p-5 rounded-xl mb-6">
-            
+          <div key={item.id} className="relative translucent-inner border custom-border p-5 rounded-xl mb-6">
+
             {/* Header / Remove div for multiple accounts */}
             <div className="flex justify-between items-center mb-4">
-              <h4 className="text-sm font-semibold text-slate-700">Bank Account #{index + 1}</h4>
+              <h4 className="text-sm font-semibold text">Bank Account #{index + 1}</h4>
               {index > 0 && (
                 <div
                   type="div"
@@ -317,7 +317,7 @@ const Step1 = ({ register, errors, control }) => {
         <div
           type="div"
           onClick={() => append(emptyBankDetails)}
-          className="mt-2 flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-sm font-semibold transition-colors border border-indigo-100"
+          className="mt-2 flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg text-sm font-semibold transition-colors"
         >
           <Plus className="w-4 h-4" /> Add Another Bank Account
         </div>

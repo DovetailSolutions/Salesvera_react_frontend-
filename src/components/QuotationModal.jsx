@@ -165,10 +165,10 @@ export default function ManageQuotationModal({
                                     <span>₹{quotation.igst.toLocaleString('en-IN')}</span>
                                 </div>
                             )}
-                            {(quotation?.discount > 0) && (
+                            {(quotation?.overallDiscount > 0) && (
                                 <div className="flex justify-between text-sm text-red-500">
                                     <span>Total Discount</span>
-                                    <span>- ₹{quotation.discount.toLocaleString('en-IN')}</span>
+                                    <span>- ₹{quotation.overallDiscount.toLocaleString('en-IN')}</span>
                                 </div>
                             )}
                             <div className="pt-3 mt-3 custom-border-top flex justify-between items-center">

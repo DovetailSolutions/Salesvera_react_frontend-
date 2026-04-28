@@ -12,6 +12,7 @@ const FormModal = ({
   onSubmit,
   submitLabel = "Submit",
   cancelLabel = "Cancel",
+  className
 }) => {
   if (!isOpen) return null;
 
@@ -22,12 +23,12 @@ const FormModal = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
-      <form onSubmit={handleSubmit} className="space-y-4 ">
+      <form onSubmit={handleSubmit} className={`space-y-4 grid max-h-[80vh] overflow-y-auto w-4xl ${className}`} >
         {fields.map((field) => {
           const { name, label, type = "text", placeholder, required = false, options } = field;
 
           return (
-            <div className="" key={name}>
+            <div className="w-full" key={name}>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {label} {required && <span className="text-red-500">*</span>}
               </label>

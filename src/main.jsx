@@ -6,19 +6,22 @@ import App from './App'
 import './index.css'
 import { AuthProvider } from './context/AuthProvider'
 import { ThemeProvider } from './context/ThemeProvider'
+import { NotificationProvider } from './utils/NotificationContext'
 
 const queryClient = new QueryClient()
 
 createRoot(document.getElementById('root')).render(
   // <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <NotificationProvider>
         <ThemeProvider>
           <BrowserRouter>
             <App />
           </BrowserRouter>
         </ThemeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+      </NotificationProvider>
+    </AuthProvider>
+  </QueryClientProvider>
   // </React.StrictMode>
 )

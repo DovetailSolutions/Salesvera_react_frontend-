@@ -45,6 +45,7 @@ import GetSaleRecord from "./pages/GetSaleRecord";
 import { TbTransactionRupee } from "react-icons/tb";
 import MainInvoice from "./pages/invoice/MainInvoice";
 import CurrentOutstanding from "./pages/CurrentOutstanding";
+import CompanyRegister from "./pages/CompanyRegistration/Index";
 
 export const allRoutes = [
   {
@@ -234,7 +235,7 @@ export default function Router() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout routes={routesForSidepanel} />}>
           <Route index element={<Dashboard />} />
-          <Route path="registration" element={<Register />} />
+          <Route path="registration" element={<CompanyRegister />} />
           <Route path="new-user" element={<NewUser />} />
           <Route path="category" element={<Category />} />
           <Route path="meeting-management" element={<Meeting />} />
