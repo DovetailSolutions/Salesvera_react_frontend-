@@ -5,7 +5,7 @@ import Field from "../ui/Field";
 import Toggle from "../ui/Toggle";
 import DayPicker from "../ui/DayPicker";
 import { SectionTitle, SubSection } from "../ui/SectionTitle";
-import { inputCls, selectCls } from "../ui/inputStyles";
+import { inputCls, selectCls } from "../ui/InputStyles";
 import { ALL_DAYS, DAY_COLORS, DEPT_PRESETS, DEFAULT_DEPARTMENT } from "../Constants";
 import { companyApi } from "../../../api";
 

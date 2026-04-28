@@ -39,7 +39,6 @@ import FuelManagement from "./components/FuelManagement";
 import NewUser from "./pages/NewUser";
 import UserRegistration from "./pages/UserRegistration";
 import QuotationList from "./pages/QuotationList";
-import path from "node:path";
 import InvoiceList from "./pages/invoice/InvoiceList";
 import GetSaleRecord from "./pages/GetSaleRecord";
 import { TbTransactionRupee } from "react-icons/tb";

@@ -3,9 +3,7 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
-To remove the scrollbars completely across your entire app (while still allowing users to scroll),
-you just need to strip out the custom scrollbar thumb styling we had before and replace it with standard CSS hiding techniques. In your CSS file,
-locate the "Global Resets & Scrollbars" section (Section 3) and replace it entirely with this: CSS
+
 
 /* ----------------------------------------- */
 /* 3. Global Resets & Scrollbars             */

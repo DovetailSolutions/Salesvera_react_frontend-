@@ -3,7 +3,7 @@ import { MapPin, Mail, Phone, ChevronRight, Trash2, Plus, Check } from "lucide-r
 import { useFieldArray } from "react-hook-form";
 import Field from "../ui/Field";
 import { SectionTitle, SubSection } from "../ui/SectionTitle";
-import { inputCls, selectCls } from "../ui/inputStyles";
+import { inputCls, selectCls } from "../ui/InputStyles";
 import { DEFAULT_BRANCH } from "../constants";
 
 const Step2 = ({ register, errors, control }) => {

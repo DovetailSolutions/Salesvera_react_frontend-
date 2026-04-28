@@ -4,7 +4,7 @@ import { useFieldArray, Controller } from "react-hook-form";
 import Field from "../ui/Field";
 import Toggle from "../ui/Toggle";
 import { SectionTitle } from "../ui/SectionTitle";
-import { inputCls } from "../ui/inputStyles";
+import { inputCls } from "../ui/InputStyles";
 import { LEAVE_TYPE_PRESETS, DEFAULT_LEAVE_TYPE } from "../Constants";
 
 const Step5 = ({ control, register }) => {

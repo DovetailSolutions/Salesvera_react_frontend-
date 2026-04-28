@@ -4,7 +4,7 @@ import { useFieldArray, Controller } from "react-hook-form";
 import Field from "../ui/Field";
 import Toggle from "../ui/Toggle";
 import { SectionTitle } from "../ui/SectionTitle";
-import { inputCls } from "../ui/inputStyles";
+import { inputCls } from "../ui/InputStyles";
 import { ALL_DAYS, DAY_COLORS, EXAMPLE_SHIFTS, DEFAULT_SHIFT } from "../Constants";
 
 const Step3 = ({ control, register, errors }) => {
