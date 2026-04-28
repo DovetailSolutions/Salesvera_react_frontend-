@@ -4,7 +4,7 @@ import { useFieldArray, Controller } from "react-hook-form";
 import Select from "react-select";
 import Field from "../ui/Field";
 import { inputCls, selectCls } from "../ui/InputStyles";
-import { PRESET_HOLIDAYS, HOLIDAY_TYPES } from "../constants";
+import { PRESET_HOLIDAYS, HOLIDAY_TYPES } from "../Constants";
 import { fetchHolidays } from "../../../hooks/Holidaysapi";
 import { companyApi } from "../../../api";
 

@@ -4,7 +4,7 @@ import { useFieldArray } from "react-hook-form";
 import Field from "../ui/Field";
 import { SectionTitle, SubSection } from "../ui/SectionTitle";
 import { inputCls, selectCls } from "../ui/InputStyles";
-import { DEFAULT_BRANCH } from "../constants";
+import { DEFAULT_BRANCH } from "../Constants";
 
 const Step2 = ({ register, errors, control }) => {
   const [countries,     setCountries]     = useState([]);
