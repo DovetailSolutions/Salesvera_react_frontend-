@@ -33,7 +33,7 @@ export default function InvoiceList() {
     const fetchInvoices = async (page = 1, search = "") => {
         try {
             setLoading(true);
-            const params = { page, limit: pageSize };
+            const params = { page, limit: pageSize, status: "draft" };
             if (search) params.search = search;
 
             const res = await quotationApi.getInvoiceList(params);
@@ -528,9 +528,9 @@ export default function InvoiceList() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4 w-full">
 
 
-                    <button onClick={() => setIsCreateModalOpen(true)} className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition-all shadow-sm">
+                    {/* <button onClick={() => setIsCreateModalOpen(true)} className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl transition-all shadow-sm">
                         <Plus className="w-4 h-4" /> Create Invoice
-                    </button>
+                    </button> */}
                 </div>
 
             </div>

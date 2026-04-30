@@ -18,6 +18,8 @@ import {
   AlertTriangle,
   Sparkles,
   Percent,
+  Hash,    // Added for HSN
+  Scale,   // Added for Unit
 } from "lucide-react";
 
 // ─── Inline confirm dialog (replaces window.confirm) ───────────────────────
@@ -66,11 +68,23 @@ function SubItem({ sub, index, isNew, onEdit, isEditing }) {
         <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isEditing ? "bg-brandBlue" : "bg-indigo-400"}`} />
         <div className="min-w-0">
           <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm truncate">{sub.sub_category_name}</p>
-          {sub.tax != null && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate flex items-center gap-1">
-              <Percent className="w-3 h-3" /> Tax: {sub.tax}%
-            </p>
-          )}
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate flex items-center gap-3">
+            {sub.tax != null && (
+              <span className="flex items-center gap-1">
+                <Percent className="w-3 h-3" /> {sub.tax}%
+              </span>
+            )}
+            {sub.hsnCode && (
+              <span className="flex items-center gap-1">
+                <Hash className="w-3 h-3" /> {sub.hsnCode}
+              </span>
+            )}
+            {sub.unit && (
+              <span className="flex items-center gap-1 capitalize">
+                <Scale className="w-3 h-3" /> {sub.unit}
+              </span>
+            )}
+          </div>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0 ml-4">
@@ -107,10 +121,10 @@ export default function Category() {
   const [inlineEditId, setInlineEditId] = useState(null);
   const [inlineEditValue, setInlineEditValue] = useState("");
 
-  // Subcategory state
+  // Subcategory state (Added unit and hsn)
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [subFormData, setSubFormData] = useState({ sub_category_name: "", amount: "", tax: "" });
+  const [subFormData, setSubFormData] = useState({ sub_category_name: "", amount: "", tax: "", unit: "", hsn: "" });
   const [subFormErrors, setSubFormErrors] = useState({});
   const [subLoading, setSubLoading] = useState(false);
   const [newlyAddedId, setNewlyAddedId] = useState(null);
@@ -217,7 +231,9 @@ export default function Category() {
     setSubFormData({
       sub_category_name: sub.sub_category_name,
       amount: sub.amount,
-      tax: sub.tax !== null ? sub.tax : "",
+      gst: sub.tax !== null ? sub.tax : "",
+      unit: sub.unit || "",
+      hsnCode: sub.hsnCode || "",
     });
     setSubFormErrors({});
     subNameRef.current?.focus();
@@ -225,7 +241,7 @@ export default function Category() {
 
   const cancelSubEdit = () => {
     setEditingSubId(null);
-    setSubFormData({ sub_category_name: "", amount: "", tax: "" });
+    setSubFormData({ sub_category_name: "", amount: "", tax: "", unit: "", hsnCode: "" });
     setSubFormErrors({});
   };
 
@@ -241,6 +257,8 @@ export default function Category() {
         updateData.append("sub_category_name", subFormData.sub_category_name.trim());
         updateData.append("amount", Number(subFormData.amount));
         updateData.append("tax", Number(subFormData.tax));
+        updateData.append("unit", subFormData.unit);
+        updateData.append("hsnCode", subFormData.hsnCode.trim());
         updateData.append("CategoryId", selectedCategory.id);
 
         await menuapi.updateSubCategory(editingSubId, updateData);
@@ -251,6 +269,9 @@ export default function Category() {
         const payload = {
           sub_category_name: subFormData.sub_category_name.trim(),
           amount: Number(subFormData.amount),
+          gst: Number(subFormData.tax),
+          unit: subFormData.unit,
+          hsnCode: subFormData.hsnCode.trim(),
           tax: Number(subFormData.tax),
           CategoryId: selectedCategory.id,
         };
@@ -261,7 +282,7 @@ export default function Category() {
         toast.success(`"${payload.sub_category_name}" added!`);
       }
 
-      setSubFormData({ sub_category_name: "", amount: "", tax: "" });
+      setSubFormData({ sub_category_name: "", amount: "", tax: "", unit: "", hsnCode: "" });
       setSubFormErrors({});
 
       await fetchSubCategories(selectedCategory.id);
@@ -373,7 +394,6 @@ export default function Category() {
     },
   ];
 
-  // Modified to use the requested table menu dropdown structure
   const actions = [
     {
       type: "menu",
@@ -415,13 +435,11 @@ export default function Category() {
     }
   ];
 
-  const isSubFormDirty = subFormData.sub_category_name || subFormData.amount || subFormData.tax !== "";
+  const isSubFormDirty = subFormData.sub_category_name || subFormData.amount || subFormData.tax !== "" || subFormData.unit || subFormData.hsnCode;
 
   return (
     <div className="py-4 h-[calc(100vh-6rem)] flex flex-col relative">
       <Toaster position="top-right" toastOptions={{ style: { borderRadius: "12px", fontWeight: 500, fontSize: "13px" } }} />
-
-
 
       {/* Search and Action Bar */}
       <div className="translucent custom-border mb-6 flex flex-col md:flex-row items-center justify-between gap-4 p-4 rounded-2xl">
@@ -469,7 +487,7 @@ export default function Category() {
       {/* Add Category Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="popup-card custom-border rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="popup-card custom-border rounded-3xl shadow-2xl w-full max-w-lg relative overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="px-6 py-5 border-b border-slate-100/10 flex justify-between items-center">
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <FolderTree className="w-5 h-5 text-brandBlue" />
@@ -518,7 +536,7 @@ export default function Category() {
       {/* Subcategory Modal */}
       {isSubModalOpen && selectedCategory && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="popup-card custom-border rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[92vh] animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-250">
+          <div className="popup-card custom-border rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[92vh] animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-250">
 
             {/* Header */}
             <div className="px-6 pt-5 pb-4 border-b border-slate-100/10 flex justify-between items-center shrink-0">
@@ -550,7 +568,7 @@ export default function Category() {
             <div className="flex flex-col sm:flex-row flex-1 min-h-0">
 
               {/* ── Left: Add/Edit form ── */}
-              <div className="sm:w-[52%] border-b sm:border-b-0 sm:border-r border-slate-100/10 p-5 flex flex-col gap-4 shrink-0 bg-black/5 dark:bg-white/5">
+              <div className="sm:w-[50%] border-b sm:border-b-0 sm:border-r border-slate-100/10 p-5 flex flex-col gap-4 shrink-0 bg-black/5 dark:bg-white/5 overflow-y-auto">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                     {editingSubId ? "Edit subcategory" : "Add subcategory"}
@@ -573,7 +591,7 @@ export default function Category() {
                   <input
                     ref={subNameRef}
                     type="text"
-                    placeholder="e.g., Travel"
+                    placeholder="e.g., Installation Service"
                     value={subFormData.sub_category_name}
                     onChange={(e) => handleSubFieldChange("sub_category_name", e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") handleSubmitSubCategory(); }}
@@ -587,60 +605,116 @@ export default function Category() {
                   )}
                 </div>
 
-                {/* Amount */}
-                <div>
-                  <label className="block text-xs font-semibold mb-1.5">
-                    Amount (₹) <span className="text-red-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={subFormData.amount}
-                      onChange={(e) => handleSubFieldChange("amount", e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") handleSubmitSubCategory(); }}
-                      className={`w-full pl-8 pr-3 py-2.5 translucent-inner rounded-xl text-sm focus:outline-none focus:ring-2 transition-all
-                        ${subFormErrors.amount
-                          ? "ring-2 ring-red-500/50"
-                          : "border-none focus:ring-brandBlue/20"}`}
-                    />
+                {/* Grid for Amount & Tax */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Amount */}
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5">
+                      Amount (₹) <span className="text-red-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={subFormData.amount}
+                        onChange={(e) => handleSubFieldChange("amount", e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleSubmitSubCategory(); }}
+                        className={`w-full pl-8 pr-3 py-2.5 translucent-inner rounded-xl text-sm focus:outline-none focus:ring-2 transition-all
+                          ${subFormErrors.amount
+                            ? "ring-2 ring-red-500/50"
+                            : "border-none focus:ring-brandBlue/20"}`}
+                      />
+                    </div>
+                    {subFormErrors.amount && (
+                      <p className="text-xs text-red-500 mt-1">{subFormErrors.amount}</p>
+                    )}
                   </div>
-                  {subFormErrors.amount && (
-                    <p className="text-xs text-red-500 mt-1">{subFormErrors.amount}</p>
-                  )}
+
+                  {/* Tax */}
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5">
+                      Tax (%) <span className="text-red-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <input
+                        type="number"
+                        placeholder="18"
+                        min="0"
+                        max="100"
+                        value={subFormData.tax}
+                        onChange={(e) => handleSubFieldChange("tax", e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleSubmitSubCategory(); }}
+                        className={`w-full pl-8 pr-3 py-2.5 translucent-inner rounded-xl text-sm focus:outline-none focus:ring-2 transition-all
+                          ${subFormErrors.tax
+                            ? "ring-2 ring-red-500/50"
+                            : "border-none focus:ring-brandBlue/20"}`}
+                      />
+                    </div>
+                    {subFormErrors.tax && (
+                      <p className="text-xs text-red-500 mt-1">{subFormErrors.tax}</p>
+                    )}
+                  </div>
                 </div>
 
-                {/* Tax */}
-                <div>
-                  <label className="block text-xs font-semibold mb-1.5">
-                    Tax (%) <span className="text-red-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                    <input
-                      type="number"
-                      placeholder="e.g., 18"
-                      min="0"
-                      max="100"
-                      value={subFormData.tax}
-                      onChange={(e) => handleSubFieldChange("tax", e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") handleSubmitSubCategory(); }}
-                      className={`w-full pl-8 pr-3 py-2.5 translucent-inner rounded-xl text-sm focus:outline-none focus:ring-2 transition-all
-                        ${subFormErrors.tax
-                          ? "ring-2 ring-red-500/50"
-                          : "border-none focus:ring-brandBlue/20"}`}
-                    />
+                {/* Grid for Unit & HSN */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Unit Dropdown */}
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5">
+                      Unit
+                    </label>
+                    <div className="relative">
+                      <Scale className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <select
+                        value={subFormData.unit}
+                        onChange={(e) => handleSubFieldChange("unit", "NOS")}
+                        className={`w-full pl-8 pr-3 py-2.5 translucent-inner rounded-xl text-sm focus:outline-none focus:ring-2 transition-all border-none focus:ring-brandBlue/20 appearance-none bg-transparent`}
+                      >
+                        <option value="">Select Unit</option>
+                        <option value="pcs">Pieces (pcs)</option>
+                        <option value="nos">Numbers (nos)</option>
+                        <option value="kg">Kilograms (kg)</option>
+                        <option value="g">Grams (g)</option>
+                        <option value="l">Liters (l)</option>
+                        <option value="ml">Milliliters (ml)</option>
+                        <option value="m">Meters (m)</option>
+                        <option value="sqm">Sq. Meters (sqm)</option>
+                        <option value="cbm">Cubic Meters (cbm)</option>
+                        <option value="box">Boxes (box)</option>
+                        <option value="hr">Hours (hr)</option>
+                        <option value="day">Days (day)</option>
+                        <option value="month">Months</option>
+                      </select>
+                      {/* Custom dropdown arrow */}
+                      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 rotate-90 pointer-events-none" />
+                    </div>
                   </div>
-                  {subFormErrors.tax && (
-                    <p className="text-xs text-red-500 mt-1">{subFormErrors.tax}</p>
-                  )}
+
+                  {/* HSN Code */}
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5">
+                      HSN / SAC Code
+                    </label>
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="e.g., 9983"
+                        value={subFormData.hsnCode}
+                        onChange={(e) => handleSubFieldChange("hsnCode", e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleSubmitSubCategory(); }}
+                        className="w-full pl-8 pr-3 py-2.5 translucent-inner rounded-xl text-sm focus:outline-none focus:ring-2 transition-all border-none focus:ring-brandBlue/20"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <button
                   onClick={handleSubmitSubCategory}
                   disabled={subLoading || !isSubFormDirty}
-                  className={`mt-auto w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]
+                  className={`mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.98]
                     ${editingSubId ? "bg-brandBlue hover:bg-blue-700" : "bg-indigo-600 hover:bg-indigo-700"}`}
                 >
                   {subLoading ? (

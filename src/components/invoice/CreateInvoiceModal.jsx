@@ -79,6 +79,14 @@ export default function CreateQuotationModal({
             setFormData({
                 type: qt.type || "item",
                 tallyInvoiceNumber: qt.tallyQuotationNumber || "",
+                tallyInvoiceNumber: (() => {
+                    const now = new Date();
+                    const pad = (n) => String(n).padStart(2, "0");
+                    const datePart =
+                        `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
+                        `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+                    return `${datePart}${nanoid(6).toUpperCase()}`;
+                })(),
                 QuotationNumber: rootData.quotationNumber || qt.quotationNumber || "",
                 referenceNumber: qt.referenceNumber || rootData.referenceNumber || "",
                 companyName: qt.companyName || "",
@@ -183,7 +191,7 @@ export default function CreateQuotationModal({
         if (query.length > 2) {
             setIsSearchingClient(true);
             try {
-                const res = await quotationApi.searchClients({ status: 'draft', search: query });
+                const res = await quotationApi.searchClients({ search: query });
                 setClients(res.data?.data?.data || []);
             } catch (error) {
                 console.error("Client search failed", error);
@@ -354,18 +362,16 @@ export default function CreateQuotationModal({
             const totals = calculateTotals();
 
             if (isInvoiceMode) {
-                // Exact Payload mapped to quotationApi.createInvoice structure
-                const payload = {
+                const now = new Date();
+                const pad = (n) => String(n).padStart(2, "0");
+                const datePart =
+                    `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
+                    `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+
+                const invoicePayload = {
                     quotationId: invoiceData.id || invoiceData._id,
                     type: formData.type || "item",
-                    tallyInvoiceNumber: (() => {
-                        const now = new Date();
-                        const pad = (n) => String(n).padStart(2, "0");
-                        const datePart =
-                            `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
-                            `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-                        return `${datePart}${nanoid(6).toUpperCase()}`;
-                    })(),
+                    tallyInvoiceNumber: `${datePart}${nanoid(6).toUpperCase()}`,
                     QuotationNumber: invoiceData.quotation?.quotationNumber || invoiceData.quotationNumber || "",
                     QuotationDate: invoiceData.quotation?.date || invoiceData.createdAt?.split('T')[0] || "",
                     referenceNumber: formData.referenceNumber || invoiceData.referenceNumber || invoiceData.quotation?.referenceNumber || "",
@@ -391,7 +397,7 @@ export default function CreateQuotationModal({
                     cgst: totals.cgst,
                     sgst: totals.sgst,
                     igst: totals.igst,
-                    discount: totals.calculatedOverallDiscount,
+                    discount: totals.calculatedOverallDiscount,   // ← "discount", not "overallDiscount"
                     totalValue: totals.totalValue,
 
                     bankName: formData.bankName || "",
@@ -406,9 +412,11 @@ export default function CreateQuotationModal({
                         discount: item.discount,
                         discountAmt: item.discountAmt,
                         value: item.value
+                        // Note: categoryId / subCategoryId intentionally excluded for invoice
                     }))
                 };
-                await quotationApi.createInvoice(payload);
+
+                await quotationApi.createInvoice(invoicePayload);
                 toast.success("Invoice prepared successfully", { id: loadingToast });
             } else {
                 // Exact Payload mapped to quotationApi.addQuotation structure
@@ -467,8 +475,8 @@ export default function CreateQuotationModal({
                         value: item.value
                     }))
                 };
-                await quotationApi.addQuotation(payload);
-                toast.success("Quotation created successfully", { id: loadingToast });
+                await quotationApi.createInvoice(payload);
+                toast.success("Invoice created successfully", { id: loadingToast });
             }
 
             setFormData(initialFormState);

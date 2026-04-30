@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { X, Plus, Trash2, Search, Copy } from "lucide-react";
-import { menuapi, quotationApi, authApi } from "../api"; // Ensure invoiceApi is exported in your api file
+import { menuapi, quotationApi, authApi } from "../api";
 import Loader from "./Loader";
 import { nanoid } from "nanoid";
-
 
 export default function CreateQuotationModal({
     isOpen,
@@ -67,7 +66,7 @@ export default function CreateQuotationModal({
         notes: "Thank you for your business",
         overallDiscount: 0,
         items: [
-            { category: "", itemName: "", quantity: 1, rate: 0, gst: 18, discount: 0 }
+            { category: "", itemName: "", quantity: 1, rate: 0, gst: 18, discount: 0, categoryId: null, subCategoryId: null }
         ]
     };
 
@@ -78,9 +77,6 @@ export default function CreateQuotationModal({
         if (!isOpen) return;
 
         if (isInvoiceMode && invoiceData) {
-            // invoiceData is the full quotation row from the list.
-            // rootData  = the flat row fields (id, customerName, referenceNumber, etc.)
-            // qt        = the nested quotation object (billTo, shipTo, items, pricing, etc.)
             const rootData = invoiceData;
             const qt = invoiceData.quotation || {};
 
@@ -90,12 +86,11 @@ export default function CreateQuotationModal({
                 QuotationNumber: rootData.quotationNumber || qt.quotationNumber || "",
                 referenceNumber: qt.referenceNumber || rootData.referenceNumber || "",
                 companyName: qt.companyName || "",
-                date: new Date().toISOString().split('T')[0], // Invoice date = today
+                date: new Date().toISOString().split('T')[0],
                 status: "draft",
                 customerName: qt.customerName || rootData.customerName || "",
                 customerAddress: qt.customerAddress || "",
 
-                // Bill To — fully mapped from nested quotation object
                 billToName: qt.billTo?.name || qt.billToName || rootData.customerName || "",
                 billToEmail: qt.billTo?.email || qt.billToEmail || "",
                 billToMobile: qt.billTo?.mobile || qt.billToMobile || "",
@@ -107,7 +102,6 @@ export default function CreateQuotationModal({
                 billToGstNumber: qt.billTo?.gstNumber || qt.billToGstNumber || "",
                 billToPanNumber: qt.billTo?.panNumber || qt.billToPanNumber || "",
 
-                // Ship To — fully mapped from nested quotation object
                 shipToName: qt.shipTo?.name || qt.shipToName || rootData.customerName || "",
                 shipToEmail: qt.shipTo?.email || qt.shipToEmail || "",
                 shipToMobile: qt.shipTo?.mobile || qt.shipToMobile || "",
@@ -121,26 +115,25 @@ export default function CreateQuotationModal({
 
                 bankName: qt.bankName || "",
                 notes: qt.notes || "Thank you for your business",
-                // Store abs value; discount from API can sometimes be stored negatively
-                overallDiscount: Math.abs((qt.pricing?.discount ?? qt.discount) || 0),
+                // FIX 1: check qt.overallDiscount first — that's where the API stores it
+                overallDiscount: Math.abs((qt.overallDiscount ?? qt.pricing?.discount ?? qt.discount) || 0),
 
-                // Each item carries originalQuantity so the UI can cap qty changes
                 items: Array.isArray(qt.items) ? qt.items.map(item => ({
                     category: item.category || "",
                     itemName: item.itemName || "",
                     quantity: item.quantity || 1,
+                    categoryId: item.categoryId || null,
+                    subCategoryId: item.subCategoryId || item.id || null,
                     rate: item.rate || 0,
                     gst: item.gst || 18,
                     discount: item.discount || 0,
-                    originalQuantity: item.quantity || 1, // cap reference
-                })) : [{ category: "", itemName: "", quantity: 1, rate: 0, gst: 18, discount: 0 }]
+                    originalQuantity: item.quantity || 1,
+                })) : [{ category: "", itemName: "", quantity: 1, rate: 0, gst: 18, discount: 0, categoryId: null, subCategoryId: null }]
             });
 
-            // Keep companyId from the row for the payload
             if (rootData.companyId) setCompanyId(rootData.companyId);
 
         } else {
-            // Normal create quotation setup
             if (categories.length === 0) {
                 const fetchCats = async () => {
                     try {
@@ -252,15 +245,22 @@ export default function CreateQuotationModal({
         if (field === "category") {
             newItems[index].itemName = "";
             newItems[index].rate = 0;
+            newItems[index].categoryId = null; // Reset category ID
+            newItems[index].subCategoryId = null; // Reset subCategory ID
+
             const selectedCat = categories.find((c) => c.category_name === value);
 
-            if (selectedCat?.id && !subcategoriesMap[selectedCat.id]) {
-                try {
-                    const res = await menuapi.getSubCategory(selectedCat.id);
-                    const subs = res.data?.data || res.data || [];
-                    setSubcategoriesMap(prev => ({ ...prev, [selectedCat.id]: Array.isArray(subs) ? subs : [] }));
-                } catch (err) {
-                    console.error("Failed to fetch subcategories", err);
+            if (selectedCat) {
+                newItems[index].categoryId = selectedCat.id; // Store Category ID
+
+                if (!subcategoriesMap[selectedCat.id]) {
+                    try {
+                        const res = await menuapi.getSubCategory(selectedCat.id);
+                        const subs = res.data?.data || res.data || [];
+                        setSubcategoriesMap(prev => ({ ...prev, [selectedCat.id]: Array.isArray(subs) ? subs : [] }));
+                    } catch (err) {
+                        console.error("Failed to fetch subcategories", err);
+                    }
                 }
             }
         }
@@ -271,8 +271,13 @@ export default function CreateQuotationModal({
             if (selectedCat) {
                 const subs = subcategoriesMap[selectedCat.id] || selectedCat.subcategories || selectedCat.SubCategories || [];
                 const selectedSub = subs.find((s) => s.sub_category_name === value);
-                if (selectedSub && selectedSub.amount) {
-                    newItems[index].rate = selectedSub.amount;
+                if (selectedSub) {
+                    if (selectedSub.amount) {
+                        newItems[index].rate = selectedSub.amount;
+                    }
+                    // Capture both categoryId and subCategoryId from the subcategory object
+                    newItems[index].categoryId = selectedSub.categoryId || selectedCat.id;
+                    newItems[index].subCategoryId = selectedSub.id;
                 }
             }
         }
@@ -283,7 +288,7 @@ export default function CreateQuotationModal({
     const addItem = () => {
         setFormData(prev => ({
             ...prev,
-            items: [...prev.items, { category: "", itemName: "", quantity: 1, rate: 0, gst: 18, discount: 0 }]
+            items: [...prev.items, { category: "", itemName: "", quantity: 1, rate: 0, gst: 18, discount: 0, categoryId: null, subCategoryId: null }]
         }));
     };
 
@@ -306,7 +311,7 @@ export default function CreateQuotationModal({
             const discPct = Number(item.discount) || 0;
 
             const base = qty * rate;
-            const discountAmt = base * (discPct / 100);
+            const discountAmt = Number((base * (discPct / 100)).toFixed(2));
             const valueAfterDisc = base - discountAmt;
             const itemGst = valueAfterDisc * (gstPct / 100);
             const totalValue = valueAfterDisc;
@@ -318,6 +323,8 @@ export default function CreateQuotationModal({
                 index: index + 1,
                 itemName: item.itemName,
                 category: item.category,
+                categoryId: item.categoryId,         // Now properly passing categoryId
+                subCategoryId: item.subCategoryId,   // Now properly passing subCategoryId
                 quantity: qty,
                 rate: rate,
                 gst: gstPct,
@@ -360,7 +367,7 @@ export default function CreateQuotationModal({
                 referenceNumber: formData.referenceNumber,
                 companyName: formData.companyName,
                 date: formData.date,
-                status: formData.status,                        // ← added
+                status: formData.status,
                 customerName: formData.customerName,
                 customerAddress: formData.customerAddress,
 
@@ -402,11 +409,13 @@ export default function CreateQuotationModal({
                     index: item.index,
                     itemName: item.itemName,
                     category: item.category,
+                    categoryId: item.categoryId,       // Correctly mapped from processedItems
+                    subCategoryId: item.subCategoryId, // Correctly mapped from processedItems
                     quantity: item.quantity,
                     rate: item.rate,
                     gst: item.gst,
                     discount: item.discount,
-                    discountAmt: item.discountAmt,             // ← was discountAmount
+                    discountAmt: item.discountAmt,
                     value: item.value
                 }))
             };
@@ -415,6 +424,7 @@ export default function CreateQuotationModal({
                 payload.quotationId = invoiceData.id || invoiceData._id;
                 payload.tallyInvoiceNumber = Date.now()
                 payload.overallDiscount = totals.calculatedOverallDiscount;
+                payload.QuotationDate = invoiceData.quotation?.date || invoiceData.date || "";
                 await quotationApi.createInvoice(payload);
                 toast.success("Invoice prepared successfully", { id: loadingToast });
             } else {
@@ -564,7 +574,7 @@ export default function CreateQuotationModal({
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Line Items</h3>
                                 {!isInvoiceMode && (
-                                    <button onClick={addItem} className="flex items-center gap-1 text-sm font-medium text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 cursor-pointer">
+                                    <button onClick={addItem} type="button" className="flex items-center gap-1 text-sm font-medium text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 cursor-pointer">
                                         <Plus className="w-4 h-4" /> Add Item
                                     </button>
                                 )}
@@ -605,7 +615,7 @@ export default function CreateQuotationModal({
                                             )}
                                         </div>
 
-                                        {/* QUANTITY — only editable field in invoice mode, capped at originalQuantity */}
+                                        {/* QUANTITY */}
                                         <div className="sm:col-span-1">
                                             <label className="block text-xs font-medium text-slate-500 mb-1">
                                                 Qty
@@ -714,15 +724,22 @@ export default function CreateQuotationModal({
                                             <option value="amount">₹ (Amt)</option>
                                             <option value="percentage">% (Pct)</option>
                                         </select>
-                                        <input
-                                            disabled={isInvoiceMode}
-                                            type="number"
-                                            name="overallDiscount"
-                                            value={formData.overallDiscount}
-                                            onChange={handleInputChange}
-                                            placeholder="0"
-                                            className="w-24 px-2 py-1 text-right custom-border custom-border rounded text-sm focus:outline-none focus:custom-border-indigo-500 disabled:opacity-60"
-                                        />
+                                        {/* FIX 2: was formData.overallDiscountType (wrong key), corrected to formData.overallDiscount */}
+                                        {/* FIX 3: in invoice mode show as plain read-only text, no editable input */}
+                                        {isInvoiceMode ? (
+                                            <span className="w-24 px-2 py-1 text-right text-sm font-semibold text">
+                                                ₹{Number(formData.overallDiscount).toFixed(2)}
+                                            </span>
+                                        ) : (
+                                            <input
+                                                type="number"
+                                                name="overallDiscount"
+                                                value={formData.overallDiscount}
+                                                onChange={handleInputChange}
+                                                placeholder="0"
+                                                className="w-24 px-2 py-1 text-right custom-border custom-border rounded text-sm focus:outline-none focus:custom-border-indigo-500"
+                                            />
+                                        )}
                                     </div>
                                 </div>
                                 {overallDiscountType === 'percentage' && totals.calculatedOverallDiscount > 0 && (

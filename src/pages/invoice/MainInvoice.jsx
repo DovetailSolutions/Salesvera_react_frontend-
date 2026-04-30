@@ -33,7 +33,7 @@ export default function MainInvoice() {
     const fetchInvoices = async (page = 1, search = "") => {
         try {
             setLoading(true);
-            const params = { page, limit: pageSize };
+            const params = { page, limit: pageSize, status: "accepted" };
             if (search) params.search = search;
 
             const res = await quotationApi.getInvoiceList(params);

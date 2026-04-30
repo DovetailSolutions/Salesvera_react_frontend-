@@ -1,4 +1,4 @@
-// UserChat.jsx — Fully synced with backend socket events & Complete UI
+// UserChat.jsx — Socket logic fully synced with backend
 import React, { useEffect, useState, useContext, useRef, useCallback } from "react";
 import { AuthContext } from "../context/AuthProvider";
 import { io } from "socket.io-client";
@@ -84,7 +84,7 @@ function Modal({ title, onClose, children, footer }) {
   return (
     <div className="fixed inset-0 backdrop-blur-md z-50 flex items-center justify-center p-4 bg-black/40">
       <div
-        className="translucent-background rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[88vh]custom-borderborder-white/5"
+        className="translucent-background rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[88vh] custom-border border-white/5"
         style={{ fontFamily: "'DM Sans', sans-serif" }}
       >
         <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between flex-shrink-0">
@@ -113,7 +113,7 @@ function SearchInput({ value, onChange, placeholder = "Search…" }) {
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-9 pr-3 py-2 dark:bg-[#1C1E2A] bg-gray-100 text placeholder-gray-500custom-borderborder-white/5 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#5A77FF] transition-all"
+        className="w-full pl-9 pr-3 py-2 dark:bg-[#1C1E2A] bg-gray-100 text placeholder-gray-500 custom-border border-white/5 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#5A77FF] transition-all"
       />
     </div>
   );
@@ -143,7 +143,7 @@ function NotificationToast({ notification, onDismiss }) {
 
   return (
     <div
-      className="flex items-center gap-3 translucent-background rounded-2xl shadow-2xlcustom-borderborder-white/10 px-4 py-3 min-w-[280px] max-w-sm cursor-pointer hover:bg-white/5 transition-colors"
+      className="flex items-center gap-3 translucent-background rounded-2xl shadow-2xl custom-border border-white/10 px-4 py-3 min-w-[280px] max-w-sm cursor-pointer hover:bg-white/5 transition-colors"
       style={{ animation: "slideInRight 0.3s ease-out" }}
       onClick={() => onDismiss(notification.id)}
     >
@@ -186,7 +186,7 @@ function MediaBubble({ msg, own }) {
   }
   if (category === "audio") {
     return (
-      <div className={`flex items-center gap-3 rounded-xl px-3 py-2.5 mb-2custom-border${bgAccent}`}>
+      <div className={`flex items-center gap-3 rounded-xl px-3 py-2.5 mb-2 custom-border ${bgAccent}`}>
         <div className={`p-2 rounded-lg ${own ? "bg-white/20" : "bg-white/5"}`}>
           <IoMusicalNote size={18} className="text" />
         </div>
@@ -200,7 +200,7 @@ function MediaBubble({ msg, own }) {
       target="_blank"
       rel="noopener noreferrer"
       download={fileName}
-      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 mb-2custom-border${bgAccent} hover:opacity-80 transition-opacity`}
+      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 mb-2 custom-border ${bgAccent} hover:opacity-80 transition-opacity`}
     >
       <div className={`p-2.5 rounded-lg flex-shrink-0 ${own ? "bg-white/20" : "bg-white/5"}`}>
         <IoDocument size={20} className="text" />
@@ -227,7 +227,7 @@ function FilePreview({ file, onRemove }) {
   }, [file, category]);
 
   return (
-    <div className="flex items-center gap-3 dark:bg-[#1C1E2A] bg-gray-100custom-borderborder-white/5 rounded-xl px-3 py-2.5">
+    <div className="flex items-center gap-3 dark:bg-[#1C1E2A] bg-gray-100 custom-border border-white/5 rounded-xl px-3 py-2.5">
       <div className="w-10 h-10 rounded-lg bg-[#2A2D3A] flex items-center justify-center flex-shrink-0 overflow-hidden">
         {category === "image" && previewUrl
           ? <img src={previewUrl} alt="preview" className="w-full h-full object-cover rounded-lg" />
@@ -255,7 +255,8 @@ export default function UserChat() {
   const { user } = useContext(AuthContext);
   const token = localStorage.getItem("accessToken");
 
-  const pushNotification = useNotifications();
+  // ✅ FIX #1: Correctly destructure pushNotification from the context object
+  const { pushNotification } = useNotifications();
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [users, setUsers] = useState([]);
@@ -394,13 +395,16 @@ export default function UserChat() {
   }, [contextMenu]);
 
   // ── formatMessage ──────────────────────────────────────────────────────────
+  // ✅ FIX #2: Correctly map backend DB message fields (message → text, Sender model)
   const formatMessage = useCallback((raw) => {
     const uid = getUserId();
     const currentUsers = usersRef.current;
+    // Backend Message model uses senderId; Sender association may or may not be loaded
     const senderId = raw.senderId ?? raw.sender?.id;
     let senderName = "Unknown";
 
     if (raw.Sender) {
+      // Sequelize association with capital S (include: [{ model: User, as: "Sender" }])
       senderName = `${raw.Sender.firstName || ""} ${raw.Sender.lastName || ""}`.trim() || raw.Sender.email;
     } else if (raw.sender) {
       senderName = `${raw.sender.firstName || ""} ${raw.sender.lastName || ""}`.trim() || raw.sender.email;
@@ -411,11 +415,14 @@ export default function UserChat() {
     }
 
     return {
+      // Backend Message model primary key
       id: raw.id ?? `${senderId}-${raw.createdAt ?? Date.now()}`,
       chatRoomId: raw.chatRoomId,
+      // Backend doesn't attach roomId to the DB row; fall back to currentRoomRef
       roomId: raw.roomId || currentRoomRef.current,
       senderId,
       senderName,
+      // ✅ Backend stores message text as `message` field, not `text`
       text: raw.message ?? raw.text ?? "",
       mediaUrl: raw.mediaUrl ?? null,
       mediaType: raw.mediaType ?? null,
@@ -424,6 +431,7 @@ export default function UserChat() {
       replyTo: raw.replyTo ?? null,
       replyToMessage: raw.ReplyToMessage ?? raw.replyToMessage ?? null,
       timestamp: raw.createdAt ?? raw.timestamp ?? new Date().toISOString(),
+      // Backend Message model uses `status` field: "seen" | "unseen"
       seen: raw.status === "seen" || raw.seen === true,
     };
   }, [user, getUserId]);
@@ -456,6 +464,8 @@ export default function UserChat() {
       socket.emit("online", { userId: getUserId() });
     });
 
+    // ✅ FIX #3: Backend sends `notification` event via notificationService.
+    // pushNotification is now correctly the function (not the whole context object).
     socket.on("notification", (data) => {
       console.log("🔔 notification received:", data);
       pushNotification({
@@ -464,7 +474,6 @@ export default function UserChat() {
         type: data.type || "info",
       });
     });
-
 
     socket.on("connect_error", () => {
       setConnectionStatus("error");
@@ -496,7 +505,8 @@ export default function UserChat() {
       }
     });
 
-    // ── Real-time online/offline presence (backend emits userStatusChange) ───
+    // ── Real-time online/offline presence ────────────────────────────────────
+    // ✅ Backend emits `userStatusChange` with { userId, onlineSatus } (note typo in backend)
     socket.on("userStatusChange", ({ userId: changedId, onlineSatus }) => {
       setUsers(prev =>
         prev.map(u =>
@@ -505,7 +515,6 @@ export default function UserChat() {
             : u
         )
       );
-      // Also update activeChat header if it's the same person
       setActiveChat(prev => {
         if (!prev || prev.type === "group") return prev;
         if (prev.id === changedId) {
@@ -516,6 +525,7 @@ export default function UserChat() {
     });
 
     // ── Group management ─────────────────────────────────────────────────────
+    // ✅ Backend emits createGroup back only to the creating socket
     socket.on("createGroup", (data) => {
       setIsCreatingGroup(false);
       if (data?.error) { setError(data.error); return; }
@@ -532,6 +542,7 @@ export default function UserChat() {
       }
     });
 
+    // ✅ Backend emits updateGroupName to io.to(roomId) — all room members get it
     socket.on("updateGroupName", ({ error, roomId, newName }) => {
       if (error) { setError(error); return; }
       setGroups(prev => prev.map(g => g.roomId === roomId ? { ...g, groupName: newName } : g));
@@ -543,28 +554,42 @@ export default function UserChat() {
       setGroupMembers(participants || []);
     });
 
+    // ✅ Backend emits addGroupMembers to io.to(roomId) — all members get it
     socket.on("addGroupMembers", (data) => {
       if (data?.error) { setError(data.error); return; }
       setShowAddMembers(false);
       setSelectedNewMembers([]);
       setAddMemberSearch("");
+      // Refresh group details if currently viewing this group
       if (currentRoomRef.current === data.roomId) {
-        socket.emit("getGroupDetails", { roomId: data.roomId });
+        socketRef.current?.emit("getGroupDetails", { roomId: data.roomId });
       }
     });
 
-    socket.on("removeGroupMember", (data) => {
-      if (data?.error) { setError(data.error); return; }
-      if (data?.removedMember) {
-        setGroupMembers(prev => prev.filter(m => (m.id ?? m.userId) !== data.removedMember));
-      }
-    });
-
+    // ✅ FIX #4: Backend removeGroupMember emits `leaveGroup` event (NOT `removeGroupMember`).
+    // Payload: { roomId, removedMember, removedBy }
+    // Backend leaveGroup (self-leave) emits:
+    //   - socket.emit("leaveGroup", { roomId })  → only to the leaving socket
+    //   - io.to(roomId).emit("memberLeft", { roomId, leftMember })  → to everyone
     socket.on("leaveGroup", (data) => {
       if (data?.error) { setError(data.error); return; }
+
       if (data?.removedMember) {
+        // A member was removed by an admin — update members panel for everyone in the room
         setGroupMembers(prev => prev.filter(m => (m.id ?? m.userId) !== data.removedMember));
+
+        // If the removed member is the current user, leave the group view
+        if (data.removedMember === getUserId()) {
+          setGroups(prev => prev.filter(g => g.roomId !== data.roomId));
+          setActiveChat(prev => prev?.roomId === data.roomId ? null : prev);
+          if (currentRoomRef.current === data.roomId) {
+            currentRoomRef.current = null;
+            setCurrentRoom(null);
+            setMessages([]);
+          }
+        }
       } else if (data?.roomId) {
+        // Current user successfully left the group (self-leave confirmation)
         setGroups(prev => prev.filter(g => g.roomId !== data.roomId));
         setActiveChat(prev => prev?.roomId === data.roomId ? null : prev);
         if (currentRoomRef.current === data.roomId) {
@@ -575,6 +600,14 @@ export default function UserChat() {
       }
     });
 
+    // ✅ FIX #5: Backend leaveGroup emits `memberLeft` to the whole room when someone self-leaves.
+    // Payload: { roomId, leftMember }
+    socket.on("memberLeft", ({ roomId, leftMember }) => {
+      // Remove from local members panel
+      setGroupMembers(prev => prev.filter(m => (m.id ?? m.userId) !== leftMember));
+    });
+
+    // ✅ Backend deleteGroup emits `groupDeleted` to io.to(roomId) for all members
     socket.on("groupDeleted", (data) => {
       if (data?.error) { setError(data.error); return; }
       if (data?.roomId) {
@@ -587,19 +620,19 @@ export default function UserChat() {
         }
         if (data.message) {
           addNotification({ senderName: "System", text: data.message, roomId: data.roomId });
+          // ✅ Also push to global topbar notification
+          pushNotification({ title: "Group Deleted", body: data.message, type: "info" });
         }
       }
     });
 
-    socket.on("memberLeft", ({ leftMember }) => {
-      setGroupMembers(prev => prev.filter(m => (m.id ?? m.userId) !== leftMember));
-    });
-
     // ── Messages ─────────────────────────────────────────────────────────────
+    // ✅ Backend mychats response: { success, total, totalPages, currentPage, data: rows[] }
     socket.on("mychats", (res) => {
       if (!res?.success) return;
       const rows = Array.isArray(res?.data) ? res.data : [];
       const uid = getUserId();
+      // Messages come in DESC order from DB; reverse to show oldest-first
       const fmt = rows.map(r => formatMessageRef.current(r)).reverse();
 
       currentPageRef.current = res.currentPage;
@@ -611,20 +644,25 @@ export default function UserChat() {
       if (res.currentPage === 1) {
         setMessages(fmt);
       } else {
+        // Prepend older messages (loading more = going back in time)
         setMessages(prev => [...fmt, ...prev]);
       }
 
+      // Mark all loaded messages as seen
       fmt.forEach(m => {
         if (!m.seen && m.senderId !== uid) {
-          socket.emit("seenMessage", { msg_id: m.id, roomId: currentRoomRef.current });
+          socketRef.current?.emit("seenMessage", { msg_id: m.id, roomId: currentRoomRef.current });
         }
       });
     });
 
+    // ✅ Backend sendMessage broadcasts via io.to(roomId).emit("receiveMessage", newMessage)
+    // newMessage is the raw Sequelize Message instance — no roomId attached, but senderId is present
     socket.on("receiveMessage", (raw) => {
       const msg = formatMessageRef.current(raw);
       const uid = getUserId();
 
+      // Message is for a room we're not currently viewing
       if (msg.roomId && msg.roomId !== currentRoomRef.current) {
         setUnreadCounts(prev => ({ ...prev, [msg.roomId]: (prev[msg.roomId] || 0) + 1 }));
         addNotification({
@@ -632,13 +670,15 @@ export default function UserChat() {
           text: msg.text || (msg.mediaUrl ? "📎 Sent a file" : ""),
           roomId: msg.roomId,
         });
-        socket.emit("UserList", { page: 1, limit: 100, search: "" });
-        socket.emit("getMyGroups", { page: 1, limit: 100, search: "" });
+        // Refresh lists to update last-message previews
+        socketRef.current?.emit("UserList", { page: 1, limit: 100, search: "" });
+        socketRef.current?.emit("getMyGroups", { page: 1, limit: 100, search: "" });
         return;
       }
 
+      // Message is in the active room — mark as seen if from someone else
       if (msg.senderId !== uid) {
-        socket.emit("seenMessage", { msg_id: msg.id, roomId: currentRoomRef.current });
+        socketRef.current?.emit("seenMessage", { msg_id: msg.id, roomId: currentRoomRef.current });
       }
 
       setMessages(prev => {
@@ -652,30 +692,36 @@ export default function UserChat() {
       });
     });
 
+    // ✅ Backend seenMessage response: { success, data, msg_id, seenBy }
     socket.on("seenMessage", (data) => {
       if (!data?.success) return;
       if (data.msg_id) {
+        // Update specific message by ID
         setMessages(prev =>
           prev.map(m => String(m.id) === String(data.msg_id) ? { ...m, seen: true } : m)
         );
       } else {
+        // Fallback: mark all own messages as seen
         setMessages(prev =>
           prev.map(m => m.senderId === getUserId() ? { ...m, seen: true } : m)
         );
       }
     });
 
+    // ✅ Backend messageToDelete emits `Deleted` with { id } if successful
     socket.on("Deleted", ({ id }) => {
       if (id) setMessages(prev => prev.filter(m => m.id !== id));
     });
 
     // ── Presence & typing ────────────────────────────────────────────────────
+    // ✅ Backend `online` event just re-emits online status; refresh user list
     socket.on("onlineUser", (res) => {
       if (res?.success) {
-        socket.emit("UserList", { page: 1, limit: 100, search: "" });
+        socketRef.current?.emit("UserList", { page: 1, limit: 100, search: "" });
       }
     });
 
+    // ✅ Backend typing: io.to(data.roomId).emit("typing", data) — forwards as-is
     socket.on("typing", ({ roomId, userId: typingUid, isTyping }) => {
       if (roomId !== currentRoomRef.current || typingUid === getUserId()) return;
       if (!isTyping) { setTypingUser(null); return; }
@@ -685,6 +731,7 @@ export default function UserChat() {
       typingTimerRef.current = setTimeout(() => setTypingUser(null), 3000);
     });
 
+    // ✅ Backend joinRoom emits `roomJoined` back to the joining socket
     socket.on("roomJoined", ({ roomId }) => {
       console.log("Joined room:", roomId);
     });
@@ -756,13 +803,16 @@ export default function UserChat() {
       );
     }
 
+    // ✅ joinRoom: backend creates room if not exists, adds participant, joins socket.io room
     socket.emit("joinRoom", { roomId, type: grp ? "group" : "private", members: [] });
 
     const loadTimer = setTimeout(() => {
+      // ✅ mychats: backend returns paginated messages for this room
       socket.emit("mychats", { roomId, page: 1 });
     }, 150);
 
     if (grp) {
+      // ✅ getGroupDetails: backend returns all participants with user info
       socket.emit("getGroupDetails", { roomId });
     }
 
@@ -832,6 +882,9 @@ export default function UserChat() {
   };
 
   // ── Send message ───────────────────────────────────────────────────────────
+  // ✅ Backend sendMessage payload: { roomId, message }
+  // Extra media fields (mediaUrl, mediaType, etc.) are supported if your backend
+  // Message model has those columns; otherwise upload the file first and send the URL.
   const sendMessage = async (e) => {
     e?.preventDefault();
     const text = messageText.trim();
@@ -870,6 +923,7 @@ export default function UserChat() {
   };
 
   // ── Typing indicator ───────────────────────────────────────────────────────
+  // ✅ Backend typing: io.to(data.roomId).emit("typing", data) — just forwards the payload
   const handleTyping = () => {
     const socket = socketRef.current;
     if (!socket || !currentRoomRef.current) return;
@@ -889,23 +943,19 @@ export default function UserChat() {
   };
 
   // ── Message actions ────────────────────────────────────────────────────────
+  // ✅ Backend messageToDelete: { id, senderId } — only deletes if senderId matches
   const deleteMessage = (msg) => {
     socketRef.current?.emit("messageToDelete", { id: msg.id, senderId: msg.senderId });
     setContextMenu(null);
   };
 
-  /**
-   * Forward: since the backend has no dedicated forwardMessage handler,
-   * we join the target room first, then sendMessage with the same content.
-   */
+  // ✅ Forward: join target room first, then sendMessage with same content
   const handleForward = (targetRoomId) => {
     const socket = socketRef.current;
     if (!socket || !forwardMsg) return;
 
-    // Join target room first
     socket.emit("joinRoom", { roomId: targetRoomId, type: "private", members: [] });
 
-    // Small delay then send
     setTimeout(() => {
       socket.emit("sendMessage", {
         roomId: targetRoomId,
@@ -924,6 +974,7 @@ export default function UserChat() {
   };
 
   // ── Group actions ──────────────────────────────────────────────────────────
+  // ✅ Backend createGroup: { members, name } — name maps to groupName in DB
   const createGroup = () => {
     if (!newGroupName.trim() || !selectedMembers.length || isCreatingGroup) return;
     setIsCreatingGroup(true);
@@ -934,6 +985,7 @@ export default function UserChat() {
     setTimeout(() => setIsCreatingGroup(false), 5000);
   };
 
+  // ✅ Backend updateGroupName: { roomId, newName }
   const renameGroup = () => {
     if (!editNameValue.trim()) return;
     socketRef.current?.emit("updateGroupName", {
@@ -943,12 +995,14 @@ export default function UserChat() {
     setEditNameMode(false);
   };
 
+  // ✅ Backend leaveGroup: { roomId } — emits `memberLeft` to room + `leaveGroup` to self
   const leaveGroup = () => {
     if (!window.confirm("Leave this group?")) return;
     socketRef.current?.emit("leaveGroup", { roomId: activeChat.roomId });
     setShowGroupMenu(false);
   };
 
+  // ✅ Backend deleteGroup: { roomId } — deletes messages, participants, room; emits `groupDeleted`
   const deleteGroup = () => {
     if (!window.confirm("Delete this group for everyone? This cannot be undone.")) return;
     socketRef.current?.emit("deleteGroup", { roomId: activeChat.roomId });
@@ -961,6 +1015,8 @@ export default function UserChat() {
     socketRef.current?.emit("getGroupDetails", { roomId: activeChat.roomId });
   };
 
+  // ✅ Backend removeGroupMember: { roomId, memberIdToRemove }
+  // Emits `leaveGroup` with { roomId, removedMember, removedBy } to the whole room
   const removeMember = (id) => {
     if (!window.confirm("Remove this member?")) return;
     socketRef.current?.emit("removeGroupMember", {
@@ -969,6 +1025,7 @@ export default function UserChat() {
     });
   };
 
+  // ✅ Backend addGroupMembers: { roomId, newMembers[] }
   const addMembers = () => {
     if (!selectedNewMembers.length) return;
     socketRef.current?.emit("addGroupMembers", {
@@ -1028,7 +1085,7 @@ export default function UserChat() {
 
       {/* ══ GLOBAL ERROR BANNER ══════════════════════════════════════════════ */}
       {error && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 bg-red-500/20custom-borderborder-red-500/40 text-red-300 px-5 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 bg-red-500/20 custom-border border-red-500/40 text-red-300 px-5 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
           <span className="text-sm font-medium">⚠️ {error}</span>
           <div onClick={() => setError(null)} className="cursor-pointer hover:text-red-200 p-1"><IoClose size={16} /></div>
         </div>
@@ -1064,7 +1121,7 @@ export default function UserChat() {
               onKeyDown={e => e.key === "Enter" && createGroup()}
               placeholder="e.g. Design Team"
               autoFocus
-              className="w-full px-4 py-2.5 dark:bg-[#1C1E2A] bg-gray-100 textcustom-borderborder-white/5 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#5A77FF] transition-all"
+              className="w-full px-4 py-2.5 dark:bg-[#1C1E2A] bg-gray-100 text custom-border border-white/5 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-[#5A77FF] transition-all"
             />
           </div>
           <div>
@@ -1078,7 +1135,7 @@ export default function UserChat() {
               {selectedMembers.map(id => {
                 const u = users.find(x => x.id === id);
                 return (
-                  <span key={id} className="flex items-center gap-1 bg-[#5A77FF]/20 text-[#7C93FF] text-xs font-medium px-2.5 py-1 rounded-fullcustom-borderborder-[#5A77FF]/30">
+                  <span key={id} className="flex items-center gap-1 bg-[#5A77FF]/20 text-[#7C93FF] text-xs font-medium px-2.5 py-1 rounded-full custom-border border-[#5A77FF]/30">
                     {getFullName(u)}
                     <div onClick={() => setSelectedMembers(prev => prev.filter(m => m !== id))} className="cursor-pointer hover:text ml-0.5">
                       <IoClose size={13} />
@@ -1117,7 +1174,7 @@ export default function UserChat() {
       {/* ══ FORWARD MODAL ════════════════════════════════════════════════════ */}
       {forwardMsg && (
         <Modal title="Forward Message" onClose={() => { setForwardMsg(null); setForwardSearch(""); }}>
-          <div className="dark:bg-[#1C1E2A] bg-gray-100 rounded-xl p-3 text-sm text-gray-300 italiccustom-borderborder-white/5 truncate">
+          <div className="dark:bg-[#1C1E2A] bg-gray-100 rounded-xl p-3 text-sm text-gray-300 italic custom-border border-white/5 truncate">
             {forwardMsg.mediaUrl ? `📎 ${forwardMsg.originalName || "File"}` : `"${forwardMsg.text}"`}
           </div>
           <SearchInput value={forwardSearch} onChange={setForwardSearch} placeholder="Search conversations…" />
@@ -1170,7 +1227,7 @@ export default function UserChat() {
               {selectedNewMembers.map(id => {
                 const u = users.find(x => x.id === id);
                 return (
-                  <span key={id} className="flex items-center gap-1 bg-[#5A77FF]/20 text-[#7C93FF] text-xs font-medium px-2.5 py-1 rounded-fullcustom-borderborder-[#5A77FF]/30">
+                  <span key={id} className="flex items-center gap-1 bg-[#5A77FF]/20 text-[#7C93FF] text-xs font-medium px-2.5 py-1 rounded-full custom-border border-[#5A77FF]/30">
                     {getFullName(u)}
                     <div onClick={() => setSelectedNewMembers(prev => prev.filter(m => m !== id))} className="cursor-pointer hover:text">
                       <IoClose size={13} />
@@ -1207,7 +1264,7 @@ export default function UserChat() {
         <div
           ref={menuRef}
           style={{ top: contextMenu.y, left: contextMenu.x, position: "fixed", zIndex: 9999 }}
-          className="translucent-background rounded-xl shadow-2xlcustom-borderborder-white/10 overflow-hidden min-w-[160px] py-1"
+          className="translucent-background rounded-xl shadow-2xl custom-border border-white/10 overflow-hidden min-w-[160px] py-1"
         >
           <MenuItem
             icon={<IoArrowUndo size={15} className="text-gray-400" />}
@@ -1232,7 +1289,7 @@ export default function UserChat() {
 
       {/* ══ SIDEBAR ══════════════════════════════════════════════════════════ */}
       <div
-        className={`${sidebarCollapsed ? "w-[72px]" : "w-[320px]"} flex flex-col rounded-2xlcustom-borderborder-white/5 transition-all duration-300 flex-shrink-0 translucent-background relative`}
+        className={`${sidebarCollapsed ? "w-[72px]" : "w-[320px]"} flex flex-col rounded-2xl custom-border border-white/5 transition-all duration-300 flex-shrink-0 translucent-background relative`}
       >
         {/* Sidebar Header */}
         <div className="px-4 py-5 flex-shrink-0">
@@ -1250,7 +1307,6 @@ export default function UserChat() {
                   <IoAdd size={20} />
                 </div>
               )}
-              {/* ✅ SIDEBAR COLLAPSE TOGGLE — was missing before */}
               <div
                 onClick={() => setSidebarCollapsed(prev => !prev)}
                 className="p-1.5 bg-white/5 text-gray-300 hover:text rounded-lg transition-all cursor-pointer"
@@ -1385,7 +1441,7 @@ export default function UserChat() {
       </div>
 
       {/* ══ CHAT AREA ════════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col overflow-hidden rounded-2xlcustom-borderborder-white/5 translucent-background min-w-0">
+      <div className="flex-1 flex flex-col overflow-hidden rounded-2xl custom-border border-white/5 translucent-background min-w-0">
         {activeChat ? (
           <>
             {/* Chat Header */}
@@ -1400,7 +1456,7 @@ export default function UserChat() {
                         onChange={e => setEditNameValue(e.target.value)}
                         onKeyDown={e => { if (e.key === "Enter") renameGroup(); if (e.key === "Escape") setEditNameMode(false); }}
                         autoFocus
-                        className="dark:bg-[#1C1E2A] bg-gray-100 textcustom-borderborder-white/10 rounded-lg px-2.5 py-1 text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-[#5A77FF]"
+                        className="dark:bg-[#1C1E2A] bg-gray-100 text custom-border border-white/10 rounded-lg px-2.5 py-1 text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-[#5A77FF]"
                       />
                       <div onClick={renameGroup} className="text-white bg-emerald-500 hover:bg-emerald-600 p-1.5 rounded-lg cursor-pointer">
                         <IoCheckmark size={14} />
@@ -1423,7 +1479,6 @@ export default function UserChat() {
               </div>
 
               <div className="flex items-center gap-4">
-                {/* ✅ Online status uses unified onlineStatus/onlineSatus check */}
                 {!isGroup && (activeChat.onlineStatus === "online" || activeChat.onlineSatus === "online") && (
                   <span className="text-sm text-emerald-400 font-medium flex items-center gap-1.5">
                     <span className="w-2 h-2 bg-emerald-400 rounded-full inline-block animate-pulse" />
@@ -1439,7 +1494,7 @@ export default function UserChat() {
                       <IoEllipsisVertical size={20} />
                     </div>
                     {showGroupMenu && (
-                      <div className="absolute right-0 top-full mt-1.5 w-52 dark:bg-[#1C1E2A] bg-white rounded-xl shadow-2xlcustom-borderborder-white/10 overflow-hidden z-50 py-1">
+                      <div className="absolute right-0 top-full mt-1.5 w-52 dark:bg-[#1C1E2A] bg-white rounded-xl shadow-2xl custom-border border-white/10 overflow-hidden z-50 py-1">
                         <MenuItem icon={<IoPeople size={15} className="text-gray-400" />} label="View Members" onClick={openMembers} />
                         <MenuItem
                           icon={<IoPersonAdd size={15} className="text-gray-400" />}
@@ -1470,7 +1525,7 @@ export default function UserChat() {
             >
               {isLoadingMore && (
                 <div className="flex justify-center py-3">
-                  <div className="flex items-center gap-2 dark:bg-[#1C1E2A] bg-gray-100custom-borderborder-white/5 rounded-full px-4 py-2 shadow-sm">
+                  <div className="flex items-center gap-2 dark:bg-[#1C1E2A] bg-gray-100 custom-border border-white/5 rounded-full px-4 py-2 shadow-sm">
                     <div className="w-4 h-4 custom-border border-[#5A77FF] border-t-transparent rounded-full animate-spin" />
                     <span className="text-xs text-gray-400 font-medium">Loading older messages…</span>
                   </div>
@@ -1522,14 +1577,14 @@ export default function UserChat() {
                             >
                               <div
                                 onClick={() => { setReplyTo(msg); textareaRef.current?.focus(); }}
-                                className="p-1.5 rounded-full dark:bg-[#1C1E2A] bg-gray-200custom-borderborder-white/5 hover:bg-white/10 text-gray-400 cursor-pointer"
+                                className="p-1.5 rounded-full dark:bg-[#1C1E2A] bg-gray-200 custom-border border-white/5 hover:bg-white/10 text-gray-400 cursor-pointer"
                                 title="Reply"
                               >
                                 <IoArrowUndo size={13} />
                               </div>
                               <div
                                 onClick={() => setForwardMsg(msg)}
-                                className="p-1.5 rounded-full dark:bg-[#1C1E2A] bg-gray-200custom-borderborder-white/5 hover:bg-white/10 text-gray-400 cursor-pointer"
+                                className="p-1.5 rounded-full dark:bg-[#1C1E2A] bg-gray-200 custom-border border-white/5 hover:bg-white/10 text-gray-400 cursor-pointer"
                                 title="Forward"
                               >
                                 <IoArrowForward size={13} />
@@ -1537,7 +1592,7 @@ export default function UserChat() {
                               {own && (
                                 <div
                                   onClick={() => deleteMessage(msg)}
-                                  className="p-1.5 rounded-full dark:bg-[#1C1E2A] bg-gray-200 custom-borde rborder-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 cursor-pointer"
+                                  className="p-1.5 rounded-full dark:bg-[#1C1E2A] bg-gray-200 custom-border border-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 cursor-pointer"
                                   title="Delete"
                                 >
                                   <IoTrash size={13} />
@@ -1673,7 +1728,7 @@ export default function UserChat() {
               )}
 
               <div className="flex items-end gap-3">
-                <div className="flex-1 dark:bg-[#1C1E2A] bg-gray-100custom-borderborder-white/5 rounded-[14px] px-4 py-3 flex items-center min-w-0">
+                <div className="flex-1 dark:bg-[#1C1E2A] bg-gray-100 custom-border border-white/5 rounded-[14px] px-4 py-3 flex items-center min-w-0">
                   <textarea
                     ref={textareaRef}
                     rows={1}
@@ -1702,13 +1757,13 @@ export default function UserChat() {
                     className={`flex items-center gap-2 px-4 py-3 rounded-[14px] transition-all font-medium text-[14px] h-full
                       ${showAttachMenu
                         ? "bg-white/10 text-white"
-                        : "dark:bg-[#1C1E2A] bg-gray-100custom-borderborder-white/5 text-gray-300 hover:text hover:bg-white/5"}`}
+                        : "dark:bg-[#1C1E2A] bg-gray-100 custom-border border-white/5 text-gray-300 hover:text hover:bg-white/5"}`}
                   >
                     <IoAttach size={19} />
                     <span className="hidden sm:inline">Attach</span>
                   </button>
                   {showAttachMenu && (
-                    <div className="absolute bottom-full mb-2 right-0 dark:bg-[#1C1E2A] bg-white rounded-xl shadow-2xlcustom-borderborder-white/10 py-1.5 w-48 z-20 overflow-hidden">
+                    <div className="absolute bottom-full mb-2 right-0 dark:bg-[#1C1E2A] bg-white rounded-xl shadow-2xl custom-border border-white/10 py-1.5 w-48 z-20 overflow-hidden">
                       <div
                         onClick={() => imageInputRef.current?.click()}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 cursor-pointer transition-colors"
@@ -1741,7 +1796,7 @@ export default function UserChat() {
                   className={`flex items-center gap-2 px-5 py-3 rounded-[14px] transition-all font-semibold text-[14px] flex-shrink-0
                     ${canSend
                       ? "bg-gradient-to-r from-[#5A77FF] to-[#A052FF] text-white hover:opacity-90 cursor-pointer"
-                      : "dark:bg-[#1C1E2A] bg-gray-100 text-gray-500 cursor-not-allowedcustom-borderborder-white/5"}`}
+                      : "dark:bg-[#1C1E2A] bg-gray-100 text-gray-500 cursor-not-allowed custom-border border-white/5"}`}
                 >
                   {isUploading
                     ? <div className="w-4 h-4 custom-border border-white border-t-transparent rounded-full animate-spin" />
@@ -1783,7 +1838,7 @@ export default function UserChat() {
 
       {/* ══ GROUP MEMBERS PANEL ══════════════════════════════════════════════ */}
       {showMembersPanel && isGroup && (
-        <div className="w-[270px]custom-borderborder-white/5 rounded-2xl flex flex-col translucent-background flex-shrink-0">
+        <div className="w-[270px] custom-border border-white/5 rounded-2xl flex flex-col translucent-background flex-shrink-0">
           <div className="px-5 py-5 border-b border-white/5 flex items-center justify-between flex-shrink-0">
             <h4 className="text-[14px] font-bold text">Members ({groupMembers.length})</h4>
             <div className="flex items-center gap-2">
@@ -1848,7 +1903,7 @@ export default function UserChat() {
         </div>
       )}
 
-      {/* ══ NOTIFICATION TOASTS ══════════════════════════════════════════════ */}
+      {/* ══ NOTIFICATION TOASTS (in-chat overlay) ════════════════════════════ */}
       {notifications.length > 0 && (
         <div className="fixed top-4 right-4 z-[60] flex flex-col gap-2 pointer-events-none">
           {notifications.map(n => (

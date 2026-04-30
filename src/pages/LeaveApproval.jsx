@@ -160,13 +160,13 @@ export default function LeaveApproval() {
       render: (row) => {
         const user = row.user || {};
         const fullName = (user.firstName || "") + " " + (user.lastName || "");
-        return <div className="capitalize font-medium text-slate-800">{fullName.trim() || "—"}</div>;
+        return <div className="capitalize font-medium">{fullName.trim() || "—"}</div>;
       },
     },
-    { key: "email", label: "Email", render: (row) => <div className="break-words max-w-xs text-slate-500">{row.user?.email || "—"}</div> },
-    { key: "from_date", label: "From Date", render: (row) => <div className="font-medium text-slate-700">{row.from_date || "—"}</div> },
-    { key: "to_date", label: "To Date", render: (row) => <div className="font-medium text-slate-700">{row.to_date || "—"}</div> },
-    { key: "reason", label: "Reason", render: (row) => <div className="text-slate-600">{row.reason || "—"}</div> },
+    { key: "email", label: "Email", render: (row) => <div className="break-words max-w-xs ">{row.user?.email || "—"}</div> },
+    { key: "from_date", label: "From Date", render: (row) => <div className="font-medium ">{row.from_date ? row.from_date : "—"}</div> },
+    { key: "to_date", label: "To Date", render: (row) => <div className="font-medium ">{row.to_date ? row.to_date : "—"}</div> },
+    { key: "reason", label: "Reason", render: (row) => <div className="text">{row.reason || "—"}</div> },
     {
       key: "status",
       label: "Status",
@@ -177,7 +177,7 @@ export default function LeaveApproval() {
       label: "Actions",
       render: (row) => {
         if (row.status?.toLowerCase() !== "pending") {
-          return <span className="text-slate-400 italic text-sm">—</span>;
+          return <span className="text italic text-sm">—</span>;
         }
         return (
           <div className="flex items-center gap-2">
@@ -202,9 +202,9 @@ export default function LeaveApproval() {
   ];
 
   const myLeavesColumns = [
-    { key: "from_date", label: "From Date", render: (row) => <div className="font-medium text-slate-700">{row.from_date || "—"}</div> },
-    { key: "to_date", label: "To Date", render: (row) => <div className="font-medium text-slate-700">{row.to_date || "—"}</div> },
-    { key: "reason", label: "Reason", render: (row) => <div className="text-slate-600">{row.reason || "—"}</div> },
+    { key: "from_date", label: "From Date", render: (row) => <div className="font-medium text">{row.from_date || "—"}</div> },
+    { key: "to_date", label: "To Date", render: (row) => <div className="font-medium text">{row.to_date || "—"}</div> },
+    { key: "reason", label: "Reason", render: (row) => <div className="text">{row.reason || "—"}</div> },
     {
       key: "status",
       label: "Status",
