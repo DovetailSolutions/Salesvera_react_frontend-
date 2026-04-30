@@ -3,7 +3,7 @@ import { useFieldArray } from "react-hook-form";
 import { Building2, Globe, Mail, Phone, Landmark, ChevronRight, Upload, Lock, Plus, Trash2 } from "lucide-react";
 import Field from "../ui/Field";
 import { SectionTitle, SubSection } from "../ui/SectionTitle";
-import { inputCls, selectCls } from "../ui/inputStyles";
+import { inputCls, selectCls } from "../ui/InputStyles";
 import { INDUSTRIES, COMPANY_SIZES, TIMEZONES, CURRENCIES, ACCOUNT_TYPES } from "../Constants";
 
 const emptyBankDetails = {

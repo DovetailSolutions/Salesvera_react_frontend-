@@ -273,6 +273,8 @@ export default function Category() {
           unit: subFormData.unit,
           hsnCode: subFormData.hsnCode.trim(),
           tax: Number(subFormData.tax),
+          unit: subFormData.unit,
+          hsn: subFormData.hsn.trim(),
           CategoryId: selectedCategory.id,
         };
         const res = await menuapi.createSubCategory(payload);

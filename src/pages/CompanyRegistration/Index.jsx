@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { ChevronRight, ChevronLeft, Check, Loader2, Trash2 } from "lucide-react";
 
 import { adminApi, authApi, companyApi } from "../../api/index";
-import { STEPS, DEFAULT_BRANCH } from "./constants";
+import { STEPS, DEFAULT_BRANCH } from "./Constants";
 
 import Step1 from "./steps/Step1";
 import Step2 from "./steps/Step2";

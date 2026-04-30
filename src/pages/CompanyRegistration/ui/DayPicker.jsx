@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { ALL_DAYS, DAY_COLORS } from "../constants";
+import { ALL_DAYS, DAY_COLORS } from "../Constants";
 
 const DayPicker = ({ selected, onChange }) => {
   const toggle = (day) =>

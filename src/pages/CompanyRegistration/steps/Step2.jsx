@@ -3,9 +3,14 @@ import { MapPin, Mail, Phone, ChevronRight, Trash2, Plus, Map } from "lucide-rea
 import { useFieldArray, useWatch } from "react-hook-form";
 import Field from "../ui/Field";
 import { SectionTitle, SubSection } from "../ui/SectionTitle";
+<<<<<<< HEAD
 import { inputCls, selectCls } from "../ui/inputStyles";
 import { DEFAULT_BRANCH } from "../Constants";
 import MapPicker from "./MapPicker";
+=======
+import { inputCls, selectCls } from "../ui/InputStyles";
+import { DEFAULT_BRANCH } from "../Constants";
+>>>>>>> 865fa3d2c0ed0db61a651e436c665412bdf65a06
 
 // ─── Put your Google Maps API key here (or pass it via env) ───────────────────
 const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? "";
